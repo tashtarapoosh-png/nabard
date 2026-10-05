@@ -96,7 +96,7 @@ body.battle-background.battle-defender-view::before{content:"";position:fixed;in
   }
 </style></head>
 <body>
-<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
+<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="resetAllBattlesBtn" class="exit">بستن همه نبردها</button></div></div></section>
 <section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -932,6 +932,7 @@ renderCastles();
   /* انتخاب قلعه همچنان فقط انتخاب محلی است؛ اطلاعات قلعه از SQL خوانده می‌شود. */
   window.openCastle=async function(id){
     selectedCastleId=Number(id);
+    u.castle=Number(id);
     try{
       await syncState();
       const stats=document.querySelectorAll("#castle .stat b");
@@ -1205,8 +1206,9 @@ renderCastles();
           const side=unit.side==="مهاجم"?1:2;
           const src=imgType ? ("/images/" + imgType + (side===1 ? "1" : "2") + ".png") : "";
           const canSelect=String(unit.castle)===String(u.castle);
-          out+='<button type="button" class="battle-unit '+(canSelect?"selectable":"not-selectable")+'">';
+          out+='<button type="button" class="battle-unit '+(canSelect?"selectable":"not-selectable")+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
           out+='<img src="'+src+'" alt="'+unit.type+'">';
+          out+='<span class="unit-image-fallback">'+unit.type+'</span>';
           out+='<span class="army-number">'+((battle.armies||[]).findIndex(a=>(a.units||[]).some(z=>String(z.id)===String(unit.id)))+1)+'</span>';
           out+='<span class="unit-count">'+unit.count+'</span></button>';
         }
@@ -1217,6 +1219,63 @@ renderCastles();
     out+='</div></div>';
     scene.innerHTML=out;
     scene.style.display="block";
+
+    // انتخاب نیروهای خود بازیکن و انتخاب خانه مقصد مثل صحنه آفلاین
+    let selectedUnitId=null;
+    const moveRange=function(unit){
+      const range=(unit.rawType==="cavalry")?2:1;
+      const cells=[];
+      for(let y=Math.max(0,Number(unit.y)-range);y<=Math.min(19,Number(unit.y)+range);y++){
+        for(let x=Math.max(0,Number(unit.x)-range);x<=Math.min(11,Number(unit.x)+range);x++){
+          if(x===Number(unit.x)&&y===Number(unit.y))continue;
+          cells.push(String.fromCharCode(65+y)+(x+1));
+        }
+      }
+      return cells;
+    };
+    const refreshRange=function(){
+      scene.querySelectorAll('.battle-cell.move-option').forEach(c=>c.classList.remove('move-option'));
+      scene.querySelectorAll('.battle-cell.move-target').forEach(c=>c.classList.remove('move-target'));
+      if(!selectedUnitId)return;
+      const unit=units.find(item=>String(item.id)===String(selectedUnitId));
+      if(!unit)return;
+      const range=new Set(moveRange(unit));
+      scene.querySelectorAll('.battle-cell').forEach(c=>{
+        if(range.has(c.dataset.cell))c.classList.add('move-option');
+      });
+      if(unit.moveTarget){
+        const target=scene.querySelector('.battle-cell[data-cell="'+unit.moveTarget+'"]');
+        if(target)target.classList.add('move-target');
+      }
+    };
+    const selectUnit=function(unit){
+      selectedUnitId=String(unit.id);
+      scene.querySelectorAll('.battle-unit.selected').forEach(x=>x.classList.remove('selected'));
+      const btn=scene.querySelector('.battle-unit[data-unit-id="'+unit.id+'"]');
+      if(btn)btn.classList.add('selected');
+      scene.querySelectorAll('.battle-cell.selected-cell').forEach(x=>x.classList.remove('selected-cell'));
+      const cell=scene.querySelector('.battle-cell[data-cell="'+unit.cell+'"]');
+      if(cell)cell.classList.add('selected-cell');
+      refreshRange();
+    };
+    scene.querySelectorAll('.battle-unit').forEach(btn=>{
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        const unit=units.find(item=>String(item.id)===String(this.dataset.unitId));
+        if(unit && String(unit.castle)===String(u.castle))selectUnit(unit);
+      });
+    });
+    scene.querySelectorAll('.battle-cell').forEach(cell=>{
+      cell.addEventListener('click',function(){
+        if(!selectedUnitId)return;
+        const unit=units.find(item=>String(item.id)===String(selectedUnitId));
+        if(!unit)return;
+        const destination=this.dataset.cell;
+        if(!moveRange(unit).includes(destination))return;
+        unit.moveTarget=destination;
+        refreshRange();
+      });
+    });
   };
 
   document.getElementById("randomDefenseBtn").onclick=window.randomizeAllDefenses;
@@ -1225,6 +1284,21 @@ renderCastles();
   document.getElementById("saveDefense").onclick=window.saveDefense;
   document.getElementById("startAttack").onclick=window.startAttack;
   document.getElementById("battleSceneBtn").onclick=window.viobat;
+  document.getElementById("resetAllBattlesBtn").onclick=async function(){
+    if(!confirm("همه نبردها، حمله‌های در حال حرکت و وضعیت دفاعی پاک شود و بازی به حالت ابتدای نصب برگردد؟"))return;
+    try{
+      await api("/reset-game",{method:"POST"});
+      selectedCastleId=null;
+      selectedTargetId=null;
+      attackData=null;
+      currentBattleForScene=null;
+      Object.keys(battleRegistry).forEach(k=>delete battleRegistry[k]);
+      await syncState();
+      renderCastles();
+      show("select");
+      alert("همه نبردها بسته شد و بازی به حالت ابتدای نصب برگشت.");
+    }catch(e){ alert(e.message); }
+  };
 
   /* بعد از لود اولیه، داده SQL جای داده محلی را می‌گیرد. */
   onlineInit();
