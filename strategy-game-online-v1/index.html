@@ -671,6 +671,42 @@ async function persistBattleMovement(battle){
   }
 }
 
+async function refreshBattleFromSql(){
+  if(typeof sqlConnected==="undefined" || !sqlConnected)return getCurrentBattle();
+  const current=getCurrentBattle();
+  if(!current || !current.batId)return current;
+  try{
+    const saved=await api("/api/battle/"+encodeURIComponent(current.batId)+"/state",{method:"GET"});
+    if(saved.battle){
+      battleRegistry[String(saved.battle.targetId)]=saved.battle;
+      currentBattleForScene=saved.battle;
+      return saved.battle;
+    }
+  }catch(err){
+    console.error("خواندن وضعیت نبرد از SQL ناموفق بود:",err);
+  }
+  return getCurrentBattle();
+}
+
+async function persistBattleCombat(battle){
+  if(!battle || !battle.batId)return false;
+  if(typeof sqlConnected==="undefined" || !sqlConnected)return false;
+  try{
+    const saved=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/state",{
+      method:"PUT",
+      body:JSON.stringify({armies:battle.armies})
+    });
+    if(saved.battle){
+      battleRegistry[String(saved.battle.targetId)]=saved.battle;
+      currentBattleForScene=saved.battle;
+    }
+    return true;
+  }catch(err){
+    console.error("ذخیره نتیجه نبرد در SQL ناموفق بود:",err);
+    return false;
+  }
+}
+
 async function applyRoundMoves(){
   // پایان راند: خود سرور مقصدهای ذخیره‌شده در SQL را به x/y/cell تبدیل می‌کند.
   let battle=currentBattleForScene || getCurrentBattle();
@@ -726,9 +762,16 @@ function rand(){
       randwar++;
       randRemainingSeconds=20;
 
-      // دقیقاً در لحظه صفر شدن تایمر: jang سپس fotjang سپس sidchek و در پایان حرکت.
+      // دقیقاً در لحظه صفر شدن تایمر: وضعیت فعلی از SQL خوانده می‌شود،
+      // سپس همان منطق موجود jang و fotjang اجرا و نتیجه دوباره در SQL ذخیره می‌شود.
+      await refreshBattleFromSql();
       jang();
       fotjang();
+      const battleAfterCombat=getCurrentBattle();
+      if(battleAfterCombat){
+        const saved=await persistBattleCombat(battleAfterCombat);
+        if(!saved)return;
+      }
       const battleEnded=sidchek();
       if(!battleEnded){
         await applyRoundMoves();
