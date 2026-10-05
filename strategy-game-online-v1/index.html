@@ -105,6 +105,7 @@ body.battle-background.battle-defender-view::before{content:"";position:fixed;in
 <section id="timerScreen" class="screen"><div class="card"><h2>نیرو در حال حرکت است</h2><div id="timer" class="timer">00:10</div><div id="timerInfo" class="notice"></div></div></section>
 <section id="battle" class="screen"><div class="card battle-card"><img class="battle-castle-image" src="images/castle.png" alt="قلعه"><img class="battle-tent-image" src="images/tent.png" alt="چادر"><div id="randTimerBox" class="rand-timer-box"><div id="randTimerValue" class="rand-timer-value">00:20</div><div id="randWarValue" class="rand-war-value">راند: 0</div></div><h2>نتیجه نبرد</h2><p id="battleText">آماده نبرد</p><div class="actions" style="margin:14px 0">
   <button id="battleSceneBtn">نمایش صحنه نبرد</button>
+  <button id="endBattleBtn" class="exit">پایان نبرد</button>
 </div>
 <div id="battleTables"></div>
 <div id="battleScene" style="display:none"></div><div class="actions" style="margin-top:14px"><button id="battleBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -876,6 +877,7 @@ document.getElementById("startAttack").onclick=startAttack;
 
 
 document.getElementById("battleSceneBtn").onclick=viobat;
+document.getElementById("endBattleBtn").onclick=()=>endbat();
 document.getElementById("battleBtn").onclick=()=>{
   u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
   show("battle");

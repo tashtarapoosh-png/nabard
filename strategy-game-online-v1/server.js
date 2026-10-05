@@ -627,6 +627,9 @@ app.use(express.static(__dirname, {
   extensions: ["html"]
 }));
 
+// تصاویر بازی در public/images قرار دارند.
+app.use("/images", express.static(path.join(__dirname, "public", "images")));
+
 initDb()
   .then(()=>{
     app.listen(PORT,()=>console.log(`Game server listening on ${PORT}`));
