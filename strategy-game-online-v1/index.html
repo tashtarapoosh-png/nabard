@@ -1203,7 +1203,7 @@ renderCastles();
         if(unit){
           const imgType=unit.rawType||"";
           const side=unit.side==="مهاجم"?1:2;
-          const src=(images[imgType]&&images[imgType][side])?images[imgType][side].src:"";
+          const src=imgType ? ("/images/" + imgType + (side===1 ? "1" : "2") + ".png") : "";
           const canSelect=String(unit.castle)===String(u.castle);
           out+='<button type="button" class="battle-unit '+(canSelect?"selectable":"not-selectable")+'">';
           out+='<img src="'+src+'" alt="'+unit.type+'">';
