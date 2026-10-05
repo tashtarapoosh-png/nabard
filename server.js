@@ -234,6 +234,65 @@ async function currentBattleForCastle(castleId){
   return battleJson(r.rows[0]);
 }
 
+app.put("/api/battle/:id/move", async (req,res)=>{
+  const id=Number(req.params.id);
+  const unitId=String(req.body?.unitId||"");
+  const destination=String(req.body?.destination||"");
+  const castleId=Number(req.body?.castleId);
+
+  const x=Number(destination.slice(1))-1;
+  const y="ABCDEFGHIJKLMNOPQRST".indexOf(destination[0]);
+  if(!Number.isInteger(id)||!unitId||!Number.isInteger(castleId)||x<0||x>11||y<0||y>19){
+    return res.status(400).json({error:"مقصد حرکت نامعتبر است."});
+  }
+
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const q=await client.query(
+      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
+      [id]
+    );
+    if(!q.rows[0]){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    }
+
+    const battle=q.rows[0];
+    const armies=Array.isArray(battle.armies)?battle.armies:[];
+    let found=false;
+    for(const army of armies){
+      for(const unit of (army.units||[])){
+        if(String(unit.id)!==unitId)continue;
+        if(String(unit.castle)!==String(castleId)){
+          await client.query("ROLLBACK");
+          return res.status(403).json({error:"این نیرو متعلق به این قلعه نیست."});
+        }
+        unit.moveTarget=destination;
+        found=true;
+        break;
+      }
+      if(found)break;
+    }
+
+    if(!found){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"واحد نیرو پیدا نشد."});
+    }
+
+    const updated=await client.query(
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 RETURNING *",
+      [JSON.stringify(armies),id]
+    );
+    await client.query("COMMIT");
+    res.json({ok:true,battle:battleJson(updated.rows[0])});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({error:"ذخیره مقصد حرکت ناموفق بود."});
+  }finally{client.release();}
+});
+
 app.put("/api/battle/:id/state", async (req,res)=>{
   const id=Number(req.params.id);
   const armies=Array.isArray(req.body.armies)?req.body.armies:null;
