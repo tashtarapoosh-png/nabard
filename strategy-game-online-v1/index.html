@@ -493,9 +493,16 @@ function viobat(){
         const battleNow=getCurrentBattle();
         if(battleNow && battleNow.batId){
           // مقصد باید قبل از ادامه کار راند با موفقیت در SQL ثبت شود.
+          const destinationXY=cellXY(destination);
           api("/api/battle/"+encodeURIComponent(battleNow.batId)+"/move",{
             method:"PUT",
-            body:JSON.stringify({unitId:unit.id,destination,castleId:u.castle})
+            body:JSON.stringify({
+              unitId:unit.id,
+              destination,
+              x:destinationXY.x,
+              y:destinationXY.y,
+              castleId:u.castle
+            })
           }).then(data=>{
             if(data.battle){
               battleRegistry[String(data.battle.targetId)]=data.battle;
