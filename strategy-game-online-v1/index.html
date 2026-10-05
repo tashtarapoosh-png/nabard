@@ -96,7 +96,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   }
 </style></head>
 <body>
-<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
+<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
 <section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -193,6 +193,27 @@ function randomizeAllDefenses(){
   }
 
   alert("چینش دفاعی تصادفی برای همه قلعه‌ها ساخته شد.");
+}
+
+async function resetGameData(){
+  const ok=confirm("تمام اطلاعات ذخیره‌شده بازی، شامل قلعه‌ها، حمله‌ها و نبردهای قبلی، از SQL پاک و قلعه‌های ۱ تا ۱۱ از نو ساخته می‌شوند. ادامه می‌دهید؟");
+  if(!ok)return;
+
+  const button=document.getElementById("resetGameBtn");
+  if(button)button.disabled=true;
+  try{
+    const data=await api("/api/reset-game",{method:"POST",body:"{}"});
+    applyServerCastles(data.castles);
+    selectedCastleId=null;
+    selectedTargetId=null;
+    attackData=null;
+    alert("اطلاعات بازی کاملاً پاک و از نو ساخته شد.");
+    renderCastles();
+  }catch(e){
+    alert(e.message||"پاک‌سازی اطلاعات ناموفق بود.");
+  }finally{
+    if(button)button.disabled=false;
+  }
 }
 
 function renderCastles(){
@@ -493,16 +514,9 @@ function viobat(){
         const battleNow=getCurrentBattle();
         if(battleNow && battleNow.batId){
           // مقصد باید قبل از ادامه کار راند با موفقیت در SQL ثبت شود.
-          const destinationXY=cellXY(destination);
           api("/api/battle/"+encodeURIComponent(battleNow.batId)+"/move",{
             method:"PUT",
-            body:JSON.stringify({
-              unitId:unit.id,
-              destination,
-              x:destinationXY.x,
-              y:destinationXY.y,
-              castleId:u.castle
-            })
+            body:JSON.stringify({unitId:unit.id,destination,castleId:u.castle})
           }).then(data=>{
             if(data.battle){
               battleRegistry[String(data.battle.targetId)]=data.battle;
@@ -912,6 +926,7 @@ function getCurrentBattle(){
 }
 
 document.getElementById("randomDefenseBtn").onclick=randomizeAllDefenses;
+document.getElementById("resetGameBtn").onclick=resetGameData;
 
 document.getElementById("attackBtn").onclick=()=>{
   renderTargets();

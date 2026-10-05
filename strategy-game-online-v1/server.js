@@ -27,6 +27,7 @@ async function initDb(){
     throw new Error("DATABASE_URL تنظیم نشده است.");
   }
 
+  // هر دستور SQL جداگانه اجرا می‌شود تا pg آن را به prepared statement معتبر تبدیل کند.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS castles (
       id INTEGER PRIMARY KEY,
@@ -72,7 +73,6 @@ async function initDb(){
     ON CONFLICT (id) DO NOTHING
   `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
 
-  // برای دیتابیس‌هایی که قبل از اضافه شدن زمان پایان ساخته شده‌اند.
   await pool.query(`
     ALTER TABLE battles
     ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
@@ -251,8 +251,6 @@ app.put("/api/battle/:id/move", async (req,res)=>{
   const battleId=Number(req.params.id);
   const unitId=String(req.body?.unitId||"");
   const destination=String(req.body?.destination||"").toUpperCase();
-  const requestedX=Number(req.body?.x);
-  const requestedY=Number(req.body?.y);
   const castleId=Number(req.body?.castleId);
   const rowMatch=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
 
@@ -263,9 +261,6 @@ app.put("/api/battle/:id/move", async (req,res)=>{
   const y="ABCDEFGHIJKLMNOPQRST".indexOf(rowMatch[1]);
   if(x<0||x>11||y<0||y>19)
     return res.status(400).json({error:"خانه مقصد نامعتبر است."});
-  // مختصات ارسالی فقط برای تطبیق هستند؛ مختصات معتبر از نام خانه محاسبه می‌شوند.
-  if(!Number.isInteger(requestedX)||!Number.isInteger(requestedY)||requestedX!==x||requestedY!==y)
-    return res.status(400).json({error:"مختصات مقصد با خانه انتخاب‌شده یکسان نیست."});
 
   const client=await pool.connect();
   try{
@@ -298,11 +293,8 @@ app.put("/api/battle/:id/move", async (req,res)=>{
       return res.status(403).json({error:"این واحد متعلق به این قلعه نیست."});
     }
 
-    // به محض کلیک مقصد، هم مقصد و هم x/y همان واحد در SQL ذخیره می‌شوند.
-    // اجرای دیداری حرکت همچنان تا پایان راند انجام نمی‌شود.
+    // فقط مقصد ذخیره می‌شود؛ x/y/cell در پایان راند تغییر می‌کنند.
     found.unit.moveTarget=destination;
-    found.unit.x=x;
-    found.unit.y=y;
 
     const updated=await client.query(
       "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
@@ -385,6 +377,33 @@ app.put("/api/battle/:id/state", async (req,res)=>{
   }catch(e){
     console.error(e);
     res.status(500).json({error:"ذخیره موقعیت نیروها ناموفق بود."});
+  }
+});
+
+
+// پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
+app.post("/api/reset-game", async (req,res)=>{
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+
+    // همه نبردها، حمله‌ها و اطلاعات قلعه‌های قبلی حذف می‌شوند.
+    await client.query("TRUNCATE TABLE attacks, battles, castles RESTART IDENTITY CASCADE");
+
+    await client.query(`
+      INSERT INTO castles(id,name,army,defense_slots,under_attack,battle_id)
+      SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb, FALSE, NULL
+      FROM generate_series(1,11) x
+    `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
+
+    await client.query("COMMIT");
+    res.json({ok:true,castles:await getCastles()});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error("reset-game",e);
+    res.status(500).json({error:"پاک‌سازی و بازنویسی اطلاعات بازی ناموفق بود."});
+  }finally{
+    client.release();
   }
 });
 
