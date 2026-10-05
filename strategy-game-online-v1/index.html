@@ -94,6 +94,12 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 }
 @media(max-width:650px){
   }
+
+/* UI-only adjustment: battle page controls and unit labels at 20% of their previous size. */
+.battle-background #battle .actions button{padding:2px 3px;font-size:3.2px;line-height:1.1;border-radius:2px;}
+.battle-background #battle .battle-unit .unit-castle{padding:0.2px 0.8px;font-size:2px;border-radius:0.6px;}
+.battle-background #battle .battle-unit .army-number{padding:0.2px 1px;font-size:2.2px;border-radius:0.6px;}
+.battle-background #battle .battle-unit .unit-count{padding:0.2px 1px;font-size:2px;border-radius:0.6px;}
 </style></head>
 <body>
 <section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
