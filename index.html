@@ -707,7 +707,7 @@ function rand(){
 
 function localBatman(){
   if(!attackData)return;
-  u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
+  u.castle=selectedCastleId;
 
   const blocks={
     "مدافع":[
@@ -922,7 +922,7 @@ document.getElementById("startAttack").onclick=startAttack;
 
 document.getElementById("battleSceneBtn").onclick=viobat;
 document.getElementById("battleBtn").onclick=()=>{
-  u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
+  u.castle=selectedCastleId;
   show("battle");
 };
 document.getElementById("battleBack").onclick=()=>show("castle");
