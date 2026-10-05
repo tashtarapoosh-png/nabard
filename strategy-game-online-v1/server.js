@@ -27,6 +27,8 @@ async function initDb(){
     throw new Error("DATABASE_URL تنظیم نشده است.");
   }
 
+  // PostgreSQL/pg cannot execute multiple commands in one prepared statement
+  // when query parameters are supplied, so each command is sent separately.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS castles (
       id INTEGER PRIMARY KEY,
@@ -35,8 +37,10 @@ async function initDb(){
       defense_slots JSONB NOT NULL,
       under_attack BOOLEAN NOT NULL DEFAULT FALSE,
       battle_id INTEGER
-    );
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS attacks (
       id BIGSERIAL PRIMARY KEY,
       attacker_id INTEGER NOT NULL REFERENCES castles(id),
@@ -47,8 +51,10 @@ async function initDb(){
       arrives_at TIMESTAMPTZ NOT NULL,
       resolved_at TIMESTAMPTZ,
       status TEXT NOT NULL DEFAULT 'pending'
-    );
+    )
+  `);
 
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS battles (
       id BIGSERIAL PRIMARY KEY,
       target_id INTEGER NOT NULL UNIQUE REFERENCES castles(id),
@@ -58,25 +64,36 @@ async function initDb(){
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
       winner_side TEXT
-    );
+    )
+  `);
 
+  await pool.query(`
     INSERT INTO castles(id,name,army,defense_slots)
     SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb
     FROM generate_series(1,11) x
-    ON CONFLICT (id) DO NOTHING;
-  `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
+    ON CONFLICT (id) DO NOTHING
+  `, [JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
 
   // برای دیتابیس‌هایی که قبل از اضافه شدن زمان پایان ساخته شده‌اند.
   await pool.query(`
     ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
+  `);
+
+  await pool.query(`
     UPDATE battles
     SET ends_at = created_at + INTERVAL '30 minutes'
-    WHERE ends_at IS NULL;
+    WHERE ends_at IS NULL
+  `);
+
+  await pool.query(`
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes');
+    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes')
+  `);
+
+  await pool.query(`
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET NOT NULL;
+    ALTER COLUMN ends_at SET NOT NULL
   `);
 }
 
