@@ -601,6 +601,33 @@ app.get("/api/pending", async (req,res)=>{
   }
 });
 
+app.post("/api/reset-game", async(req,res)=>{
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+
+    // بازگشت کامل بازی به وضعیت ابتدای نصب: همه حمله‌ها و نبردها حذف می‌شوند،
+    // نیروهای قلعه‌ها به ۱۰۰ عدد از هر نوع برمی‌گردند و چینش دفاعی پاک می‌شود.
+    await client.query("TRUNCATE TABLE attacks, battles RESTART IDENTITY");
+    await client.query(`
+      UPDATE castles
+      SET army=$1::jsonb,
+          defense_slots=$2::jsonb,
+          under_attack=FALSE,
+          battle_id=NULL
+    `,[JSON.stringify(emptyArmy()),JSON.stringify(emptyDefense())]);
+
+    await client.query("COMMIT");
+    res.json({ok:true,reset:true});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({error:"بازگردانی بازی به حالت ابتدای نصب ناموفق بود."});
+  }finally{
+    client.release();
+  }
+});
+
 app.get("/api/battle/current",async(req,res)=>{
   const castleId=Number(req.query.castleId);
   if(!Number.isInteger(castleId))
