@@ -447,7 +447,7 @@ function viobat(){
       out+='<small>'+cell+'</small>';
 
       if(unit){
-        const canSelect=String(unit.castle)===String(u.castle);
+        const canSelect=String(unit.castle)===String(selectedCastleId);
         const army=battle.armies.find(item=>(item.units||[]).some(itemUnit=>String(itemUnit.id)===String(unit.id)));
         const armyNumber=army ? battle.armies.indexOf(army)+1 : "";
         out+='<button type="button" class="battle-unit '+(canSelect?'selectable':'not-selectable')+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
@@ -476,7 +476,7 @@ function viobat(){
       e.stopPropagation();
       const unit=units.find(item=>String(item.id)===String(this.dataset.unitId));
       if(!unit)return;
-      if(String(unit.castle)===String(u.castle))selectUnit(unit);
+      if(String(unit.castle)===String(selectedCastleId))selectUnit(unit);
     });
   });
 
@@ -1213,7 +1213,7 @@ renderCastles();
           const imgType=unit.rawType||"";
           const side=unit.side==="مهاجم"?1:2;
           const src=imgType ? ("/images/" + imgType + (side===1 ? "1" : "2") + ".png") : "";
-          const canSelect=String(unit.castle)===String(u.castle);
+          const canSelect=String(unit.castle)===String(selectedCastleId);
           out+='<button type="button" class="battle-unit '+(canSelect?"selectable":"not-selectable")+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
           out+='<img src="'+src+'" alt="'+unit.type+'">';
           out+='<span class="unit-image-fallback">'+unit.type+'</span>';
@@ -1270,7 +1270,7 @@ renderCastles();
       btn.addEventListener('click',function(e){
         e.stopPropagation();
         const unit=units.find(item=>String(item.id)===String(this.dataset.unitId));
-        if(unit && String(unit.castle)===String(u.castle))selectUnit(unit);
+        if(unit && String(unit.castle)===String(selectedCastleId))selectUnit(unit);
       });
     });
     scene.querySelectorAll('.battle-cell').forEach(cell=>{
@@ -1281,6 +1281,7 @@ renderCastles();
         const destination=this.dataset.cell;
         if(!moveRange(unit).includes(destination))return;
         unit.moveTarget=destination;
+        currentBattleForScene=battle;
         refreshRange();
       });
     });
