@@ -467,7 +467,7 @@ function viobat(){
       out+='<small>'+cell+'</small>';
 
       if(unit){
-        const canSelect=String(unit.castle)===String(u.castle);
+        const canSelect=String(unit.castle)===String(selectedCastleId);
         const army=battle.armies.find(item=>(item.units||[]).some(itemUnit=>String(itemUnit.id)===String(unit.id)));
         const armyNumber=army ? battle.armies.indexOf(army)+1 : "";
         out+='<button type="button" class="battle-unit '+(canSelect?'selectable':'not-selectable')+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
@@ -496,7 +496,7 @@ function viobat(){
       e.stopPropagation();
       const unit=units.find(item=>String(item.id)===String(this.dataset.unitId));
       if(!unit)return;
-      if(String(unit.castle)===String(u.castle))selectUnit(unit);
+      if(String(unit.castle)===String(selectedCastleId))selectUnit(unit);
     });
   });
 
@@ -516,7 +516,7 @@ function viobat(){
           // مقصد باید قبل از ادامه کار راند با موفقیت در SQL ثبت شود.
           api("/api/battle/"+encodeURIComponent(battleNow.batId)+"/move",{
             method:"PUT",
-            body:JSON.stringify({unitId:unit.id,destination,castleId:u.castle})
+            body:JSON.stringify({unitId:unit.id,destination,castleId:selectedCastleId})
           }).then(data=>{
             if(data.battle){
               battleRegistry[String(data.battle.targetId)]=data.battle;
@@ -1061,6 +1061,7 @@ document.getElementById('battleBtn').onclick=async()=>{
   try{
     const battle=await loadBattleForSelectedCastle();
     if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
+    u.castle=selectedCastleId;
     show('battle'); setBattlePerspective(); viobat(); if(!randStarted)rand();
   }catch(e){alert(e.message);}
 };
