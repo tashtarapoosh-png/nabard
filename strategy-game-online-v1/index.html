@@ -488,33 +488,6 @@ function viobat(){
       if(!moveRange(unit).includes(destination))return;
       unit.moveTarget=destination;
       refreshRange();
-      // مقصد انتخاب‌شده باید همان لحظه در SQL ثبت شود؛ حرکت واقعی فقط در پایان راند انجام می‌شود.
-      if(typeof sqlConnected!=="undefined" && sqlConnected){
-        const battleNow=getCurrentBattle();
-        if(battleNow && battleNow.batId){
-          // مقصد باید قبل از ادامه کار راند با موفقیت در SQL ثبت شود.
-          api("/api/battle/"+encodeURIComponent(battleNow.batId)+"/move",{
-            method:"PUT",
-            body:JSON.stringify({unitId:unit.id,destination,castleId:u.castle})
-          }).then(data=>{
-            if(data.battle){
-              battleRegistry[String(data.battle.targetId)]=data.battle;
-              currentBattleForScene=data.battle;
-              // وضعیت محلی هم از پاسخ SQL تازه می‌شود تا راند بعدی روی داده قدیمی کار نکند.
-              const fresh=data.battle;
-              if(attackData && String(fresh.targetId)===String(attackData.targetId)){
-                battleRegistry[String(fresh.targetId)]=fresh;
-              }
-              viobat();
-            }
-          }).catch(err=>{
-            unit.moveTarget=null;
-            refreshRange();
-            console.error("ذخیره مقصد حرکت ناموفق بود:",err);
-            alert("ذخیره مقصد حرکت در سرور ناموفق بود.");
-          });
-        }
-      }
     });
   });
 }
@@ -644,32 +617,38 @@ async function persistBattleMovement(battle){
   }
 }
 
-async function applyRoundMoves(){
-  // پایان راند: خود سرور مقصدهای ذخیره‌شده در SQL را به x/y/cell تبدیل می‌کند.
-  let battle=currentBattleForScene || getCurrentBattle();
-  if(!battle || !battle.batId)return;
+function applyRoundMoves(){
+  // محل اولیه هر نیرو از cell/x/y ساخته‌شده در makeArmy می‌آید.
+  // محل حرکت در هر راند فقط از moveTarget می‌آید؛ moveTarget هنگام کلیک روی خانه مقصد ثبت می‌شود.
+  const battle=currentBattleForScene || getCurrentBattle();
+  if(!battle)return;
 
-  if(typeof sqlConnected!="undefined" && sqlConnected){
-    try{
-      const saved=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/apply-round-moves",{
-        method:"PUT"
-      });
-      if(saved.battle){
-        battle=saved.battle;
-        battleRegistry[String(battle.targetId)]=battle;
-        currentBattleForScene=battle;
-      }
-    }catch(err){
-      console.error("اعمال حرکت راند از SQL ناموفق بود:",err);
-      return;
-    }
-  }
+  const units=battle.armies.flatMap(army=>army.units||[]);
+  let moved=false;
 
-  // viobat فقط بعد از دریافت وضعیت جدید SQL اجرا می‌شود.
+  units.forEach(unit=>{
+    const destination=String(unit.moveTarget||"");
+    if(!destination)return;
+
+    const x=Number(destination.slice(1))-1;
+    const y="ABCDEFGHIJKLMNOPQRST".indexOf(destination[0]);
+    if(x<0||x>11||y<0||y>19)return;
+
+    // حرکت واقعی: هر سه مقدار موقعیت باید با هم عوض شوند.
+    unit.cell=destination;
+    unit.x=x;
+    unit.y=y;
+    unit.moveTarget=null;
+    moved=true;
+  });
+
+  // اول نتیجه حرکت را روی همین battle نشان بده؛ سپس وضعیت جدید را برای SQL ذخیره کن.
   const battleScreen=document.getElementById("battle");
   if(battleScreen && battleScreen.classList.contains("active")){
     viobat();
   }
+
+  if(moved)persistBattleMovement(battle);
 }
 
 function renderBattleScene(){
@@ -692,7 +671,7 @@ function rand(){
   if(war)war.textContent="راند: "+randwar;
 
   if(randTimerId)clearInterval(randTimerId);
-  randTimerId=setInterval(async ()=>{
+  randTimerId=setInterval(()=>{
     randRemainingSeconds--;
 
     if(randRemainingSeconds<=0){
@@ -704,7 +683,7 @@ function rand(){
       fotjang();
       const battleEnded=sidchek();
       if(!battleEnded){
-        await applyRoundMoves();
+        applyRoundMoves();
       }
     }
 
@@ -719,7 +698,7 @@ function rand(){
 
 function localBatman(){
   if(!attackData)return;
-  u.castle=selectedCastleId;
+  u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
 
   const blocks={
     "مدافع":[
@@ -934,7 +913,7 @@ document.getElementById("startAttack").onclick=startAttack;
 
 document.getElementById("battleSceneBtn").onclick=viobat;
 document.getElementById("battleBtn").onclick=()=>{
-  u.castle=selectedCastleId;
+  u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
   show("battle");
 };
 document.getElementById("battleBack").onclick=()=>show("castle");
