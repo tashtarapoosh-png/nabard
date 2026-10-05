@@ -778,6 +778,8 @@ app.get("/health",async(req,res)=>{
   }catch(e){res.status(500).json({ok:false});}
 });
 
+app.use("/images", express.static(path.join(__dirname, "public", "images")));
+
 app.use(express.static(__dirname, {
   index: "index.html",
   extensions: ["html"]
