@@ -27,8 +27,6 @@ async function initDb(){
     throw new Error("DATABASE_URL تنظیم نشده است.");
   }
 
-  // PostgreSQL/pg cannot execute multiple commands in one prepared statement
-  // when query parameters are supplied, so each command is sent separately.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS castles (
       id INTEGER PRIMARY KEY,
@@ -37,10 +35,8 @@ async function initDb(){
       defense_slots JSONB NOT NULL,
       under_attack BOOLEAN NOT NULL DEFAULT FALSE,
       battle_id INTEGER
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS attacks (
       id BIGSERIAL PRIMARY KEY,
       attacker_id INTEGER NOT NULL REFERENCES castles(id),
@@ -51,10 +47,8 @@ async function initDb(){
       arrives_at TIMESTAMPTZ NOT NULL,
       resolved_at TIMESTAMPTZ,
       status TEXT NOT NULL DEFAULT 'pending'
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS battles (
       id BIGSERIAL PRIMARY KEY,
       target_id INTEGER NOT NULL UNIQUE REFERENCES castles(id),
@@ -64,36 +58,25 @@ async function initDb(){
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
       winner_side TEXT
-    )
-  `);
+    );
 
-  await pool.query(`
     INSERT INTO castles(id,name,army,defense_slots)
     SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb
     FROM generate_series(1,11) x
-    ON CONFLICT (id) DO NOTHING
-  `, [JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
+    ON CONFLICT (id) DO NOTHING;
+  `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
 
   // برای دیتابیس‌هایی که قبل از اضافه شدن زمان پایان ساخته شده‌اند.
   await pool.query(`
     ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
-  `);
-
-  await pool.query(`
+    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
     UPDATE battles
     SET ends_at = created_at + INTERVAL '30 minutes'
-    WHERE ends_at IS NULL
-  `);
-
-  await pool.query(`
+    WHERE ends_at IS NULL;
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes')
-  `);
-
-  await pool.query(`
+    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes');
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET NOT NULL
+    ALTER COLUMN ends_at SET NOT NULL;
   `);
 }
 
@@ -250,6 +233,140 @@ async function currentBattleForCastle(castleId){
   `,[castleId]);
   return battleJson(r.rows[0]);
 }
+
+// ذخیره مقصد انتخاب‌شده برای یک واحد. حرکت واقعی فقط در پایان راند انجام می‌شود.
+app.put("/api/battle/:id/move", async (req,res)=>{
+  const battleId=Number(req.params.id);
+  const unitId=String(req.body?.unitId||"");
+  const destination=String(req.body?.destination||"").toUpperCase();
+  const castleId=Number(req.body?.castleId);
+  const rowMatch=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
+
+  if(!Number.isInteger(battleId)||!unitId||!rowMatch||!Number.isInteger(castleId))
+    return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
+
+  const x=Number(rowMatch[2])-1;
+  const y="ABCDEFGHIJKLMNOPQRST".indexOf(rowMatch[1]);
+  if(x<0||x>11||y<0||y>19)
+    return res.status(400).json({error:"خانه مقصد نامعتبر است."});
+
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const r=await client.query(
+      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
+      [battleId]
+    );
+    if(!r.rows[0]){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    }
+
+    const battle=r.rows[0];
+    const armies=Array.isArray(battle.armies)?battle.armies:[];
+    let found=null;
+    for(const army of armies){
+      for(const unit of (army.units||[])){
+        if(String(unit.id)===unitId){ found={army,unit}; break; }
+      }
+      if(found)break;
+    }
+
+    if(!found){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"واحد نیرو در این نبرد پیدا نشد."});
+    }
+    if(Number(found.army.castleId)!==castleId){
+      await client.query("ROLLBACK");
+      return res.status(403).json({error:"این واحد متعلق به این قلعه نیست."});
+    }
+
+    // فقط مقصد ذخیره می‌شود؛ x/y/cell در پایان راند تغییر می‌کنند.
+    found.unit.moveTarget=destination;
+
+    const updated=await client.query(
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),battleId]
+    );
+    await client.query("COMMIT");
+    res.json({ok:true,battle:battleJson(updated.rows[0])});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({error:"ذخیره مقصد حرکت ناموفق بود."});
+  }finally{client.release();}
+});
+
+// پایان راند: مقصدهای ذخیره‌شده در SQL به cell/x/y تبدیل می‌شوند.
+app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
+  const battleId=Number(req.params.id);
+  if(!Number.isInteger(battleId))
+    return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const r=await client.query(
+      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
+      [battleId]
+    );
+    if(!r.rows[0]){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    }
+
+    const battle=r.rows[0];
+    const armies=Array.isArray(battle.armies)?battle.armies:[];
+    let moved=0;
+    for(const army of armies){
+      for(const unit of (army.units||[])){
+        const destination=String(unit.moveTarget||"").toUpperCase();
+        const m=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
+        if(!m)continue;
+        const x=Number(m[2])-1;
+        const y="ABCDEFGHIJKLMNOPQRST".indexOf(m[1]);
+        if(x<0||x>11||y<0||y>19)continue;
+        unit.cell=destination;
+        unit.x=x;
+        unit.y=y;
+        delete unit.moveTarget;
+        moved++;
+      }
+    }
+
+    const updated=await client.query(
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),battleId]
+    );
+    await client.query("COMMIT");
+    res.json({ok:true,moved,battle:battleJson(updated.rows[0])});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({error:"اعمال حرکت‌های راند ناموفق بود."});
+  }finally{client.release();}
+});
+
+app.put("/api/battle/:id/state", async (req,res)=>{
+  const id=Number(req.params.id);
+  const armies=Array.isArray(req.body.armies)?req.body.armies:null;
+  if(!Number.isInteger(id)||!armies)return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
+
+  try{
+    const r=await pool.query(
+      `UPDATE battles
+       SET armies=$1::jsonb
+       WHERE id=$2 AND ended=FALSE AND ends_at>NOW()
+       RETURNING *`,
+      [JSON.stringify(armies),id]
+    );
+    if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    res.json({ok:true,battle:battleJson(r.rows[0])});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"ذخیره موقعیت نیروها ناموفق بود."});
+  }
+});
 
 app.get("/api/state", async (req,res)=>{
   try{
@@ -601,33 +718,6 @@ app.get("/api/pending", async (req,res)=>{
   }
 });
 
-app.post("/api/reset-game", async(req,res)=>{
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-
-    // بازگشت کامل بازی به وضعیت ابتدای نصب: همه حمله‌ها و نبردها حذف می‌شوند،
-    // نیروهای قلعه‌ها به ۱۰۰ عدد از هر نوع برمی‌گردند و چینش دفاعی پاک می‌شود.
-    await client.query("TRUNCATE TABLE attacks, battles RESTART IDENTITY");
-    await client.query(`
-      UPDATE castles
-      SET army=$1::jsonb,
-          defense_slots=$2::jsonb,
-          under_attack=FALSE,
-          battle_id=NULL
-    `,[JSON.stringify(emptyArmy()),JSON.stringify(emptyDefense())]);
-
-    await client.query("COMMIT");
-    res.json({ok:true,reset:true});
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error(e);
-    res.status(500).json({error:"بازگردانی بازی به حالت ابتدای نصب ناموفق بود."});
-  }finally{
-    client.release();
-  }
-});
-
 app.get("/api/battle/current",async(req,res)=>{
   const castleId=Number(req.query.castleId);
   if(!Number.isInteger(castleId))
@@ -653,9 +743,6 @@ app.use(express.static(__dirname, {
   index: "index.html",
   extensions: ["html"]
 }));
-
-// تصاویر بازی در public/images قرار دارند.
-app.use("/images", express.static(path.join(__dirname, "public", "images")));
 
 initDb()
   .then(()=>{

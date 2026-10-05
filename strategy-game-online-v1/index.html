@@ -5,7 +5,7 @@
 <title>بازی قلعه‌ها</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#18202a;color:#f2f4f7}body.battle-background{background:#18202a url("images/zamine.png") center center/cover fixed no-repeat}
-body.battle-background.battle-defender-view::before{content:"";position:fixed;inset:0;z-index:0;background:url("images/zamine.png") center center/cover no-repeat;pointer-events:none}button,select,input{font:inherit}button{cursor:pointer;border:0;border-radius:8px;padding:10px 18px;background:#2f7dce;color:#fff}.exit{background:#8e3b3b}.back{background:#59636f}.screen{display:none;max-width:1100px;margin:auto;padding:24px}.screen.active{display:block}.card{background:#222d38;border:1px solid #3a4652;border-radius:12px;padding:18px;margin-bottom:16px}.grid,.targets,.slots{display:grid;gap:12px}.grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.targets{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.slots{grid-template-columns:repeat(3,1fr)}.castle-btn{min-height:70px;font-size:18px}.actions{display:flex;flex-wrap:wrap;gap:10px}.info{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat,.slot,.target{background:#18212a;border-radius:8px;padding:14px}.stat{text-align:center}.slot,.target{border:1px solid #3a4652}.target.selected{border-color:#4aa3ff}.defense-list{margin:8px 0 0;padding:0;list-style:none;color:#cbd5df}.side-select{width:100%;margin-top:10px;padding:8px;border-radius:7px;border:1px solid #59636f;background:#111820;color:#fff}.battle-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}.battle-table th,.battle-table td{border:1px solid #46525e;padding:9px;text-align:center}.battle-table th{background:#111820}.table-wrap{overflow:auto}.side-title{margin-top:24px}.slot label{display:block;margin:7px 0}.slot input,.slot select{width:100%;padding:9px;border-radius:7px;border:1px solid #59636f;background:#111820;color:#fff}.timer{font-size:34px;text-align:center;padding:18px;background:#111820;border-radius:10px;margin:16px 0}
+body.battle-background.battle-defender-view::before{content:none}button,select,input{font:inherit}button{cursor:pointer;border:0;border-radius:8px;padding:10px 18px;background:#2f7dce;color:#fff}.exit{background:#8e3b3b}.back{background:#59636f}.screen{display:none;max-width:1100px;margin:auto;padding:24px}.screen.active{display:block}.card{background:#222d38;border:1px solid #3a4652;border-radius:12px;padding:18px;margin-bottom:16px}.grid,.targets,.slots{display:grid;gap:12px}.grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}.targets{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.slots{grid-template-columns:repeat(3,1fr)}.castle-btn{min-height:70px;font-size:18px}.actions{display:flex;flex-wrap:wrap;gap:10px}.info{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat,.slot,.target{background:#18212a;border-radius:8px;padding:14px}.stat{text-align:center}.slot,.target{border:1px solid #3a4652}.target.selected{border-color:#4aa3ff}.defense-list{margin:8px 0 0;padding:0;list-style:none;color:#cbd5df}.side-select{width:100%;margin-top:10px;padding:8px;border-radius:7px;border:1px solid #59636f;background:#111820;color:#fff}.battle-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}.battle-table th,.battle-table td{border:1px solid #46525e;padding:9px;text-align:center}.battle-table th{background:#111820}.table-wrap{overflow:auto}.side-title{margin-top:24px}.slot label{display:block;margin:7px 0}.slot input,.slot select{width:100%;padding:9px;border-radius:7px;border:1px solid #59636f;background:#111820;color:#fff}.timer{font-size:34px;text-align:center;padding:18px;background:#111820;border-radius:10px;margin:16px 0}
 .battle-card{position:relative}
 .rand-timer-box{position:absolute;top:14px;left:14px;min-width:100px;text-align:center;background:#111820;border:1px solid #46525e;border-radius:8px;padding:7px 10px;display:none;direction:rtl}
 .rand-timer-value{font-size:24px;font-weight:800;line-height:1.1}
@@ -96,7 +96,7 @@ body.battle-background.battle-defender-view::before{content:"";position:fixed;in
   }
 </style></head>
 <body>
-<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="resetAllBattlesBtn" class="exit">بستن همه نبردها</button></div></div></section>
+<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
 <section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -105,7 +105,6 @@ body.battle-background.battle-defender-view::before{content:"";position:fixed;in
 <section id="timerScreen" class="screen"><div class="card"><h2>نیرو در حال حرکت است</h2><div id="timer" class="timer">00:10</div><div id="timerInfo" class="notice"></div></div></section>
 <section id="battle" class="screen"><div class="card battle-card"><img class="battle-castle-image" src="images/castle.png" alt="قلعه"><img class="battle-tent-image" src="images/tent.png" alt="چادر"><div id="randTimerBox" class="rand-timer-box"><div id="randTimerValue" class="rand-timer-value">00:20</div><div id="randWarValue" class="rand-war-value">راند: 0</div></div><h2>نتیجه نبرد</h2><p id="battleText">آماده نبرد</p><div class="actions" style="margin:14px 0">
   <button id="battleSceneBtn">نمایش صحنه نبرد</button>
-  <button id="endBattleBtn" class="exit">پایان نبرد</button>
 </div>
 <div id="battleTables"></div>
 <div id="battleScene" style="display:none"></div><div class="actions" style="margin-top:14px"><button id="battleBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -447,7 +446,7 @@ function viobat(){
       out+='<small>'+cell+'</small>';
 
       if(unit){
-        const canSelect=String(unit.castle)===String(selectedCastleId);
+        const canSelect=String(unit.castle)===String(u.castle);
         const army=battle.armies.find(item=>(item.units||[]).some(itemUnit=>String(itemUnit.id)===String(unit.id)));
         const armyNumber=army ? battle.armies.indexOf(army)+1 : "";
         out+='<button type="button" class="battle-unit '+(canSelect?'selectable':'not-selectable')+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
@@ -476,7 +475,7 @@ function viobat(){
       e.stopPropagation();
       const unit=units.find(item=>String(item.id)===String(this.dataset.unitId));
       if(!unit)return;
-      if(String(unit.castle)===String(selectedCastleId))selectUnit(unit);
+      if(String(unit.castle)===String(u.castle))selectUnit(unit);
     });
   });
 
@@ -489,6 +488,33 @@ function viobat(){
       if(!moveRange(unit).includes(destination))return;
       unit.moveTarget=destination;
       refreshRange();
+      // مقصد انتخاب‌شده باید همان لحظه در SQL ثبت شود؛ حرکت واقعی فقط در پایان راند انجام می‌شود.
+      if(typeof sqlConnected!=="undefined" && sqlConnected){
+        const battleNow=getCurrentBattle();
+        if(battleNow && battleNow.batId){
+          // مقصد باید قبل از ادامه کار راند با موفقیت در SQL ثبت شود.
+          api("/api/battle/"+encodeURIComponent(battleNow.batId)+"/move",{
+            method:"PUT",
+            body:JSON.stringify({unitId:unit.id,destination,castleId:u.castle})
+          }).then(data=>{
+            if(data.battle){
+              battleRegistry[String(data.battle.targetId)]=data.battle;
+              currentBattleForScene=data.battle;
+              // وضعیت محلی هم از پاسخ SQL تازه می‌شود تا راند بعدی روی داده قدیمی کار نکند.
+              const fresh=data.battle;
+              if(attackData && String(fresh.targetId)===String(attackData.targetId)){
+                battleRegistry[String(fresh.targetId)]=fresh;
+              }
+              viobat();
+            }
+          }).catch(err=>{
+            unit.moveTarget=null;
+            refreshRange();
+            console.error("ذخیره مقصد حرکت ناموفق بود:",err);
+            alert("ذخیره مقصد حرکت در سرور ناموفق بود.");
+          });
+        }
+      }
     });
   });
 }
@@ -585,10 +611,6 @@ function sidchek(){
 }
 
 function endbat(winningSide){
-  if(typeof window.__onlineEndbat === "function"){
-    window.__onlineEndbat(winningSide);
-    return;
-  }
   if(randTimerId){
     clearInterval(randTimerId);
     randTimerId=null;
@@ -609,31 +631,42 @@ function endbat(winningSide){
   if(timerBox)timerBox.style.display="none";
 }
 
-function applyRoundMoves(){
-  // این تابع فقط مسئول اجرای حرکت‌هاست؛ سه تابع جنگ در لحظه صفر شدن تایمر فراخوانی می‌شوند.
-  // نبرد را هر بار از وضعیت فعلی پیدا می‌کنیم؛ currentBattleForScene ممکن است قدیمی شده باشد.
-  const battle=getCurrentBattle();
-  if(!battle)return;
-  currentBattleForScene=battle;
-  const units=battle.armies.flatMap(army=>army.units||[]);
-  let moved=false;
+async function persistBattleMovement(battle){
+  if(!battle || !battle.batId)return;
+  if(typeof sqlConnected==="undefined" || !sqlConnected)return;
+  try{
+    await api("/api/battle/"+encodeURIComponent(battle.batId)+"/state",{
+      method:"PUT",
+      body:JSON.stringify({armies:battle.armies})
+    });
+  }catch(err){
+    console.error("ذخیره حرکت نیروها ناموفق بود:",err);
+  }
+}
 
-  units.forEach(unit=>{
-    if(!unit.moveTarget)return;
-    const destination=unit.moveTarget;
-    const x=Number(destination.slice(1))-1;
-    const y="ABCDEFGHIJKLMNOPQRST".indexOf(destination[0]);
-    if(x<0||x>11||y<0||y>19)return;
-    unit.cell=destination;
-    unit.x=x;
-    unit.y=y;
-    unit.moveTarget=null;
-    moved=true;
-  });
+async function applyRoundMoves(){
+  // پایان راند: خود سرور مقصدهای ذخیره‌شده در SQL را به x/y/cell تبدیل می‌کند.
+  let battle=currentBattleForScene || getCurrentBattle();
+  if(!battle || !battle.batId)return;
 
+  if(typeof sqlConnected!="undefined" && sqlConnected){
+    try{
+      const saved=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/apply-round-moves",{
+        method:"PUT"
+      });
+      if(saved.battle){
+        battle=saved.battle;
+        battleRegistry[String(battle.targetId)]=battle;
+        currentBattleForScene=battle;
+      }
+    }catch(err){
+      console.error("اعمال حرکت راند از SQL ناموفق بود:",err);
+      return;
+    }
+  }
+
+  // viobat فقط بعد از دریافت وضعیت جدید SQL اجرا می‌شود.
   const battleScreen=document.getElementById("battle");
-  // نمایش نتیجه راند به حرکت وابسته نیست؛ حتی اگر هیچ واحدی حرکت نکند،
-  // تعداد نیروهای کم‌شده باید بلافاصله در صحنه نبرد نمایش داده شود.
   if(battleScreen && battleScreen.classList.contains("active")){
     viobat();
   }
@@ -659,7 +692,7 @@ function rand(){
   if(war)war.textContent="راند: "+randwar;
 
   if(randTimerId)clearInterval(randTimerId);
-  randTimerId=setInterval(()=>{
+  randTimerId=setInterval(async ()=>{
     randRemainingSeconds--;
 
     if(randRemainingSeconds<=0){
@@ -671,7 +704,7 @@ function rand(){
       fotjang();
       const battleEnded=sidchek();
       if(!battleEnded){
-        applyRoundMoves();
+        await applyRoundMoves();
       }
     }
 
@@ -684,9 +717,9 @@ function rand(){
   },1000);
 }
 
-function batman(){
+function localBatman(){
   if(!attackData)return;
-  u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
+  u.castle=selectedCastleId;
 
   const blocks={
     "مدافع":[
@@ -716,7 +749,7 @@ function batman(){
 
   function makeArmy(side,castleId,slots,blockIndex,armyId){
     const block=blocks[side]?.[blockIndex];
-    const unitCastle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : castleId;
+    const unitCastle=castleId;
     if(!block)return null;
     const normalized=normalizeSlots(slots);
     const units=normalized.map((slot,index)=>{
@@ -769,6 +802,28 @@ function batman(){
     battleRegistry[battleKey]=battle;
     castles[attackData.targetId].underAttack=true;
     castles[attackData.targetId].battleId=battle.batId;
+  }
+
+  // در نسخه آنلاین، سرور ارتش جدید را قبلاً به همین نبرد اضافه کرده است.
+  // بنابراین اینجا فقط همان snapshot را نمایش می‌دهیم و دوباره ارتش را اضافه نمی‌کنیم.
+  if(window.__onlineBatmanResolved){
+    const allRows=battle.armies.flatMap(army=>army.units||[]);
+    allRows.forEach((row,index)=>row.unit=row.unit||index+1);
+    let html='<div class="notice">شماره نبرد: <b>'+battle.batId+'</b> | قلعه هدف: <b>'+battle.targetId+'</b> | ارتش‌های ثبت‌شده: <b>'+battle.armies.length+'</b></div>'+
+      '<div class="table-wrap"><table class="battle-table"><thead><tr>'+
+      '<th>شماره واحد نیرو</th><th>نوع نیرو</th><th>تعداد نیرو</th><th>شماره قلعه ارسال کننده</th><th>ساید نیرو</th><th>X</th><th>Y</th>'+
+      '</tr></thead><tbody>';
+    allRows.forEach(row=>{ html+='<tr><td>'+row.unit+'</td><td>'+row.type+'</td><td>'+row.count+'</td><td>'+row.castle+'</td><td>'+row.side+'</td><td>'+row.x+'</td><td>'+row.y+'</td></tr>'; });
+    html+='</tbody></table></div>';
+    document.getElementById("battleText").textContent="batman() اجرا شد — نبرد شماره "+battle.batId;
+    document.getElementById("battleTables").innerHTML=html;
+    document.getElementById("castleTimer").style.display="none";
+    document.getElementById("castleTimerInfo").style.display="none";
+    show("battle");
+    setBattlePerspective();
+    viobat();
+    if(!randStarted)rand();
+    return;
   }
 
   // ساید از انتخاب صفحه حمله می‌آید؛ در هر batman فقط ارتش جدید اضافه می‌شود.
@@ -878,439 +933,132 @@ document.getElementById("startAttack").onclick=startAttack;
 
 
 document.getElementById("battleSceneBtn").onclick=viobat;
-document.getElementById("endBattleBtn").onclick=()=>endbat();
 document.getElementById("battleBtn").onclick=()=>{
-  u.castle=(typeof sqlConnected!=="undefined" && sqlConnected) ? ownerId : selectedCastleId;
+  u.castle=selectedCastleId;
   show("battle");
 };
 document.getElementById("battleBack").onclick=()=>show("castle");
 
 renderCastles();
+
 </script>
 <script>
-/* ================= ONLINE SERVER BRIDGE =================
-   بدون کاربر/رمز: SQL منبع اصلی وضعیت بازی است.
-   رابط فعلی بازی و batman فقط به API سرور متصل می‌شوند.
-*/
-(function(){
-  const API="/api";
-  let serverState=null;
-  let onlinePoll=null;
-
-  async function api(path, options={}){
-    const res=await fetch(API+path,{
-      headers:{"Content-Type":"application/json",...(options.headers||{})},
-      ...options
-    });
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error||"خطا در ارتباط با سرور");
-    return data;
-  }
-
-  function copyCastle(c){
-    if(!c||!castles[c.id]) return;
-    castles[c.id].army=c.army||{archer:100,cavalry:100,swordsman:100};
-    castles[c.id].defenseSlots=Array.isArray(c.defenseSlots)?c.defenseSlots:[];
+/* ONLINE VERSION BUILT DIRECTLY FROM THE ORIGINAL OFFLINE GAME.
+   No login/ownership layer: selectedCastleId is the player/castle identity. */
+let sqlConnected=true;
+let onlineAttackId=null;
+async function api(url,options={}){
+  const res=await fetch(url,{headers:{"Content-Type":"application/json",...(options.headers||{})},...options});
+  let data={}; try{data=await res.json();}catch(e){}
+  if(!res.ok)throw new Error(data.error||"خطای سرور");
+  return data;
+}
+function applyServerCastles(list){
+  if(!Array.isArray(list))return;
+  list.forEach(c=>{
+    if(!castles[c.id])return;
+    castles[c.id].name=c.name;
+    castles[c.id].army=c.army||castles[c.id].army;
+    castles[c.id].defenseSlots=Array.isArray(c.defenseSlots)?c.defenseSlots:castles[c.id].defenseSlots;
     castles[c.id].underAttack=!!c.underAttack;
-    castles[c.id].battleId=c.battleId??null;
+    castles[c.id].battleId=c.battleId||null;
+  });
+}
+async function syncState(){
+  const data=await api('/api/state');
+  applyServerCastles(data.castles);
+  renderCastles();
+}
+async function loadBattleForSelectedCastle(){
+  if(selectedCastleId===null)return null;
+  const data=await api('/api/battle/current?castleId='+encodeURIComponent(selectedCastleId));
+  if(data.battle){
+    battleRegistry[String(data.battle.targetId)]=data.battle;
+    currentBattleForScene=data.battle;
   }
-
-  async function syncState(){
-    const data=await api("/state");
-    serverState=data;
-    (data.castles||[]).forEach(copyCastle);
-    if(selectedCastleId!==null && castles[selectedCastleId]){
-      document.getElementById("castleTitle").textContent=castles[selectedCastleId].name+" - شماره قلعه "+selectedCastleId;
+  return data.battle||null;
+}
+async function onlineStartAttack(){
+  if(!selectedTargetId)return alert('ابتدا هدف را انتخاب کنید.');
+  const slots=collectAttack();
+  const used=slots.filter(x=>x.type&&x.count>0);
+  if(used.length<1||used.length>6)return alert('هر ارتش باید بین ۱ تا ۶ واحد نیرو داشته باشد.');
+  const side=document.getElementById('target-side-'+selectedTargetId).value;
+  try{
+    const data=await api('/api/attack',{method:'POST',body:JSON.stringify({attackerId:selectedCastleId,targetId:selectedTargetId,armySide:side,attackerSlots:slots})});
+    onlineAttackId=data.attack.id;
+    attackData=data.attack;
+    applyServerCastles((await api('/api/state')).castles);
+    beginOnlineTimer(data.attack.arrivesAt);
+  }catch(e){alert(e.message);}
+}
+function beginOnlineTimer(arrivesAt){
+  if(timerId)clearInterval(timerId);
+  const tick=()=>{
+    remainingSeconds=Math.max(0,Math.ceil((Number(arrivesAt)-Date.now())/1000));
+    updateTimer(); updateCastleTimer();
+    if(remainingSeconds<=0){
+      clearInterval(timerId); timerId=null;
+      batman();
     }
-    return data;
-  }
-
-  function formatSeconds(sec){
-    sec=Math.max(0,Math.ceil(Number(sec)||0));
-    return String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
-  }
-
-  /* انتخاب قلعه همچنان فقط انتخاب محلی است؛ اطلاعات قلعه از SQL خوانده می‌شود. */
-  window.openCastle=async function(id){
-    selectedCastleId=Number(id);
-    u.castle=Number(id);
-    try{
-      await syncState();
-      const stats=document.querySelectorAll("#castle .stat b");
-      if(stats.length>=3){
-        stats[0].textContent=castles[id].army.archer;
-        stats[1].textContent=castles[id].army.cavalry;
-        stats[2].textContent=castles[id].army.swordsman;
-      }
-
-      const pending=await api("/pending?castleId="+encodeURIComponent(id));
-      if(pending.attack){
-        attackData={
-          attackerId:Number(pending.attack.attackerId),
-          targetId:Number(pending.attack.targetId),
-          armySide:pending.attack.armySide,
-          attackId:pending.attack.id,
-          arrivesAt:Number(pending.attack.arrivesAt)
-        };
-        document.getElementById("castleTimer").style.display="block";
-        document.getElementById("castleTimerInfo").style.display="block";
-        document.getElementById("castleTimerInfo").textContent="یک حمله ثبت‌شده در حال حرکت است.";
-        remainingSeconds=Math.max(0,Math.ceil((attackData.arrivesAt-Date.now())/1000));
-        if(remainingSeconds>0) beginTimer();
-        else await batman();
-      }else{
-        attackData=null;
-        document.getElementById("castleTimer").style.display="none";
-        document.getElementById("castleTimerInfo").style.display="none";
-      }
-    }catch(e){ alert(e.message); return; }
-    document.getElementById("castleTitle").textContent=castles[id].name+" - شماره قلعه "+id;
-    show("castle");
   };
+  show('castle');
+  document.getElementById('castleTimer').style.display='block';
+  document.getElementById('castleTimerInfo').style.display='block';
+  document.getElementById('castleTimerInfo').textContent='حمله به '+castles[attackData.targetId].name+' در حال انجام است.';
+  tick(); timerId=setInterval(tick,250);
+}
+async function batman(){
+  if(!attackData||!onlineAttackId)return;
+  try{
+    const data=await api('/api/attack/'+encodeURIComponent(onlineAttackId)+'/resolve',{method:'POST',body:'{}'});
+    if(data.notDue){beginOnlineTimer(data.arrivesAt);return;}
+    if(data.battle){
+      battleRegistry[String(data.battle.targetId)]=data.battle;
+      currentBattleForScene=data.battle;
+    }
+    applyServerCastles(data.castles||[]);
+    if(!data.battle)return;
+    window.__onlineBatmanResolved=true;
+    localBatman();
+    window.__onlineBatmanResolved=false;
+  }catch(e){console.error(e);alert(e.message);}
+}
+const originalEndbat=endbat;
+endbat=async function(winningSide){
+  const battle=getCurrentBattle();
+  if(battle){
+    try{await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:'{}'});}catch(e){console.error('endbat SQL',e);}
+  }
+  originalEndbat(winningSide);
+  if(battle)delete battleRegistry[String(battle.targetId)];
+};
 
-  window.randomizeAllDefenses=async function(){
-    try{
-      await api("/defenses/randomize",{method:"POST",body:"{}"});
-      await syncState();
-      alert("چینش دفاعی تصادفی برای همه قلعه‌ها روی سرور ذخیره شد.");
-    }catch(e){ alert(e.message); }
-  };
-
-  window.saveDefense=async function(){
+document.getElementById('startAttack').onclick=onlineStartAttack;
+document.getElementById('battleBtn').onclick=async()=>{
+  try{
+    const battle=await loadBattleForSelectedCastle();
+    if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
+    show('battle'); setBattlePerspective(); viobat(); if(!randStarted)rand();
+  }catch(e){alert(e.message);}
+};
+document.getElementById('saveDefense').onclick=async()=>{
+  try{
+    const slots=readSixSlots('def');
+    const data=await api('/api/defense/'+selectedCastleId,{method:'POST',body:JSON.stringify({slots})});
+    applyServerCastles(data.castles); alert('چینش دفاعی ذخیره شد.');
+  }catch(e){alert(e.message);}
+};
+document.getElementById('randomDefenseBtn').onclick=async()=>{
+  try{const data=await api('/api/defenses/randomize',{method:'POST',body:'{}'});applyServerCastles(data.castles);alert('چینش دفاعی تصادفی برای همه قلعه‌ها ساخته شد.');}
+  catch(e){alert(e.message);}
+};
+syncState().catch(e=>console.error('state',e));
+(async function restorePending(){
+  try{
     if(selectedCastleId===null)return;
-    const slots=readSixSlots("def");
-    try{
-      await api("/defense/"+selectedCastleId,{
-        method:"POST",
-        body:JSON.stringify({slots})
-      });
-      await syncState();
-      alert("چینش دفاعی روی سرور ذخیره شد.");
-    }catch(e){ alert(e.message); }
-  };
-
-  window.startAttack=async function(){
-    if(!selectedTargetId)return alert("ابتدا هدف را انتخاب کنید.");
-    const slots=collectAttack();
-    const used=slots.filter(x=>x.type&&x.count>0);
-    if(used.length<1||used.length>6)return alert("هر ارتش باید بین ۱ تا ۶ واحد نیرو داشته باشد.");
-
-    const sideEl=document.getElementById("target-side-"+selectedTargetId);
-    const side=sideEl?sideEl.value:"مهاجم";
-
-    try{
-      const result=await api("/attack",{
-        method:"POST",
-        body:JSON.stringify({
-          attackerId:Number(selectedCastleId),
-          targetId:Number(selectedTargetId),
-          armySide:side,
-          attackerSlots:slots
-        })
-      });
-
-      attackData={
-        attackerId:Number(selectedCastleId),
-        targetId:Number(selectedTargetId),
-        armySide:side,
-        attackerSlots:slots,
-        attackId:result.attack.id,
-        startedAt:Date.now(),
-        arrivesAt:result.attack.arrivesAt
-      };
-
-      remainingSeconds=Math.max(0,Math.ceil((Number(result.attack.arrivesAt)-Date.now())/1000));
-      document.getElementById("castleTimer").style.display="block";
-      document.getElementById("castleTimerInfo").style.display="block";
-      document.getElementById("castleTimerInfo").textContent=
-        "حرکت نیروها ثبت شد. زمان رسیدن از روی ساعت سرور محاسبه می‌شود.";
-      show("castle");
-      beginTimer();
-
-      await syncState();
-    }catch(e){ alert(e.message); }
-  };
-
-  /* تایمر فقط نمایش است؛ در صفر، تنها batman اجرا می‌شود. */
-  window.beginTimer=function(){
-    if(timerId)clearInterval(timerId);
-    timerId=setInterval(async()=>{
-      const left=Math.max(0,Math.ceil((Number(attackData?.arrivesAt||0)-Date.now())/1000));
-      remainingSeconds=left;
-      const t=document.getElementById("castleTimer");
-      if(t)t.textContent=formatSeconds(left);
-
-      if(left<=0){
-        clearInterval(timerId);
-        timerId=null;
-        await batman();
-      }
-    },250);
-  };
-
-  /* batman آنلاین: نتیجه و وضعیت نبرد را از SQL تحویل می‌گیرد. */
-  window.batman=async function(){
-    if(!attackData?.attackId)return;
-
-    try{
-      const data=await api("/attack/"+encodeURIComponent(attackData.attackId)+"/resolve",{
-        method:"POST",
-        body:"{}"
-      });
-
-      serverState=data;
-      (data.castles||[]).forEach(copyCastle);
-
-      if(data.battle){
-        battleRegistry[String(data.battle.targetId)]=data.battle;
-        currentBattleForScene=data.battle;
-      }
-
-      const battle=data.battle;
-      if(!battle)return;
-
-      const allRows=(battle.armies||[]).flatMap(army=>army.units||[]);
-      allRows.forEach((row,index)=>row.unit=index+1);
-
-      let html=
-        '<div class="notice">شماره نبرد: <b>'+battle.batId+
-        '</b> | قلعه هدف: <b>'+battle.targetId+
-        '</b> | ارتش‌های ثبت‌شده: <b>'+battle.armies.length+
-        '</b></div><div class="table-wrap"><table class="battle-table"><thead><tr>'+
-        '<th>شماره واحد نیرو</th><th>نوع نیرو</th><th>تعداد نیرو</th>'+
-        '<th>شماره قلعه ارسال کننده</th><th>ساید نیرو</th><th>X</th><th>Y</th>'+
-        '</tr></thead><tbody>';
-
-      allRows.forEach(row=>{
-        html+='<tr><td>'+row.unit+'</td><td>'+row.type+'</td><td>'+row.count+
-          '</td><td>'+row.castle+'</td><td>'+row.side+'</td><td>'+row.x+
-          '</td><td>'+row.y+'</td></tr>';
-      });
-      html+='</tbody></table></div>';
-
-      document.getElementById("battleText").textContent=
-        "batman() اجرا شد — نبرد شماره "+battle.batId+
-        " | قلعه "+attackData.attackerId+" به قلعه "+attackData.targetId;
-
-      document.getElementById("battleTables").innerHTML=html;
-      document.getElementById("battleScene").style.display="none";
-      document.getElementById("castleTimer").style.display="none";
-      document.getElementById("castleTimerInfo").style.display="none";
-      show("battle");
-
-      // مرجع صحنه را ثابت نگه می‌داریم تا حرکت‌های انتخاب‌شده با رفرش صحنه از بین نروند.
-      currentBattleForScene=battle;
-      // تایمر راند نبرد باید بعد از ورود به صحنه فعال بماند؛
-      // با صفر شدن آن، همان منطق jang/fotjang/sidchek/applyRoundMoves اجرا می‌شود.
-      if(!randStarted) rand();
-
-      attackData=null;
-      await syncState();
-    }catch(e){
-      alert(e.message);
-    }
-  };
-
-  window.viobat=async function(){
-    try{
-      const battle=await api("/battle/current?castleId="+encodeURIComponent(selectedCastleId));
-      if(!battle.battle)return alert("نبردی برای این قلعه پیدا نشد.");
-      battleRegistry[String(battle.battle.targetId)]=battle.battle;
-      currentBattleForScene=battle.battle;
-
-      /* تابع اصلی صحنه از همان داده SQL استفاده می‌کند. */
-      const originalScene=window.__originalViobat;
-      if(originalScene) originalScene();
-    }catch(e){ alert(e.message); }
-  };
-
-  /* پایان نبرد آنلاین: اطلاعات نبرد از SQL حذف می‌شود. */
-  window.__onlineEndbat=async function(winningSide){
-    const battle=getCurrentBattle();
-    if(!battle?.batId)return;
-    try{
-      await api("/battle/"+encodeURIComponent(battle.batId)+"/end",{method:"POST",body:"{}"});
-      delete battleRegistry[String(battle.targetId)];
-      currentBattleForScene=null;
-      attackData=null;
-      const scene=document.getElementById("battleScene");
-      if(scene)scene.style.display="none";
-      const timerBox=document.getElementById("randTimerBox");
-      if(timerBox)timerBox.style.display="none";
-      await syncState();
-      show("castle");
-    }catch(e){
-      alert(e.message);
-    }
-  };
-
-  /* رفرش دوره‌ای فقط برای همگام‌سازی وضعیت؛ تایمر حمله همچنان سروری است. */
-  async function onlineInit(){
-    try{
-      await syncState();
-      renderCastles();
-      if(!onlinePoll){
-        onlinePoll=setInterval(async()=>{
-          try{
-            const data=await syncState();
-            serverState=data;
-            const activeBattle=getCurrentBattle();
-            if(activeBattle?.endsAt && Date.now()>=Number(activeBattle.endsAt)){
-              await endbat();
-              return;
-            }
-            if(selectedCastleId!==null && document.getElementById("castle").classList.contains("active")){
-              const c=castles[selectedCastleId];
-              const stats=document.querySelectorAll("#castle .stat b");
-              if(stats.length>=3){
-                stats[0].textContent=c.army.archer;
-                stats[1].textContent=c.army.cavalry;
-                stats[2].textContent=c.army.swordsman;
-              }
-            }
-          }catch(e){}
-        },3000);
-      }
-    }catch(e){
-      alert("اتصال به سرور برقرار نشد: "+e.message);
-    }
-  }
-
-  /* توابعی که قبل از bridge در فایل تعریف شده‌اند در onclickهای قدیمی ثبت شده‌اند؛
-     بنابراین دکمه‌ها را دوباره به نسخه آنلاین وصل می‌کنیم. */
-  window.__originalViobat=window.viobat;
-  window.viobat=async function(){
-    try{
-      const result=await api("/battle/current?castleId="+encodeURIComponent(selectedCastleId));
-      if(!result.battle)return alert("نبردی برای این قلعه پیدا نشد.");
-      battleRegistry[String(result.battle.targetId)]=result.battle;
-      currentBattleForScene=result.battle;
-      window.__onlineBattle=result.battle;
-      window.__renderServerBattleScene(result.battle);
-    }catch(e){ alert(e.message); }
-  };
-
-  /* رندر مستقیم صحنه از battle ذخیره‌شده در SQL */
-  window.__renderServerBattleScene=function(battle){
-    currentBattleForScene=battle;
-    const units=(battle.armies||[]).flatMap(a=>a.units||[]);
-    const unitMap=new Map(units.map(x=>[x.cell,x]));
-    const scene=document.getElementById("battleScene");
-    const defenderView=(battle.armies||[]).some(a=>String(a.castleId)===String(selectedCastleId)&&a.side==="مدافع");
-
-    let out='<div class="battle-scene-wrap"><h3>صحنه نبرد — ۱۲ ستون × ۲۰ ردیف</h3><div class="battle-grid">';
-    for(let visualY=0;visualY<20;visualY++){
-      const y=defenderView?19-visualY:visualY;
-      const rowWidth=(55.2+(visualY/19)*36.8).toFixed(3);
-      out+='<div class="battle-row" style="--row-width:'+rowWidth+'%">';
-      for(let visualX=0;visualX<12;visualX++){
-        const x=defenderView?11-visualX:visualX;
-        const cell=String.fromCharCode(65+y)+(x+1);
-        const unit=unitMap.get(cell);
-        const cls=unit?(unit.side==="مهاجم"?"attacker":"defender"):"";
-        out+='<div class="battle-cell '+cls+'" data-cell="'+cell+'"><small>'+cell+'</small>';
-        if(unit){
-          const imgType=unit.rawType||"";
-          const side=unit.side==="مهاجم"?1:2;
-          const src=imgType ? ("/images/" + imgType + (side===1 ? "1" : "2") + ".png") : "";
-          const canSelect=String(unit.castle)===String(selectedCastleId);
-          out+='<button type="button" class="battle-unit '+(canSelect?"selectable":"not-selectable")+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
-          out+='<img src="'+src+'" alt="'+unit.type+'">';
-          out+='<span class="unit-image-fallback">'+unit.type+'</span>';
-          out+='<span class="army-number">'+((battle.armies||[]).findIndex(a=>(a.units||[]).some(z=>String(z.id)===String(unit.id)))+1)+'</span>';
-          out+='<span class="unit-count">'+unit.count+'</span></button>';
-        }
-        out+='</div>';
-      }
-      out+='</div>';
-    }
-    out+='</div></div>';
-    scene.innerHTML=out;
-    scene.style.display="block";
-
-    // انتخاب نیروهای خود بازیکن و انتخاب خانه مقصد مثل صحنه آفلاین
-    let selectedUnitId=null;
-    const moveRange=function(unit){
-      const range=(unit.rawType==="cavalry")?2:1;
-      const cells=[];
-      for(let y=Math.max(0,Number(unit.y)-range);y<=Math.min(19,Number(unit.y)+range);y++){
-        for(let x=Math.max(0,Number(unit.x)-range);x<=Math.min(11,Number(unit.x)+range);x++){
-          if(x===Number(unit.x)&&y===Number(unit.y))continue;
-          cells.push(String.fromCharCode(65+y)+(x+1));
-        }
-      }
-      return cells;
-    };
-    const refreshRange=function(){
-      scene.querySelectorAll('.battle-cell.move-option').forEach(c=>c.classList.remove('move-option'));
-      scene.querySelectorAll('.battle-cell.move-target').forEach(c=>c.classList.remove('move-target'));
-      if(!selectedUnitId)return;
-      const unit=units.find(item=>String(item.id)===String(selectedUnitId));
-      if(!unit)return;
-      const range=new Set(moveRange(unit));
-      scene.querySelectorAll('.battle-cell').forEach(c=>{
-        if(range.has(c.dataset.cell))c.classList.add('move-option');
-      });
-      if(unit.moveTarget){
-        const target=scene.querySelector('.battle-cell[data-cell="'+unit.moveTarget+'"]');
-        if(target)target.classList.add('move-target');
-      }
-    };
-    const selectUnit=function(unit){
-      selectedUnitId=String(unit.id);
-      scene.querySelectorAll('.battle-unit.selected').forEach(x=>x.classList.remove('selected'));
-      const btn=scene.querySelector('.battle-unit[data-unit-id="'+unit.id+'"]');
-      if(btn)btn.classList.add('selected');
-      scene.querySelectorAll('.battle-cell.selected-cell').forEach(x=>x.classList.remove('selected-cell'));
-      const cell=scene.querySelector('.battle-cell[data-cell="'+unit.cell+'"]');
-      if(cell)cell.classList.add('selected-cell');
-      refreshRange();
-    };
-    scene.querySelectorAll('.battle-unit').forEach(btn=>{
-      btn.addEventListener('click',function(e){
-        e.stopPropagation();
-        const unit=units.find(item=>String(item.id)===String(this.dataset.unitId));
-        if(unit && String(unit.castle)===String(selectedCastleId))selectUnit(unit);
-      });
-    });
-    scene.querySelectorAll('.battle-cell').forEach(cell=>{
-      cell.addEventListener('click',function(){
-        if(!selectedUnitId)return;
-        const unit=units.find(item=>String(item.id)===String(selectedUnitId));
-        if(!unit)return;
-        const destination=this.dataset.cell;
-        if(!moveRange(unit).includes(destination))return;
-        unit.moveTarget=destination;
-        currentBattleForScene=battle;
-        refreshRange();
-      });
-    });
-  };
-
-  document.getElementById("randomDefenseBtn").onclick=window.randomizeAllDefenses;
-  document.getElementById("attackBtn").onclick=()=>{renderTargets();show("targets");};
-  document.getElementById("defenseBtn").onclick=()=>{renderDefense();show("defense");};
-  document.getElementById("saveDefense").onclick=window.saveDefense;
-  document.getElementById("startAttack").onclick=window.startAttack;
-  document.getElementById("battleSceneBtn").onclick=window.viobat;
-  document.getElementById("resetAllBattlesBtn").onclick=async function(){
-    if(!confirm("همه نبردها، حمله‌های در حال حرکت و وضعیت دفاعی پاک شود و بازی به حالت ابتدای نصب برگردد؟"))return;
-    try{
-      await api("/reset-game",{method:"POST"});
-      selectedCastleId=null;
-      selectedTargetId=null;
-      attackData=null;
-      currentBattleForScene=null;
-      Object.keys(battleRegistry).forEach(k=>delete battleRegistry[k]);
-      await syncState();
-      renderCastles();
-      show("select");
-      alert("همه نبردها بسته شد و بازی به حالت ابتدای نصب برگشت.");
-    }catch(e){ alert(e.message); }
-  };
-
-  /* بعد از لود اولیه، داده SQL جای داده محلی را می‌گیرد. */
-  onlineInit();
+    const data=await api('/api/pending?castleId='+encodeURIComponent(selectedCastleId));
+    if(data.attack){attackData=data.attack;onlineAttackId=data.attack.id;beginOnlineTimer(data.attack.arrivesAt);}
+  }catch(e){}
 })();
-</script>
-</body></html>
+</script></body></html>
