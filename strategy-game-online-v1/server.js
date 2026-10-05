@@ -35,10 +35,8 @@ async function initDb(){
       defense_slots JSONB NOT NULL,
       under_attack BOOLEAN NOT NULL DEFAULT FALSE,
       battle_id INTEGER
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS attacks (
       id BIGSERIAL PRIMARY KEY,
       attacker_id INTEGER NOT NULL REFERENCES castles(id),
@@ -49,10 +47,8 @@ async function initDb(){
       arrives_at TIMESTAMPTZ NOT NULL,
       resolved_at TIMESTAMPTZ,
       status TEXT NOT NULL DEFAULT 'pending'
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS battles (
       id BIGSERIAL PRIMARY KEY,
       target_id INTEGER NOT NULL UNIQUE REFERENCES castles(id),
@@ -62,33 +58,25 @@ async function initDb(){
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
       winner_side TEXT
-    )
-  `);
+    );
 
-  await pool.query(`
     INSERT INTO castles(id,name,army,defense_slots)
     SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb
     FROM generate_series(1,11) x
-    ON CONFLICT (id) DO NOTHING
+    ON CONFLICT (id) DO NOTHING;
   `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
 
   // برای دیتابیس‌هایی که قبل از اضافه شدن زمان پایان ساخته شده‌اند.
   await pool.query(`
     ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
-  `);
-  await pool.query(`
+    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
     UPDATE battles
     SET ends_at = created_at + INTERVAL '30 minutes'
-    WHERE ends_at IS NULL
-  `);
-  await pool.query(`
+    WHERE ends_at IS NULL;
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes')
-  `);
-  await pool.query(`
+    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes');
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET NOT NULL
+    ALTER COLUMN ends_at SET NOT NULL;
   `);
 }
 
@@ -251,8 +239,6 @@ app.put("/api/battle/:id/move", async (req,res)=>{
   const battleId=Number(req.params.id);
   const unitId=String(req.body?.unitId||"");
   const destination=String(req.body?.destination||"").toUpperCase();
-  const requestedX=Number(req.body?.x);
-  const requestedY=Number(req.body?.y);
   const castleId=Number(req.body?.castleId);
   const rowMatch=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
 
@@ -263,9 +249,6 @@ app.put("/api/battle/:id/move", async (req,res)=>{
   const y="ABCDEFGHIJKLMNOPQRST".indexOf(rowMatch[1]);
   if(x<0||x>11||y<0||y>19)
     return res.status(400).json({error:"خانه مقصد نامعتبر است."});
-  // مختصات ارسالی فقط برای تطبیق هستند؛ مختصات معتبر از نام خانه محاسبه می‌شوند.
-  if(!Number.isInteger(requestedX)||!Number.isInteger(requestedY)||requestedX!==x||requestedY!==y)
-    return res.status(400).json({error:"مختصات مقصد با خانه انتخاب‌شده یکسان نیست."});
 
   const client=await pool.connect();
   try{
@@ -298,11 +281,8 @@ app.put("/api/battle/:id/move", async (req,res)=>{
       return res.status(403).json({error:"این واحد متعلق به این قلعه نیست."});
     }
 
-    // به محض کلیک مقصد، هم مقصد و هم x/y همان واحد در SQL ذخیره می‌شوند.
-    // اجرای دیداری حرکت همچنان تا پایان راند انجام نمی‌شود.
+    // فقط مقصد ذخیره می‌شود؛ x/y/cell در پایان راند تغییر می‌کنند.
     found.unit.moveTarget=destination;
-    found.unit.x=x;
-    found.unit.y=y;
 
     const updated=await client.query(
       "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
