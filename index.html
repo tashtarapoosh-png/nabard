@@ -633,49 +633,14 @@ async function persistBattleMovement(battle){
 }
 
 async function applyRoundMoves(){
-  // در پایان راند، وضعیت واقعی نبرد را از SQL می‌خوانیم؛ نه از کپی داخل مرورگر.
+  // پایان راند: خود سرور مقصدهای ذخیره‌شده در SQL را به x/y/cell تبدیل می‌کند.
   let battle=currentBattleForScene || getCurrentBattle();
-  if(!battle)return;
+  if(!battle || !battle.batId)return;
 
-  if(typeof sqlConnected!=="undefined" && sqlConnected && battle.batId){
+  if(typeof sqlConnected!="undefined" && sqlConnected){
     try{
-      const fresh=await api("/api/battle/current?castleId="+encodeURIComponent(selectedCastleId));
-      if(fresh.battle){
-        battle=fresh.battle;
-        battleRegistry[String(battle.targetId)]=battle;
-        currentBattleForScene=battle;
-      }
-    }catch(err){
-      console.error("خواندن وضعیت نبرد از SQL ناموفق بود:",err);
-      return;
-    }
-  }
-
-  const units=battle.armies.flatMap(army=>army.units||[]);
-  let moved=false;
-
-  units.forEach(unit=>{
-    const destination=String(unit.moveTarget||"");
-    if(!destination)return;
-
-    const x=Number(destination.slice(1))-1;
-    const y="ABCDEFGHIJKLMNOPQRST".indexOf(destination[0]);
-    if(x<0||x>11||y<0||y>19)return;
-
-    // فقط در پایان راند، مقصد ذخیره‌شده به x/y/cell تبدیل می‌شود.
-    unit.cell=destination;
-    unit.x=x;
-    unit.y=y;
-    unit.moveTarget=null;
-    moved=true;
-  });
-
-  if(moved){
-    // x/y جدید را در SQL ثبت می‌کنیم و سپس viobat را با همان وضعیت اجرا می‌کنیم.
-    try{
-      const saved=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/state",{
-        method:"PUT",
-        body:JSON.stringify({armies:battle.armies})
+      const saved=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/apply-round-moves",{
+        method:"PUT"
       });
       if(saved.battle){
         battle=saved.battle;
@@ -683,12 +648,12 @@ async function applyRoundMoves(){
         currentBattleForScene=battle;
       }
     }catch(err){
-      console.error("ذخیره موقعیت جدید نیروها ناموفق بود:",err);
+      console.error("اعمال حرکت راند از SQL ناموفق بود:",err);
       return;
     }
   }
 
-  // این همان تابع نمایش/حرکت اصلی بازی است؛ حالا x/y جدید را دریافت می‌کند.
+  // viobat فقط بعد از دریافت وضعیت جدید SQL اجرا می‌شود.
   const battleScreen=document.getElementById("battle");
   if(battleScreen && battleScreen.classList.contains("active")){
     viobat();
@@ -715,7 +680,7 @@ function rand(){
   if(war)war.textContent="راند: "+randwar;
 
   if(randTimerId)clearInterval(randTimerId);
-  randTimerId=setInterval(()=>{
+  randTimerId=setInterval(async ()=>{
     randRemainingSeconds--;
 
     if(randRemainingSeconds<=0){
@@ -727,7 +692,7 @@ function rand(){
       fotjang();
       const battleEnded=sidchek();
       if(!battleEnded){
-        applyRoundMoves();
+        await applyRoundMoves();
       }
     }
 

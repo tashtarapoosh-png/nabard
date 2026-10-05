@@ -293,6 +293,56 @@ app.put("/api/battle/:id/move", async (req,res)=>{
   }finally{client.release();}
 });
 
+app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const q=await client.query(
+      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
+      [id]
+    );
+    if(!q.rows[0]){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    }
+
+    const battle=q.rows[0];
+    const armies=Array.isArray(battle.armies)?battle.armies:[];
+    let moved=false;
+
+    for(const army of armies){
+      for(const unit of (army.units||[])){
+        const destination=String(unit.moveTarget||"");
+        if(!destination)continue;
+
+        const x=Number(destination.slice(1))-1;
+        const y="ABCDEFGHIJKLMNOPQRST".indexOf(destination[0]);
+        if(x<0||x>11||y<0||y>19)continue;
+
+        unit.cell=destination;
+        unit.x=x;
+        unit.y=y;
+        unit.moveTarget=null;
+        moved=true;
+      }
+    }
+
+    const updated=await client.query(
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 RETURNING *",
+      [JSON.stringify(armies),id]
+    );
+    await client.query("COMMIT");
+    res.json({ok:true,moved,battle:battleJson(updated.rows[0])});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({error:"اعمال حرکت راند ناموفق بود."});
+  }finally{client.release();}
+});
+
 app.put("/api/battle/:id/state", async (req,res)=>{
   const id=Number(req.params.id);
   const armies=Array.isArray(req.body.armies)?req.body.armies:null;
