@@ -136,6 +136,7 @@ function makeArmy(side, castleId, slots, blockIndex, armyId){
       type:names[slot.type],
       rawType:slot.type,
       count:slot.count,
+      initialCount:slot.count,
       castle:Number(castleId),
       side,
       x:pos.x,
@@ -725,18 +726,66 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       await client.query('COMMIT');
       return res.json({ok:true,deleted:false});
     }
-    const targetId=r.rows[0].target_id;
+    const battleRow=r.rows[0];
+    const fullBattleQ=await client.query(
+      'SELECT * FROM battles WHERE id=$1 FOR UPDATE',
+      [battleId]
+    );
+    const fullBattle=fullBattleQ.rows[0];
+    const armies=Array.isArray(fullBattle?.armies)?fullBattle.armies:[];
+
+    // گزارش نهایی قبل از حذف نبرد ساخته می‌شود، چون fotjang واحدهای کشته‌شده را حذف می‌کند.
+    // گزارش از snapshot اولیه ارتش ساخته می‌شود؛ واحدهای کشته‌شده ممکن است
+    // در fotjang از army.units حذف شده باشند، بنابراین فقط units برای initial کافی نیست.
+    const reportMap=new Map();
+    for(const army of armies){
+      const castleId=Number(army.castleId);
+      const castleName='قلعه '+castleId;
+      const initialByType={};
+      for(const slot of (army.slots||[])){
+        const rawType=String(slot?.type||'');
+        if(!rawType)continue;
+        initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(slot?.count)||0));
+      }
+      // سازگاری با داده‌های قدیمی که slots در آن‌ها موجود نیست.
+      if(!Object.keys(initialByType).length){
+        for(const unit of (army.units||[])){
+          const rawType=String(unit?.rawType||'');
+          if(!rawType)continue;
+          initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.initialCount ?? unit?.count)||0));
+        }
+      }
+      const remainingByType={};
+      for(const unit of (army.units||[])){
+        const rawType=String(unit?.rawType||'');
+        if(!rawType)continue;
+        remainingByType[rawType]=(remainingByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.count)||0));
+      }
+      for(const rawType of Object.keys(initialByType)){
+        const initial=initialByType[rawType];
+        const remaining=remainingByType[rawType]||0;
+        reportMap.set(String(castleId)+'|'+rawType,{
+          castleId, castleName,
+          type:names[rawType]||rawType,
+          initial,
+          losses:Math.max(0,initial-remaining),
+          remaining
+        });
+      }
+    }
+    const report=Array.from(reportMap.values());
+
     await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
     await client.query(
       'DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'',
-      [targetId]
+      [battleRow.target_id]
     );
     await client.query(
       'UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',
-      [targetId,battleId]
+      [battleRow.target_id,battleId]
     );
     await client.query('COMMIT');
-    res.json({ok:true,deleted:true,battleId});
+    res.json({ok:true,deleted:true,battleId,report});
   }catch(e){
     await client.query('ROLLBACK');
     console.error(e);

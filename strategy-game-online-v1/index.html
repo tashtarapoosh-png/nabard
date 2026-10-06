@@ -100,8 +100,29 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .battle-background #battle .battle-unit .unit-castle{padding:0.2px 0.8px;font-size:2px;border-radius:0.6px;}
 .battle-background #battle .battle-unit .army-number{padding:0.2px 1px;font-size:2.2px;border-radius:0.6px;}
 .battle-background #battle .battle-unit .unit-count{padding:0.2px 1px;font-size:2px;border-radius:0.6px;}
+
+/* گزارش نهایی نبرد */
+.battle-report-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)}
+.battle-report-modal{width:min(900px,96vw);max-height:90vh;overflow:hidden;background:linear-gradient(145deg,#263442,#17212b);border:1px solid #647485;border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.55);direction:rtl;color:#f4f7fa}
+.battle-report-head{padding:20px 24px;border-bottom:1px solid #465463;text-align:center;position:relative}
+.battle-report-head h2{margin:0;font-size:25px}.battle-report-head .winner{margin-top:8px;color:#cbd5df;font-size:14px}.battle-report-table td:nth-child(3),.battle-report-table td:nth-child(4),.battle-report-table td:nth-child(5){font-weight:800}
+.battle-report-close{position:absolute;left:14px;top:12px;width:38px;height:38px;padding:0;border-radius:50%;font-size:24px;line-height:38px;background:#8e3b3b}
+.battle-report-body{padding:18px 20px;max-height:62vh;overflow:auto}.battle-report-table{width:100%;border-collapse:collapse;font-size:15px}.battle-report-table th,.battle-report-table td{border:1px solid #4a5866;padding:11px 8px;text-align:center}.battle-report-table th{background:#101820;color:#fff;position:sticky;top:0}.battle-report-table tr:nth-child(even){background:rgba(255,255,255,.035)}
+.battle-report-foot{padding:14px 20px;border-top:1px solid #465463;text-align:center}.battle-report-foot button{min-width:130px}
 </style></head>
 <body>
+<div id="battleReportOverlay" class="battle-report-overlay">
+  <div class="battle-report-modal">
+    <div class="battle-report-head">
+      <button id="battleReportClose" class="battle-report-close" type="button">×</button>
+      <h2 id="battleReportTitle">گزارش نبرد</h2>
+      <div id="battleReportWinner" class="winner"></div>
+    </div>
+    <div class="battle-report-body"><div class="table-wrap"><table class="battle-report-table"><thead><tr><th>نام قلعه</th><th>نوع نیرو</th><th>تعداد اولیه نیرو</th><th>تعداد تلفات نیرو</th><th>باقیمانده نیرو</th></tr></thead><tbody id="battleReportBody"></tbody></table></div></div>
+    <div class="battle-report-foot"><button id="battleReportCloseBottom" class="back" type="button">بستن گزارش</button></div>
+  </div>
+</div>
+
 <section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
 <section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -1094,14 +1115,46 @@ async function batman(){
     window.__onlineBatmanResolved=false;
   }catch(e){console.error(e);alert(e.message);}
 }
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function showBattleReport(data,winningSide){
+  const overlay=document.getElementById('battleReportOverlay');
+  const body=document.getElementById('battleReportBody');
+  const title=document.getElementById('battleReportTitle');
+  const winner=document.getElementById('battleReportWinner');
+  if(!overlay||!body||!title||!winner)return;
+
+  const rows=Array.isArray(data?.report)?data.report:[];
+  title.textContent='گزارش نبرد شماره '+(data?.battleId??'');
+  winner.textContent=winningSide ? ('برنده: '+winningSide) : '';
+  body.innerHTML=rows.length ? rows.map(row=>
+    '<tr><td>'+escapeHtml(row.castleName)+'</td><td>'+escapeHtml(row.type)+'</td><td>'+Number(row.initial||0)+'</td><td>'+Number(row.losses||0)+'</td><td>'+Number(row.remaining||0)+'</td></tr>'
+  ).join('') : '<tr><td colspan="5">اطلاعات نیروهای نبرد موجود نیست.</td></tr>';
+  overlay.style.display='flex';
+}
+
+function closeBattleReport(){
+  const overlay=document.getElementById('battleReportOverlay');
+  if(overlay)overlay.style.display='none';
+}
+
+document.getElementById('battleReportClose').onclick=closeBattleReport;
+document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
+
 const originalEndbat=endbat;
 endbat=async function(winningSide){
   const battle=getCurrentBattle();
+  let reportData=null;
   if(battle){
-    try{await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:'{}'});}catch(e){console.error('endbat SQL',e);}
+    try{
+      reportData=await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:'{}'});
+    }catch(e){console.error('endbat SQL',e);}
   }
   originalEndbat(winningSide);
   if(battle)delete battleRegistry[String(battle.targetId)];
+  if(reportData?.report)showBattleReport(reportData,winningSide);
 };
 
 document.getElementById('startAttack').onclick=onlineStartAttack;
