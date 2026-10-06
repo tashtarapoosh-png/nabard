@@ -119,7 +119,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentLayer{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;user-select:none}
 #developmentBackground{z-index:1;pointer-events:none}
 #developmentWall{z-index:2;pointer-events:none}
-.developmentBuildingImage{z-index:3;cursor:pointer;pointer-events:none}
+.developmentBuildingImage{z-index:3;cursor:pointer;pointer-events:auto}.developmentBuildingImage[data-building="wall"]{clip-path:inset(0% 0% 8% 0%)}.developmentBuildingImage[data-building="castle"]{clip-path:inset(16.5% 35.5% 54.5% 35.5%)}.developmentBuildingImage[data-building="barracks1"]{clip-path:inset(33% 67% 44.5% 5.5%)}.developmentBuildingImage[data-building="barracks2"]{clip-path:inset(29.5% 4.5% 44% 66%)}.developmentBuildingImage[data-building="goldMine"]{clip-path:inset(45.5% 29% 25% 26%)}
 .developmentAttackTimer{flex:0 0 auto;min-width:52px;padding:4px 6px;border:1px solid rgba(255,213,74,.65);border-radius:6px;background:rgba(12,17,22,.9);color:#fff;font-size:9px;font-weight:900;text-align:center;direction:ltr;white-space:nowrap}
 .developmentAttackTimerInfo{position:absolute;top:100%;right:0;margin-top:3px;max-width:180px;padding:3px 6px;border-radius:5px;background:rgba(12,17,22,.9);color:#fff;font-size:8px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none}
 .developmentLevelOverlay{position:absolute;z-index:7;transform:translate(-50%,-50%);min-width:23px;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.82);color:#fff;font-size:11px;font-weight:800;line-height:1.1;text-align:center;pointer-events:none}
@@ -127,11 +127,11 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentTopCompact{position:absolute;top:5px;left:6px;right:6px;z-index:20;display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:8px;background:rgba(12,17,22,.78);backdrop-filter:blur(3px);box-sizing:border-box}
 .developmentCastleName{font-size:12px;font-weight:800;white-space:nowrap;margin-left:2px}
 .developmentStatCompact{flex:1;min-width:0;padding:4px 5px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.06);color:#fff;font-size:9px;font-weight:700;text-align:center;line-height:1.15;white-space:nowrap}
-.developmentBottomBar{position:absolute;left:6px;right:6px;bottom:5px;z-index:20;display:flex;gap:5px;padding:4px 5px;border-radius:8px;background:rgba(12,17,22,.82);backdrop-filter:blur(3px)}
-.developmentBottomBar button{position:relative;z-index:1001;pointer-events:auto;flex:1;min-width:0;padding:5px 6px;border-radius:6px;font-size:9px;line-height:1.1;white-space:nowrap}
+.developmentBottomBar{position:fixed;left:6px;right:6px;bottom:6px;z-index:6001;display:flex;gap:6px;padding:6px;border-radius:9px;background:rgba(12,17,22,.92);backdrop-filter:blur(3px);border:1px solid rgba(255,255,255,.18);box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.developmentBottomBar button{position:relative;z-index:6002;pointer-events:auto;flex:1;min-width:0;min-height:34px;padding:6px 8px;border-radius:7px;font-size:11px;line-height:1.15;white-space:nowrap}
 #developmentMessage{position:absolute;left:50%;bottom:51px;transform:translateX(-50%);z-index:21;max-width:80vw;padding:3px 7px;border-radius:5px;background:rgba(0,0,0,.65);font-size:9px;color:#fff;display:none;white-space:nowrap}
 #developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:rgba(35,59,42,.92);color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.35)}
-#buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.6);overflow:hidden}
+#buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:7000;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.6);overflow:hidden}
 #buildingActionPanel.open,#trainingPanel.open{display:flex}
 .developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.45);text-align:center}
 .developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}
@@ -145,7 +145,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   #developmentField{inset:52px 0 50px 0}
   #developmentScene{width:min(100vw,calc(100vh - 102px));height:min(100vw,calc(100vh - 102px))}
   .developmentTopCompact{gap:3px;padding:3px 4px}.developmentCastleName{font-size:10px}.developmentStatCompact{font-size:8px;padding:4px 3px}
-  .developmentBottomBar{gap:3px;padding:3px}.developmentBottomBar button{padding:4px 3px;font-size:8px}.developmentLevelOverlay{min-width:20px;padding:2px 5px;font-size:10px}
+  .developmentBottomBar{gap:4px;padding:4px}.developmentBottomBar button{min-height:32px;padding:5px 4px;font-size:10px}.developmentLevelOverlay{min-width:20px;padding:2px 5px;font-size:10px}
   #developmentDefenseButton{font-size:8px;padding:4px 6px}
 }
 
@@ -194,7 +194,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
       <div id="developmentArcherCompact" class="developmentStatCompact">🏹 0</div>
       <div id="developmentCavalryCompact" class="developmentStatCompact">🐎 0</div>
       <div id="developmentSwordsmanCompact" class="developmentStatCompact">⚔️ 0</div>
-      <div id="castleTimer" class="developmentAttackTimer" style="display:none">00:10</div>
+      <div id="castleTimer" class="developmentAttackTimer" style="display:none">01:00</div>
       <div id="castleTimerInfo" class="developmentAttackTimerInfo" style="display:none"></div>
     </div>
 
@@ -258,7 +258,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   </div>
 </div>
 
-<section id="timerScreen" class="screen"><div class="card"><h2>نیرو در حال حرکت است</h2><div id="timer" class="timer">00:10</div><div id="timerInfo" class="notice"></div></div></section>
+<section id="timerScreen" class="screen"><div class="card"><h2>نیرو در حال حرکت است</h2><div id="timer" class="timer">01:00</div><div id="timerInfo" class="notice"></div></div></section>
 <section id="battle" class="screen"><div class="card battle-card"><img class="battle-castle-image" src="images/castle.png" alt="قلعه"><img class="battle-tent-image" src="images/tent.png" alt="چادر"><div id="randTimerBox" class="rand-timer-box"><div id="randTimerValue" class="rand-timer-value">00:20</div><div id="randWarValue" class="rand-war-value">راند: 0</div></div><h2>نتیجه نبرد</h2><p id="battleText">آماده نبرد</p><div class="actions" style="margin:14px 0">
   <button id="battleSceneBtn">نمایش صحنه نبرد</button>
 </div>
@@ -300,7 +300,7 @@ let attackData=null;
 let timerId=null;
 let nextBattleId=1;
 const battleRegistry={};
-let remainingSeconds=10;
+let remainingSeconds=60;
 let randTimerId=null;
 let randStarted=false;
 let randwar=0;
@@ -320,7 +320,7 @@ function exitGame(){
   selectedCastleId=null;
   selectedTargetId=null;
   attackData=null;
-  remainingSeconds=10;
+  remainingSeconds=60;
   document.getElementById("castleTimer").style.display="none";
   document.getElementById("castleTimerInfo").style.display="none";
   show("select");
@@ -469,8 +469,8 @@ function collectAttack(){
 
 
 function beginTimer(){
-  remainingSeconds=10;
-  document.getElementById("timer").textContent="00:10";
+  remainingSeconds=60;
+  document.getElementById("timer").textContent="01:00";
   document.getElementById("timerInfo").textContent=castles[attackData.attackerId].name+" → "+castles[attackData.targetId].name;
 
   document.getElementById("castleTimer").style.display="block";
@@ -1561,6 +1561,11 @@ document.getElementById('trainingCloseButton').onclick=()=>document.getElementBy
 document.getElementById('startTrainingButton').onclick=startDevelopmentTraining;
 document.querySelectorAll('[data-development-train]').forEach(btn=>btn.onclick=()=>{developmentTrainType=btn.dataset.developmentTrain;document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.toggle('selected',x===btn));});
 document.getElementById('developmentScene').addEventListener('click',e=>{
+  const direct=e.target.closest ? e.target.closest('.developmentBuildingImage') : null;
+  if(direct && document.getElementById('developmentScene').contains(direct)){
+    openDevelopmentBuilding(direct.dataset.building);
+    return;
+  }
   const img=developmentBuildingFromPoint(e);
   if(img)openDevelopmentBuilding(img.dataset.building);
 });
