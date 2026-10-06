@@ -63,21 +63,9 @@ async function initDb(){
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
       winner_side TEXT,
-      report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
-    )
-  `);
-
-  await pool.query(`
-    ALTER TABLE battles ADD COLUMN IF NOT EXISTS report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS battle_reports (
-      id BIGSERIAL PRIMARY KEY,
-      battle_id BIGINT NOT NULL UNIQUE,
-      report JSONB NOT NULL,
-      winner_side TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      round_number INTEGER NOT NULL DEFAULT 0,
+      round_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      round_history JSONB NOT NULL DEFAULT '[]'::jsonb
     )
   `);
 
@@ -92,6 +80,9 @@ async function initDb(){
     ALTER TABLE battles
     ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
   `);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_number INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_history JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await pool.query(`
     UPDATE battles
     SET ends_at = created_at + INTERVAL '30 minutes'
@@ -151,7 +142,6 @@ function makeArmy(side, castleId, slots, blockIndex, armyId){
       type:names[slot.type],
       rawType:slot.type,
       count:slot.count,
-      initialCount:slot.count,
       castle:Number(castleId),
       side,
       x:pos.x,
@@ -202,7 +192,9 @@ async function getBattleByTarget(targetId, client=pool){
     endsAt:new Date(b.ends_at).getTime(),
     ended:b.ended,
     winnerSide:b.winner_side,
-    reportArmies:b.report_armies
+    roundNumber:Number(b.round_number||0),
+    roundStartedAt:new Date(b.round_started_at||b.created_at).getTime(),
+    roundHistory:Array.isArray(b.round_history)?b.round_history:[]
   };
 }
 
@@ -217,7 +209,9 @@ function battleJson(row){
     endsAt:new Date(row.ends_at).getTime(),
     ended:row.ended,
     winnerSide:row.winner_side,
-    reportArmies:row.report_armies
+    roundNumber:Number(row.round_number||0),
+    roundStartedAt:new Date(row.round_started_at||row.created_at).getTime(),
+    roundHistory:Array.isArray(row.round_history)?row.round_history:[]
   };
 }
 
@@ -314,9 +308,15 @@ app.put("/api/battle/:id/move", async (req,res)=>{
     // فقط مقصد ذخیره می‌شود؛ x/y/cell در پایان راند تغییر می‌کنند.
     found.unit.moveTarget=destination;
 
+    const nextRound=Number(battle.round_number||0)+1;
+    const history=Array.isArray(battle.round_history)?battle.round_history:[];
+    history.push({round:nextRound,moved,at:Date.now()});
+    if(history.length>100)history.splice(0,history.length-100);
     const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),JSON.stringify(mergeReportArmies(battle.report_armies,armies)),battleId]
+      `UPDATE battles
+       SET armies=$1::jsonb, round_number=$2, round_started_at=NOW(), round_history=$3::jsonb
+       WHERE id=$4 AND ended=FALSE AND ends_at>NOW() RETURNING *`,
+      [JSON.stringify(armies),nextRound,JSON.stringify(history),battleId]
     );
     await client.query("COMMIT");
     res.json({ok:true,battle:battleJson(updated.rows[0])});
@@ -365,8 +365,8 @@ app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
     }
 
     const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),JSON.stringify(mergeReportArmies(battle.report_armies,armies)),battleId]
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),battleId]
     );
     await client.query("COMMIT");
     res.json({ok:true,moved,battle:battleJson(updated.rows[0])});
@@ -399,18 +399,12 @@ app.put("/api/battle/:id/state", async (req,res)=>{
   if(!Number.isInteger(id)||!armies)return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
 
   try{
-    const current=await pool.query(
-      "SELECT report_armies FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
-      [id]
-    );
-    if(!current.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
-    const reportArmies=mergeReportArmies(current.rows[0].report_armies,armies);
     const r=await pool.query(
       `UPDATE battles
-       SET armies=$1::jsonb, report_armies=$2::jsonb
-       WHERE id=$3 AND ended=FALSE AND ends_at>NOW()
+       SET armies=$1::jsonb
+       WHERE id=$2 AND ended=FALSE AND ends_at>NOW()
        RETURNING *`,
-      [JSON.stringify(armies),JSON.stringify(reportArmies),id]
+      [JSON.stringify(armies),id]
     );
     if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
     res.json({ok:true,battle:battleJson(r.rows[0])});
@@ -420,57 +414,6 @@ app.put("/api/battle/:id/state", async (req,res)=>{
   }
 });
 
-
-app.get("/api/battle-reports", async(req,res)=>{
-  try{
-    const r=await pool.query(`
-      SELECT id,battle_id,winner_side,created_at
-      FROM battle_reports
-      ORDER BY battle_id DESC
-    `);
-    res.json({ok:true,reports:r.rows.map(x=>({
-      id:Number(x.id),
-      battleId:Number(x.battle_id),
-      winnerSide:x.winner_side,
-      createdAt:new Date(x.created_at).getTime()
-    }))});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خواندن گزارش‌های نبرد ناموفق بود."});
-  }
-});
-
-app.get("/api/battle-reports/:id", async(req,res)=>{
-  const battleId=Number(req.params.id);
-  if(!Number.isInteger(battleId))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
-  try{
-    const r=await pool.query(
-      `SELECT battle_id,report,winner_side,created_at FROM battle_reports WHERE battle_id=$1`,
-      [battleId]
-    );
-    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد پیدا نشد."});
-    res.json({
-      ok:true,
-      battleId:Number(r.rows[0].battle_id),
-      report:Array.isArray(r.rows[0].report)?r.rows[0].report:[],
-      winnerSide:r.rows[0].winner_side,
-      createdAt:new Date(r.rows[0].created_at).getTime()
-    });
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خواندن گزارش نبرد ناموفق بود."});
-  }
-});
-
-app.delete("/api/battle-reports", async(req,res)=>{
-  try{
-    const r=await pool.query("DELETE FROM battle_reports");
-    res.json({ok:true,deleted:Number(r.rowCount||0)});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"پاک کردن گزارش‌های نبرد ناموفق بود."});
-  }
-});
 
 // پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
 app.post("/api/reset-game", async (req,res)=>{
@@ -686,8 +629,8 @@ async function resolveAttack(attackId){
       );
 
       await client.query(
-        "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",
-        [JSON.stringify(defenderArmy?[defenderArmy]:[]), JSON.stringify(defenderArmy?[defenderArmy]:[]), b.id]
+        "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
+        [JSON.stringify(defenderArmy?[defenderArmy]:[]),b.id]
       );
       await client.query(
         "UPDATE castles SET under_attack=TRUE,battle_id=$1 WHERE id=$2",
@@ -723,8 +666,8 @@ async function resolveAttack(attackId){
     }
 
     await client.query(
-      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",
-      [JSON.stringify(armies), JSON.stringify(mergeReportArmies(battle.report_armies, armies)), battle.batId]
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
+      [JSON.stringify(armies),battle.batId]
     );
     await client.query(
       "UPDATE attacks SET status='resolved',resolved_at=NOW() WHERE id=$1",
@@ -784,87 +727,6 @@ app.post("/api/attack/:id/resolve",async(req,res)=>{
 });
 
 
-// وضعیت جداگانه مخصوص گزارش؛ از حذف ارتش‌ها در fotjang مستقل می‌ماند.
-function mergeReportArmies(existing, current){
-  const saved=Array.isArray(existing)?existing.map(a=>JSON.parse(JSON.stringify(a))):[];
-  const live=Array.isArray(current)?current:[];
-  const byId=new Map(saved.map(a=>[String(a.armyId),a]));
-  for(const army of live){
-    const key=String(army?.armyId||'');
-    if(!key)continue;
-    let target=byId.get(key);
-    if(!target){
-      target=JSON.parse(JSON.stringify(army));
-      target.units=(target.units||[]).map(u=>({...u}));
-      byId.set(key,target);
-      saved.push(target);
-    }
-    const liveUnits=Array.isArray(army.units)?army.units:[];
-    const liveById=new Map(liveUnits.map(u=>[String(u.id),u]));
-    const targetUnits=Array.isArray(target.units)?target.units:[];
-    for(const unit of targetUnits){
-      const now=liveById.get(String(unit.id));
-      unit.count=now?Math.max(0,Math.floor(Number(now.count)||0)):0;
-      if(now && Number.isFinite(Number(now.health)))unit.health=Number(now.health);
-      if(now?.cell)unit.cell=now.cell;
-      if(Number.isFinite(Number(now?.x)))unit.x=Number(now.x);
-      if(Number.isFinite(Number(now?.y)))unit.y=Number(now.y);
-    }
-  }
-  return saved;
-}
-
-// ساخت گزارش نبرد به صورت مستقل از منطق نبرد.
-// این تابع فقط snapshot ارتش‌ها را می‌گیرد و گزارش نهایی را تولید می‌کند.
-function gozbat(battleRow){
-  const armies=Array.isArray(battleRow?.report_armies)?battleRow.report_armies:(Array.isArray(battleRow?.armies)?battleRow.armies:[]);
-  const reportMap=new Map();
-
-  for(const army of armies){
-    const castleId=Number(army?.castleId);
-    if(!Number.isInteger(castleId))continue;
-    const castleName='قلعه '+castleId;
-
-    const initialByType={};
-    for(const slot of (Array.isArray(army?.slots)?army.slots:[])){
-      const rawType=String(slot?.type||'');
-      if(!rawType)continue;
-      initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(slot?.count)||0));
-    }
-
-    // سازگاری با داده‌های قدیمی که slots نداشتند.
-    if(!Object.keys(initialByType).length){
-      for(const unit of (Array.isArray(army?.units)?army.units:[])){
-        const rawType=String(unit?.rawType||'');
-        if(!rawType)continue;
-        initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.initialCount ?? unit?.count)||0));
-      }
-    }
-
-    const remainingByType={};
-    for(const unit of (Array.isArray(army?.units)?army.units:[])){
-      const rawType=String(unit?.rawType||'');
-      if(!rawType)continue;
-      remainingByType[rawType]=(remainingByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.count)||0));
-    }
-
-    for(const rawType of Object.keys(initialByType)){
-      const initial=initialByType[rawType];
-      const remaining=remainingByType[rawType]||0;
-      reportMap.set(String(castleId)+'|'+rawType,{
-        castleId,
-        castleName,
-        type:names[rawType]||rawType,
-        initial,
-        losses:Math.max(0,initial-remaining),
-        remaining
-      });
-    }
-  }
-
-  return Array.from(reportMap.values());
-}
-
 app.post("/api/battle/:id/end", async(req,res)=>{
   const battleId=Number(req.params.id);
   if(!Number.isInteger(battleId))
@@ -881,36 +743,18 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       await client.query('COMMIT');
       return res.json({ok:true,deleted:false});
     }
-    const battleRow=r.rows[0];
-    const fullBattleQ=await client.query(
-      'SELECT * FROM battles WHERE id=$1 FOR UPDATE',
-      [battleId]
-    );
-    const fullBattle=fullBattleQ.rows[0];
-
-    // گزارش کاملاً مستقل از حذف نبرد ساخته و در جدول مخصوص گزارش‌ها ذخیره می‌شود.
-    const report=gozbat(fullBattle);
-    await client.query(
-      `INSERT INTO battle_reports(battle_id,report,winner_side)
-       VALUES($1,$2::jsonb,$3)
-       ON CONFLICT (battle_id) DO UPDATE SET
-         report=EXCLUDED.report,
-         winner_side=EXCLUDED.winner_side,
-         created_at=NOW()`,
-      [battleId,JSON.stringify(report),req.body?.winnerSide||null]
-    );
-
+    const targetId=r.rows[0].target_id;
     await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
     await client.query(
       'DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'',
-      [battleRow.target_id]
+      [targetId]
     );
     await client.query(
       'UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',
-      [battleRow.target_id,battleId]
+      [targetId,battleId]
     );
     await client.query('COMMIT');
-    res.json({ok:true,deleted:true,battleId,reportSaved:true});
+    res.json({ok:true,deleted:true,battleId});
   }catch(e){
     await client.query('ROLLBACK');
     console.error(e);
