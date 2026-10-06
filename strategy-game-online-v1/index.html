@@ -109,8 +109,25 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .battle-report-close{position:absolute;left:14px;top:12px;width:38px;height:38px;padding:0;border-radius:50%;font-size:24px;line-height:38px;background:#8e3b3b}
 .battle-report-body{padding:18px 20px;max-height:62vh;overflow:auto}.battle-report-table{width:100%;border-collapse:collapse;font-size:15px}.battle-report-table th,.battle-report-table td{border:1px solid #4a5866;padding:11px 8px;text-align:center}.battle-report-table th{background:#101820;color:#fff;position:sticky;top:0}.battle-report-table tr:nth-child(even){background:rgba(255,255,255,.035)}
 .battle-report-foot{padding:14px 20px;border-top:1px solid #465463;text-align:center}.battle-report-foot button{min-width:130px}
+.battle-reports-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}.battle-report-number{background:#18212a;border:1px solid #3a4652;border-radius:9px;padding:14px;font-weight:800}.battle-report-number:hover{border-color:#4aa3ff}.report-delete-all{background:#8e3b3b}.battle-report-meta{font-size:12px;color:#cbd5df;margin-top:5px;font-weight:400}
 </style></head>
 <body>
+<div id="battleReportSelectOverlay" class="battle-report-overlay">
+  <div class="battle-report-modal">
+    <div class="battle-report-head">
+      <button id="battleReportSelectClose" class="battle-report-close" type="button">×</button>
+      <h2>گزارش‌های نبرد</h2>
+      <div class="winner">شماره نبرد موردنظر را انتخاب کنید</div>
+    </div>
+    <div class="battle-report-body">
+      <div id="battleReportsList" class="battle-reports-list"></div>
+      <div class="actions" style="margin-top:16px;justify-content:center">
+        <button id="deleteAllBattleReports" class="report-delete-all" type="button">پاک کردن تمام گزارش‌های نبرد</button>
+      </div>
+    </div>
+    <div class="battle-report-foot"><button id="battleReportSelectCloseBottom" class="back" type="button">بستن</button></div>
+  </div>
+</div>
 <div id="battleReportOverlay" class="battle-report-overlay">
   <div class="battle-report-modal">
     <div class="battle-report-head">
@@ -123,7 +140,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   </div>
 </div>
 
-<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
+<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
 <section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -1119,7 +1136,7 @@ function escapeHtml(value){
   return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
 }
 
-function showBattleReport(data,winningSide){
+function showBattleReport(data){
   const overlay=document.getElementById('battleReportOverlay');
   const body=document.getElementById('battleReportBody');
   const title=document.getElementById('battleReportTitle');
@@ -1128,7 +1145,7 @@ function showBattleReport(data,winningSide){
 
   const rows=Array.isArray(data?.report)?data.report:[];
   title.textContent='گزارش نبرد شماره '+(data?.battleId??'');
-  winner.textContent=winningSide ? ('برنده: '+winningSide) : '';
+  winner.textContent=data?.winnerSide ? ('برنده: '+data.winnerSide) : '';
   body.innerHTML=rows.length ? rows.map(row=>
     '<tr><td>'+escapeHtml(row.castleName)+'</td><td>'+escapeHtml(row.type)+'</td><td>'+Number(row.initial||0)+'</td><td>'+Number(row.losses||0)+'</td><td>'+Number(row.remaining||0)+'</td></tr>'
   ).join('') : '<tr><td colspan="5">اطلاعات نیروهای نبرد موجود نیست.</td></tr>';
@@ -1139,22 +1156,69 @@ function closeBattleReport(){
   const overlay=document.getElementById('battleReportOverlay');
   if(overlay)overlay.style.display='none';
 }
+function closeBattleReportSelect(){
+  const overlay=document.getElementById('battleReportSelectOverlay');
+  if(overlay)overlay.style.display='none';
+}
+
+async function openBattleReports(){
+  const overlay=document.getElementById('battleReportSelectOverlay');
+  const list=document.getElementById('battleReportsList');
+  if(!overlay||!list)return;
+  list.innerHTML='<div class="notice">در حال خواندن گزارش‌ها...</div>';
+  overlay.style.display='flex';
+  try{
+    const data=await api('/api/battle-reports');
+    const reports=Array.isArray(data.reports)?data.reports:[];
+    if(!reports.length){
+      list.innerHTML='<div class="notice">هنوز هیچ گزارش نبردی ذخیره نشده است.</div>';
+      return;
+    }
+    list.innerHTML=reports.map(item=>
+      '<button class="battle-report-number" type="button" data-battle-report="'+Number(item.battleId)+'">نبرد شماره '+Number(item.battleId)+
+      (item.winnerSide?'<div class="battle-report-meta">برنده: '+escapeHtml(item.winnerSide)+'</div>':'')+
+      '</button>'
+    ).join('');
+    list.querySelectorAll('[data-battle-report]').forEach(btn=>{
+      btn.onclick=async()=>{
+        try{
+          const report=await api('/api/battle-reports/'+encodeURIComponent(btn.dataset.battleReport));
+          closeBattleReportSelect();
+          showBattleReport(report);
+        }catch(e){alert(e.message);}
+      };
+    });
+  }catch(e){
+    list.innerHTML='<div class="notice">'+escapeHtml(e.message)+'</div>';
+  }
+}
+
+async function deleteAllBattleReports(){
+  if(!confirm('تمام گزارش‌های نبرد حذف شوند؟'))return;
+  try{
+    await api('/api/battle-reports',{method:'DELETE'});
+    await openBattleReports();
+    alert('تمام گزارش‌های نبرد پاک شدند.');
+  }catch(e){alert(e.message);}
+}
 
 document.getElementById('battleReportClose').onclick=closeBattleReport;
 document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
+document.getElementById('battleReportSelectClose').onclick=closeBattleReportSelect;
+document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
+document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
+document.getElementById('battleReportsBtn').onclick=openBattleReports;
 
 const originalEndbat=endbat;
 endbat=async function(winningSide){
   const battle=getCurrentBattle();
-  let reportData=null;
   if(battle){
     try{
-      reportData=await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:'{}'});
-    }catch(e){console.error('endbat SQL',e);}
+      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
+    }catch(e){console.error('ذخیره گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
   if(battle)delete battleRegistry[String(battle.targetId)];
-  if(reportData?.report)showBattleReport(reportData,winningSide);
 };
 
 document.getElementById('startAttack').onclick=onlineStartAttack;

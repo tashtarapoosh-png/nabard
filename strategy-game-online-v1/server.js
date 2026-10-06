@@ -67,6 +67,16 @@ async function initDb(){
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS battle_reports (
+      id BIGSERIAL PRIMARY KEY,
+      battle_id BIGINT NOT NULL UNIQUE,
+      report JSONB NOT NULL,
+      winner_side TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
     INSERT INTO castles(id,name,army,defense_slots)
     SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb
     FROM generate_series(1,11) x
@@ -398,6 +408,57 @@ app.put("/api/battle/:id/state", async (req,res)=>{
 });
 
 
+app.get("/api/battle-reports", async(req,res)=>{
+  try{
+    const r=await pool.query(`
+      SELECT id,battle_id,winner_side,created_at
+      FROM battle_reports
+      ORDER BY battle_id DESC
+    `);
+    res.json({ok:true,reports:r.rows.map(x=>({
+      id:Number(x.id),
+      battleId:Number(x.battle_id),
+      winnerSide:x.winner_side,
+      createdAt:new Date(x.created_at).getTime()
+    }))});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"خواندن گزارش‌های نبرد ناموفق بود."});
+  }
+});
+
+app.get("/api/battle-reports/:id", async(req,res)=>{
+  const battleId=Number(req.params.id);
+  if(!Number.isInteger(battleId))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  try{
+    const r=await pool.query(
+      `SELECT battle_id,report,winner_side,created_at FROM battle_reports WHERE battle_id=$1`,
+      [battleId]
+    );
+    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد پیدا نشد."});
+    res.json({
+      ok:true,
+      battleId:Number(r.rows[0].battle_id),
+      report:Array.isArray(r.rows[0].report)?r.rows[0].report:[],
+      winnerSide:r.rows[0].winner_side,
+      createdAt:new Date(r.rows[0].created_at).getTime()
+    });
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"خواندن گزارش نبرد ناموفق بود."});
+  }
+});
+
+app.delete("/api/battle-reports", async(req,res)=>{
+  try{
+    const r=await pool.query("DELETE FROM battle_reports");
+    res.json({ok:true,deleted:Number(r.rowCount||0)});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"پاک کردن گزارش‌های نبرد ناموفق بود."});
+  }
+});
+
 // پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
 app.post("/api/reset-game", async (req,res)=>{
   const client=await pool.connect();
@@ -710,6 +771,57 @@ app.post("/api/attack/:id/resolve",async(req,res)=>{
 });
 
 
+// ساخت گزارش نبرد به صورت مستقل از منطق نبرد.
+// این تابع فقط snapshot ارتش‌ها را می‌گیرد و گزارش نهایی را تولید می‌کند.
+function gozbat(battleRow){
+  const armies=Array.isArray(battleRow?.armies)?battleRow.armies:[];
+  const reportMap=new Map();
+
+  for(const army of armies){
+    const castleId=Number(army?.castleId);
+    if(!Number.isInteger(castleId))continue;
+    const castleName='قلعه '+castleId;
+
+    const initialByType={};
+    for(const slot of (Array.isArray(army?.slots)?army.slots:[])){
+      const rawType=String(slot?.type||'');
+      if(!rawType)continue;
+      initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(slot?.count)||0));
+    }
+
+    // سازگاری با داده‌های قدیمی که slots نداشتند.
+    if(!Object.keys(initialByType).length){
+      for(const unit of (Array.isArray(army?.units)?army.units:[])){
+        const rawType=String(unit?.rawType||'');
+        if(!rawType)continue;
+        initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.initialCount ?? unit?.count)||0));
+      }
+    }
+
+    const remainingByType={};
+    for(const unit of (Array.isArray(army?.units)?army.units:[])){
+      const rawType=String(unit?.rawType||'');
+      if(!rawType)continue;
+      remainingByType[rawType]=(remainingByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.count)||0));
+    }
+
+    for(const rawType of Object.keys(initialByType)){
+      const initial=initialByType[rawType];
+      const remaining=remainingByType[rawType]||0;
+      reportMap.set(String(castleId)+'|'+rawType,{
+        castleId,
+        castleName,
+        type:names[rawType]||rawType,
+        initial,
+        losses:Math.max(0,initial-remaining),
+        remaining
+      });
+    }
+  }
+
+  return Array.from(reportMap.values());
+}
+
 app.post("/api/battle/:id/end", async(req,res)=>{
   const battleId=Number(req.params.id);
   if(!Number.isInteger(battleId))
@@ -732,48 +844,18 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       [battleId]
     );
     const fullBattle=fullBattleQ.rows[0];
-    const armies=Array.isArray(fullBattle?.armies)?fullBattle.armies:[];
 
-    // گزارش نهایی قبل از حذف نبرد ساخته می‌شود، چون fotjang واحدهای کشته‌شده را حذف می‌کند.
-    // گزارش از snapshot اولیه ارتش ساخته می‌شود؛ واحدهای کشته‌شده ممکن است
-    // در fotjang از army.units حذف شده باشند، بنابراین فقط units برای initial کافی نیست.
-    const reportMap=new Map();
-    for(const army of armies){
-      const castleId=Number(army.castleId);
-      const castleName='قلعه '+castleId;
-      const initialByType={};
-      for(const slot of (army.slots||[])){
-        const rawType=String(slot?.type||'');
-        if(!rawType)continue;
-        initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(slot?.count)||0));
-      }
-      // سازگاری با داده‌های قدیمی که slots در آن‌ها موجود نیست.
-      if(!Object.keys(initialByType).length){
-        for(const unit of (army.units||[])){
-          const rawType=String(unit?.rawType||'');
-          if(!rawType)continue;
-          initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.initialCount ?? unit?.count)||0));
-        }
-      }
-      const remainingByType={};
-      for(const unit of (army.units||[])){
-        const rawType=String(unit?.rawType||'');
-        if(!rawType)continue;
-        remainingByType[rawType]=(remainingByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.count)||0));
-      }
-      for(const rawType of Object.keys(initialByType)){
-        const initial=initialByType[rawType];
-        const remaining=remainingByType[rawType]||0;
-        reportMap.set(String(castleId)+'|'+rawType,{
-          castleId, castleName,
-          type:names[rawType]||rawType,
-          initial,
-          losses:Math.max(0,initial-remaining),
-          remaining
-        });
-      }
-    }
-    const report=Array.from(reportMap.values());
+    // گزارش کاملاً مستقل از حذف نبرد ساخته و در جدول مخصوص گزارش‌ها ذخیره می‌شود.
+    const report=gozbat(fullBattle);
+    await client.query(
+      `INSERT INTO battle_reports(battle_id,report,winner_side)
+       VALUES($1,$2::jsonb,$3)
+       ON CONFLICT (battle_id) DO UPDATE SET
+         report=EXCLUDED.report,
+         winner_side=EXCLUDED.winner_side,
+         created_at=NOW()`,
+      [battleId,JSON.stringify(report),req.body?.winnerSide||null]
+    );
 
     await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
     await client.query(
@@ -785,7 +867,7 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       [battleRow.target_id,battleId]
     );
     await client.query('COMMIT');
-    res.json({ok:true,deleted:true,battleId,report});
+    res.json({ok:true,deleted:true,battleId,reportSaved:true});
   }catch(e){
     await client.query('ROLLBACK');
     console.error(e);
