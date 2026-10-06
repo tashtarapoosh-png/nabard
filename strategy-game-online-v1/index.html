@@ -559,7 +559,7 @@ function jang(){
   const typeMultiplier=(attacker,target)=>{
     if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 2;
     if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 2;
-    if(attacker.rawType==="swordsman"&&target.rawType==="cavalry")return 2;
+    if(attacker.rawType==="swordsman"&&target.rawType==="archer")return 2;
     return 1;
   };
 
@@ -762,9 +762,8 @@ function rand(){
       randwar++;
       randRemainingSeconds=20;
 
-      // دقیقاً در لحظه صفر شدن تایمر: وضعیت فعلی از SQL خوانده می‌شود،
-      // سپس همان منطق موجود jang و fotjang اجرا و نتیجه دوباره در SQL ذخیره می‌شود.
-      await refreshBattleFromSql();
+      // دقیقاً در ابتدای هر راند: viobat وضعیت فعلی را از SQL می‌گیرد و نمایش می‌دهد.
+      await viobat();
       jang();
       fotjang();
       const battleAfterCombat=getCurrentBattle();
