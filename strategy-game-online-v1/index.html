@@ -101,23 +101,46 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .battle-background #battle .battle-unit .army-number{padding:0.2px 1px;font-size:2.2px;border-radius:0.6px;}
 .battle-background #battle .battle-unit .unit-count{padding:0.2px 1px;font-size:2px;border-radius:0.6px;}
 
-
-/* visual battle animation - مستقل از منطق نبرد */
-.battle-animation-layer{position:absolute;inset:0;z-index:18;pointer-events:none;overflow:hidden}
-.battle-anim-soldier{position:absolute;width:clamp(18px,3.4vw,46px);height:clamp(18px,3.4vw,46px);object-fit:contain;transform:translate(-50%,-82%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));will-change:left,top,transform}
-.battle-anim-soldier.fast{transition:filter .15s}
-.battle-anim-soldier.hit{animation:battleHit .18s ease-out}
-@keyframes battleHit{0%{filter:brightness(1)}40%{filter:brightness(2.2) saturate(1.3)}100%{filter:brightness(1)}}
-.battle-anim-projectile{position:absolute;z-index:25;font-weight:900;font-size:clamp(12px,2.2vw,30px);transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(0,0,0,.75);will-change:left,top,transform}
-.battle-anim-projectile.arrow{font-size:clamp(13px,2.4vw,32px)}
-.battle-anim-projectile.sword{font-size:clamp(14px,2.6vw,34px)}
-.battle-anim-projectile.spear{font-size:clamp(13px,2.4vw,32px)}
-.battle-anim-dust{position:absolute;width:16px;height:8px;border-radius:50%;background:rgba(224,199,139,.55);filter:blur(2px);animation:battleDust .5s ease-out forwards}
-@keyframes battleDust{from{opacity:.8;transform:scale(.4)}to{opacity:0;transform:scale(2)}}
-.battle-animation-layer .battle-anim-label{position:absolute;z-index:28;transform:translate(-50%,-100%);padding:1px 4px;border-radius:4px;background:rgba(0,0,0,.55);color:#fff;font-size:clamp(7px,1vw,12px);font-weight:800;white-space:nowrap}
+/* گزارش نهایی نبرد */
+.battle-report-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)}
+.battle-report-modal{width:min(900px,96vw);max-height:90vh;overflow:hidden;background:linear-gradient(145deg,#263442,#17212b);border:1px solid #647485;border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.55);direction:rtl;color:#f4f7fa}
+.battle-report-head{padding:20px 24px;border-bottom:1px solid #465463;text-align:center;position:relative}
+.battle-report-head h2{margin:0;font-size:25px}.battle-report-head .winner{margin-top:8px;color:#cbd5df;font-size:14px}.battle-report-table td:nth-child(3),.battle-report-table td:nth-child(4),.battle-report-table td:nth-child(5){font-weight:800}
+.battle-report-close{position:absolute;left:14px;top:12px;width:38px;height:38px;padding:0;border-radius:50%;font-size:24px;line-height:38px;background:#8e3b3b}
+.battle-report-body{padding:18px 20px;max-height:62vh;overflow:auto}.battle-report-table{width:100%;border-collapse:collapse;font-size:15px}.battle-report-table th,.battle-report-table td{border:1px solid #4a5866;padding:11px 8px;text-align:center}.battle-report-table th{background:#101820;color:#fff;position:sticky;top:0}.battle-report-table tr:nth-child(even){background:rgba(255,255,255,.035)}
+.battle-report-foot{padding:14px 20px;border-top:1px solid #465463;text-align:center}.battle-report-foot button{min-width:130px}
+.battle-reports-list{margin-top:14px}.battle-report-select{width:100%;max-height:260px;padding:12px;border-radius:10px;border:1px solid #4a5866;background:#111820;color:#fff;font-size:16px;direction:rtl}.battle-report-select option{padding:8px}.report-delete-all{background:#8e3b3b}
 </style></head>
 <body>
-<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
+<div id="battleReportSelectOverlay" class="battle-report-overlay">
+  <div class="battle-report-modal">
+    <div class="battle-report-head">
+      <button id="battleReportSelectClose" class="battle-report-close" type="button">×</button>
+      <h2>گزارش‌های نبرد</h2>
+      <div class="winner">شماره نبرد موردنظر را انتخاب کنید</div>
+    </div>
+    <div class="battle-report-body">
+      <div class="battle-reports-list"><select id="battleReportNumberSelect" class="battle-report-select" size="8"><option value="">انتخاب شماره نبرد...</option></select></div>
+      <div class="actions" style="margin-top:16px;justify-content:center">
+        <button id="deleteAllBattleReports" class="report-delete-all" type="button">پاک کردن تمام گزارش‌های نبرد</button>
+      </div>
+    </div>
+    <div class="battle-report-foot"><button id="battleReportSelectCloseBottom" class="back" type="button">بستن</button></div>
+  </div>
+</div>
+<div id="battleReportOverlay" class="battle-report-overlay">
+  <div class="battle-report-modal">
+    <div class="battle-report-head">
+      <button id="battleReportClose" class="battle-report-close" type="button">×</button>
+      <h2 id="battleReportTitle">گزارش نبرد</h2>
+      <div id="battleReportWinner" class="winner"></div>
+    </div>
+    <div class="battle-report-body"><div class="table-wrap"><table class="battle-report-table"><thead><tr><th>نام قلعه</th><th>نوع نیرو</th><th>تعداد اولیه نیرو</th><th>تعداد تلفات نیرو</th><th>باقیمانده نیرو</th></tr></thead><tbody id="battleReportBody"></tbody></table></div></div>
+    <div class="battle-report-foot"><button id="battleReportCloseBottom" class="back" type="button">بستن گزارش</button></div>
+  </div>
+</div>
+
+<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
 <section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -558,185 +581,6 @@ function viobat(){
         }
       }
     });
-  });
-  startBattleVisualAnimation();
-}
-
-
-/* ==========================================================
-   موتور انیمیشن نمایشی نبرد
-   فقط نمایش است؛ به batman/jang/fotjang و داده‌های نبرد دست نمی‌زند.
-   ========================================================== */
-let battleVisualAnimation={raf:null,runId:0,timeoutIds:[]};
-
-function stopBattleVisualAnimation(){
-  if(battleVisualAnimation.raf)cancelAnimationFrame(battleVisualAnimation.raf);
-  battleVisualAnimation.raf=null;
-  battleVisualAnimation.runId++;
-  battleVisualAnimation.timeoutIds.forEach(id=>clearTimeout(id));
-  battleVisualAnimation.timeoutIds=[];
-  document.querySelectorAll('.battle-animation-layer').forEach(x=>x.remove());
-}
-
-function battleAnimDirection(dx,dy){
-  if(Math.abs(dx)<0.15 && Math.abs(dy)<0.15)return 1;
-  const a=Math.atan2(dy,dx)*180/Math.PI;
-  if(a>=-22.5&&a<22.5)return 3;       // right
-  if(a>=22.5&&a<67.5)return 2;         // front-right
-  if(a>=67.5&&a<112.5)return 1;        // front
-  if(a>=112.5&&a<157.5)return 8;       // front-left
-  if(a>=157.5||a<-157.5)return 7;      // left
-  if(a>=-157.5&&a<-112.5)return 6;     // back-left
-  if(a>=-112.5&&a<-67.5)return 5;      // back
-  return 4;                             // back-right
-}
-
-function battleAnimCellPoint(wrap,cell){
-  const el=wrap.querySelector('.battle-cell[data-cell="'+cell+'"]');
-  if(!el)return null;
-  const a=el.getBoundingClientRect(), b=wrap.getBoundingClientRect();
-  return {x:a.left-b.left+a.width/2,y:a.top-b.top+a.height*.62,w:a.width,h:a.height};
-}
-
-function battleAnimNearestEnemy(unit,units){
-  const enemies=units.filter(x=>Number(x.count)>0 && x.side!==unit.side);
-  let best=null,bestD=Infinity;
-  for(const e of enemies){
-    const dx=Number(e.x)-Number(unit.x),dy=Number(e.y)-Number(unit.y);
-    const d=Math.hypot(dx,dy);
-    if(d<bestD){best=e;bestD=d;}
-  }
-  return best;
-}
-
-function battleAnimFrame(unit,dir){
-  const type=String(unit.rawType||'swordsman');
-  const color=unit.side==='مهاجم'?'blue':'red';
-  return 'images/'+type+'_'+color+'_'+String(dir).padStart(2,'0')+'.png';
-}
-
-function battleAnimMakeProjectile(layer,from,to,type,runId){
-  const p=document.createElement('div');
-  p.className='battle-anim-projectile '+type;
-  p.textContent=type==='arrow'?'➶':(type==='spear'?'➵':'⚔');
-  layer.appendChild(p);
-  const started=performance.now(),duration=420;
-  const dx=to.x-from.x,dy=to.y-from.y;
-  const angle=Math.atan2(dy,dx)*180/Math.PI;
-  p.style.transform='translate(-50%,-50%) rotate('+angle+'deg)';
-  function step(now){
-    if(runId!==battleVisualAnimation.runId){p.remove();return;}
-    const t=Math.min(1,(now-started)/duration);
-    const ease=1-Math.pow(1-t,3);
-    p.style.left=(from.x+dx*ease)+'px';
-    p.style.top=(from.y+dy*ease)+'px';
-    if(t<1){battleVisualAnimation.raf=requestAnimationFrame(step);}
-    else{p.remove();}
-  }
-  battleVisualAnimation.raf=requestAnimationFrame(step);
-}
-
-function battleAnimDust(layer,point){
-  const d=document.createElement('div');
-  d.className='battle-anim-dust';
-  d.style.left=point.x+'px'; d.style.top=point.y+'px';
-  layer.appendChild(d);
-  const id=setTimeout(()=>d.remove(),550);
-  battleVisualAnimation.timeoutIds.push(id);
-}
-
-function battleAnimAttack(layer,actor,target,actorPoint,targetPoint,runId){
-  const type=actor.rawType;
-  const projectileType=type==='archer'?'arrow':(type==='cavalry'?'spear':'sword');
-  const targetOffset={x:targetPoint.x,y:targetPoint.y-actorPoint.h*.12};
-  battleAnimMakeProjectile(layer,actorPoint,targetOffset,projectileType,runId);
-  const hitId=setTimeout(()=>{
-    if(runId!==battleVisualAnimation.runId)return;
-    const targetImg=layer.querySelector('[data-anim-unit="'+target.id+'"]');
-    if(targetImg){targetImg.classList.remove('hit');void targetImg.offsetWidth;targetImg.classList.add('hit');}
-    battleAnimDust(layer,targetPoint);
-  },420);
-  battleVisualAnimation.timeoutIds.push(hitId);
-}
-
-function startBattleVisualAnimation(){
-  stopBattleVisualAnimation();
-  const scene=document.getElementById('battleScene');
-  const wrap=scene?.querySelector('.battle-scene-wrap');
-  const battle=getCurrentBattle();
-  if(!wrap||!battle)return;
-  const units=(battle.armies||[]).flatMap(a=>a.units||[]).filter(u=>Number(u.count)>0);
-  if(!units.length)return;
-
-  const layer=document.createElement('div');
-  layer.className='battle-animation-layer';
-  wrap.appendChild(layer);
-  const runId=battleVisualAnimation.runId;
-  const visualUnits=[];
-
-  units.forEach((unit,unitIndex)=>{
-    const base=battleAnimCellPoint(wrap,unit.cell);
-    if(!base)return;
-    const enemy=battleAnimNearestEnemy(unit,units);
-    const enemyBase=enemy?battleAnimCellPoint(wrap,enemy.cell):null;
-    const dir=enemy?battleAnimDirection(Number(enemy.x)-Number(unit.x),Number(enemy.y)-Number(unit.y)):1;
-    const count=Math.max(3,Math.min(6,Math.ceil(Math.sqrt(Math.max(1,Number(unit.count)||1))/2)));
-    for(let i=0;i<count;i++){
-      const img=document.createElement('img');
-      img.className='battle-anim-soldier';
-      img.dataset.animUnit=unit.id;
-      img.dataset.animIndex=i;
-      img.src=battleAnimFrame(unit,dir);
-      const ox=((i%3)-1)*base.w*.22 + ((unitIndex%2)*2-1)*base.w*.04;
-      const oy=(Math.floor(i/3)-.5)*base.h*.20;
-      img.style.left=(base.x+ox)+'px';
-      img.style.top=(base.y+oy)+'px';
-      layer.appendChild(img);
-      visualUnits.push({unit,img,base,enemy,enemyBase,dir,ox,oy,index:i});
-    }
-  });
-
-  // چرخه: صف‌آرایی کوتاه → هجوم → ضربه → برگشت به جایگاه.
-  const start=performance.now();
-  const cycle=3600;
-  function tick(now){
-    if(runId!==battleVisualAnimation.runId)return;
-    const phase=((now-start)%cycle)/cycle;
-    for(const v of visualUnits){
-      let tx=v.base.x+v.ox,ty=v.base.y+v.oy;
-      if(v.enemy && v.enemyBase){
-        const d=Math.hypot(v.enemyBase.x-v.base.x,v.enemyBase.y-v.base.y);
-        const stop=(v.unit.rawType==='archer'?Math.min(.25,Math.max(.08,(d?2/d:.1))):.72);
-        let progress=0;
-        if(phase<.18)progress=0;
-        else if(phase<.48)progress=(phase-.18)/.30;
-        else if(phase<.62)progress=1;
-        else progress=1-(phase-.62)/.28;
-        const maxMove=v.unit.rawType==='archer'?stop:stop;
-        progress=Math.max(0,Math.min(1,progress))*maxMove;
-        tx=v.base.x+(v.enemyBase.x-v.base.x)*progress+v.ox;
-        ty=v.base.y+(v.enemyBase.y-v.base.y)*progress+v.oy;
-        const d2=Math.max(.001,d);
-        const step=Math.max(1,Math.min(8,Math.round(progress*8)));
-        const frame=battleAnimDirection(Number(v.enemy.x)-Number(v.unit.x),Number(v.enemy.y)-Number(v.unit.y));
-        if(v.img.dataset.frame!==String(frame)){v.img.src=battleAnimFrame(v.unit,frame);v.img.dataset.frame=String(frame);}
-        if(phase>.48&&phase<.62&&v.index===0 && Math.random()<.035){
-          // افکت ضربه صرفاً بصری است؛ نتیجه واقعی را jang تعیین می‌کند.
-        }
-      }
-      v.img.style.left=tx+'px';v.img.style.top=ty+'px';
-    }
-    battleVisualAnimation.raf=requestAnimationFrame(tick);
-  }
-  battleVisualAnimation.raf=requestAnimationFrame(tick);
-
-  // حمله‌های بصری زمان‌بندی‌شده؛ فقط وقتی دشمن وجود دارد.
-  visualUnits.filter(v=>v.index===0 && v.enemy && v.enemyBase).forEach((v,i)=>{
-    const id=setTimeout(()=>{
-      if(runId!==battleVisualAnimation.runId)return;
-      battleAnimAttack(layer,v.unit,v.enemy,v.base,v.enemyBase,runId);
-    },900+i*120);
-    battleVisualAnimation.timeoutIds.push(id);
   });
 }
 
@@ -1288,14 +1132,97 @@ async function batman(){
     window.__onlineBatmanResolved=false;
   }catch(e){console.error(e);alert(e.message);}
 }
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function showBattleReport(data){
+  const overlay=document.getElementById('battleReportOverlay');
+  const body=document.getElementById('battleReportBody');
+  const title=document.getElementById('battleReportTitle');
+  const winner=document.getElementById('battleReportWinner');
+  if(!overlay||!body||!title||!winner)return;
+
+  const rows=Array.isArray(data?.report)?data.report:[];
+  title.textContent='گزارش نبرد شماره '+(data?.battleId??'');
+  winner.textContent=data?.winnerSide ? ('برنده: '+data.winnerSide) : '';
+  body.innerHTML=rows.length ? rows.map(row=>
+    '<tr><td>'+escapeHtml(row.castleName)+'</td><td>'+escapeHtml(row.type)+'</td><td>'+Number(row.initial||0)+'</td><td>'+Number(row.losses||0)+'</td><td>'+Number(row.remaining||0)+'</td></tr>'
+  ).join('') : '<tr><td colspan="5">اطلاعات نیروهای نبرد موجود نیست.</td></tr>';
+  overlay.style.display='flex';
+}
+
+function closeBattleReport(){
+  const overlay=document.getElementById('battleReportOverlay');
+  if(overlay)overlay.style.display='none';
+}
+function closeBattleReportSelect(){
+  const overlay=document.getElementById('battleReportSelectOverlay');
+  if(overlay)overlay.style.display='none';
+}
+
+async function openBattleReports(){
+  const overlay=document.getElementById('battleReportSelectOverlay');
+  const select=document.getElementById('battleReportNumberSelect');
+  if(!overlay||!select)return;
+  select.innerHTML='<option value="">در حال خواندن گزارش‌ها...</option>';
+  overlay.style.display='flex';
+  try{
+    const data=await api('/api/battle-reports');
+    const reports=Array.isArray(data.reports)?data.reports:[];
+    if(!reports.length){
+      select.innerHTML='<option value="">هنوز هیچ گزارش نبردی ذخیره نشده است.</option>';
+      return;
+    }
+    select.innerHTML='<option value="">انتخاب شماره نبرد...</option>'+reports.map(item=>
+      '<option value="'+Number(item.battleId)+'">نبرد شماره '+Number(item.battleId)+(item.winnerSide?' — برنده: '+escapeHtml(item.winnerSide):'')+'</option>'
+    ).join('');
+  }catch(e){
+    select.innerHTML='<option value="">'+escapeHtml(e.message)+'</option>';
+  }
+}
+
+document.getElementById('battleReportNumberSelect').onchange=async function(){
+  const battleId=Number(this.value);
+  if(!Number.isInteger(battleId)||battleId<1)return;
+  try{
+    const report=await api('/api/battle-reports/'+encodeURIComponent(battleId));
+    closeBattleReportSelect();
+    showBattleReport(report);
+  }catch(e){alert(e.message);}
+};
+
+async function deleteAllBattleReports(){
+  if(!confirm('تمام گزارش‌های نبرد حذف شوند؟'))return;
+  try{
+    await api('/api/battle-reports',{method:'DELETE'});
+    await openBattleReports();
+    alert('تمام گزارش‌های نبرد پاک شدند.');
+  }catch(e){alert(e.message);}
+}
+
+document.getElementById('battleReportClose').onclick=closeBattleReport;
+document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
+document.getElementById('battleReportSelectClose').onclick=closeBattleReportSelect;
+document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
+document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
+document.getElementById('battleReportsBtn').onclick=openBattleReports;
+
 const originalEndbat=endbat;
 endbat=async function(winningSide){
   const battle=getCurrentBattle();
+  let savedReport=null;
   if(battle){
-    try{await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:'{}'});}catch(e){console.error('endbat SQL',e);}
+    try{
+      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
+      // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId));
+    }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
   if(battle)delete battleRegistry[String(battle.targetId)];
+  // گزارش همین نبرد بلافاصله پس از پایان نمایش داده می‌شود.
+  if(savedReport)showBattleReport(savedReport);
 };
 
 document.getElementById('startAttack').onclick=onlineStartAttack;
