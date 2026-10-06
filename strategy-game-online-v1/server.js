@@ -62,8 +62,13 @@ async function initDb(){
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
-      winner_side TEXT
+      winner_side TEXT,
+      report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
     )
+  `);
+
+  await pool.query(`
+    ALTER TABLE battles ADD COLUMN IF NOT EXISTS report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
   `);
 
   await pool.query(`
@@ -196,7 +201,8 @@ async function getBattleByTarget(targetId, client=pool){
     createdAt:new Date(b.created_at).getTime(),
     endsAt:new Date(b.ends_at).getTime(),
     ended:b.ended,
-    winnerSide:b.winner_side
+    winnerSide:b.winner_side,
+    reportArmies:b.report_armies
   };
 }
 
@@ -210,7 +216,8 @@ function battleJson(row){
     createdAt:new Date(row.created_at).getTime(),
     endsAt:new Date(row.ends_at).getTime(),
     ended:row.ended,
-    winnerSide:row.winner_side
+    winnerSide:row.winner_side,
+    reportArmies:row.report_armies
   };
 }
 
@@ -308,8 +315,8 @@ app.put("/api/battle/:id/move", async (req,res)=>{
     found.unit.moveTarget=destination;
 
     const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),battleId]
+      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),JSON.stringify(mergeReportArmies(battle.report_armies,armies)),battleId]
     );
     await client.query("COMMIT");
     res.json({ok:true,battle:battleJson(updated.rows[0])});
@@ -358,8 +365,8 @@ app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
     }
 
     const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),battleId]
+      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),JSON.stringify(mergeReportArmies(battle.report_armies,armies)),battleId]
     );
     await client.query("COMMIT");
     res.json({ok:true,moved,battle:battleJson(updated.rows[0])});
@@ -392,12 +399,18 @@ app.put("/api/battle/:id/state", async (req,res)=>{
   if(!Number.isInteger(id)||!armies)return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
 
   try{
+    const current=await pool.query(
+      "SELECT report_armies FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
+      [id]
+    );
+    if(!current.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    const reportArmies=mergeReportArmies(current.rows[0].report_armies,armies);
     const r=await pool.query(
       `UPDATE battles
-       SET armies=$1::jsonb
-       WHERE id=$2 AND ended=FALSE AND ends_at>NOW()
+       SET armies=$1::jsonb, report_armies=$2::jsonb
+       WHERE id=$3 AND ended=FALSE AND ends_at>NOW()
        RETURNING *`,
-      [JSON.stringify(armies),id]
+      [JSON.stringify(armies),JSON.stringify(reportArmies),id]
     );
     if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
     res.json({ok:true,battle:battleJson(r.rows[0])});
@@ -673,8 +686,8 @@ async function resolveAttack(attackId){
       );
 
       await client.query(
-        "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
-        [JSON.stringify(defenderArmy?[defenderArmy]:[]),b.id]
+        "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",
+        [JSON.stringify(defenderArmy?[defenderArmy]:[]), JSON.stringify(defenderArmy?[defenderArmy]:[]), b.id]
       );
       await client.query(
         "UPDATE castles SET under_attack=TRUE,battle_id=$1 WHERE id=$2",
@@ -710,8 +723,8 @@ async function resolveAttack(attackId){
     }
 
     await client.query(
-      "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
-      [JSON.stringify(armies),battle.batId]
+      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",
+      [JSON.stringify(armies), JSON.stringify(mergeReportArmies(battle.report_armies, armies)), battle.batId]
     );
     await client.query(
       "UPDATE attacks SET status='resolved',resolved_at=NOW() WHERE id=$1",
@@ -771,10 +784,40 @@ app.post("/api/attack/:id/resolve",async(req,res)=>{
 });
 
 
+// وضعیت جداگانه مخصوص گزارش؛ از حذف ارتش‌ها در fotjang مستقل می‌ماند.
+function mergeReportArmies(existing, current){
+  const saved=Array.isArray(existing)?existing.map(a=>JSON.parse(JSON.stringify(a))):[];
+  const live=Array.isArray(current)?current:[];
+  const byId=new Map(saved.map(a=>[String(a.armyId),a]));
+  for(const army of live){
+    const key=String(army?.armyId||'');
+    if(!key)continue;
+    let target=byId.get(key);
+    if(!target){
+      target=JSON.parse(JSON.stringify(army));
+      target.units=(target.units||[]).map(u=>({...u}));
+      byId.set(key,target);
+      saved.push(target);
+    }
+    const liveUnits=Array.isArray(army.units)?army.units:[];
+    const liveById=new Map(liveUnits.map(u=>[String(u.id),u]));
+    const targetUnits=Array.isArray(target.units)?target.units:[];
+    for(const unit of targetUnits){
+      const now=liveById.get(String(unit.id));
+      unit.count=now?Math.max(0,Math.floor(Number(now.count)||0)):0;
+      if(now && Number.isFinite(Number(now.health)))unit.health=Number(now.health);
+      if(now?.cell)unit.cell=now.cell;
+      if(Number.isFinite(Number(now?.x)))unit.x=Number(now.x);
+      if(Number.isFinite(Number(now?.y)))unit.y=Number(now.y);
+    }
+  }
+  return saved;
+}
+
 // ساخت گزارش نبرد به صورت مستقل از منطق نبرد.
 // این تابع فقط snapshot ارتش‌ها را می‌گیرد و گزارش نهایی را تولید می‌کند.
 function gozbat(battleRow){
-  const armies=Array.isArray(battleRow?.armies)?battleRow.armies:[];
+  const armies=Array.isArray(battleRow?.report_armies)?battleRow.report_armies:(Array.isArray(battleRow?.armies)?battleRow.armies:[]);
   const reportMap=new Map();
 
   for(const army of armies){
