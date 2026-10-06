@@ -1,811 +1,527 @@
-const express = require("express");
-const path = require("path");
-const { Pool } = require("pg");
+import http from 'node:http';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
-const app = express();
-app.use(express.json({limit:"1mb"}));
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
-const ARRIVAL_SECONDS = Number(process.env.ARRIVAL_SECONDS || 10);
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// On Render, set DATA_DIR to the mount path of a Persistent Disk.
+// Locally it falls back to this project directory.
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || '';
+if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw new Error('SUPABASE_URL و SUPABASE_SECRET_KEY باید در Environment تنظیم شوند.');
+const BASE_WORLD_CELLS = 100; const CELLS_PER_PLAYER = 10; const DEVELOPMENT_MAX_LEVEL = 5; const BASE_GOLD_PER_MINUTE = 100; const STARTING_GOLD = 3000; const BASE_TRAINING_CAPACITY = 10; const BASE_TRAINING_TIME_SECONDS = 60; const UNIT_TYPES = ['archer','cavalry','swordsman']; const BUILDING_TYPES = ['castle','wall','barracks1','barracks2','goldMine'];
+const sessions = new Map(); const online = new Map();
+const initialState = () => ({gold:STARTING_GOLD,buildings:{castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}},army:{archer:100,cavalry:100,swordsman:100},activeUpgrade:null,activeTraining:{barracks1:null,barracks2:null},activeAttacks:[],defenderSetups:{},pendingRecoveries:[],attackRestrictions:{},savedAt:Date.now()});
+let db={nextId:1,users:[]};
+async function supabaseRequest(table,{method='GET',query='',body=null,prefer=''}={}){const headers={apikey:SUPABASE_SECRET_KEY,Authorization:`Bearer ${SUPABASE_SECRET_KEY}`,'Content-Type':'application/json'};if(prefer)headers.Prefer=prefer;const response=await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`,{method,headers,body:body===null?undefined:JSON.stringify(body)});const text=await response.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text;}if(!response.ok)throw new Error(`Supabase ${method} ${table} failed (${response.status}): ${typeof data==='string'?data:JSON.stringify(data)}`);return data;}
+async function loadDB(){const rows=await supabaseRequest('players',{query:'?select=id,username,password_hash,password_salt,castle_cell'});const states=await supabaseRequest('player_states',{query:'?select=player_id,gold,buildings,army,active_upgrade,active_training,active_attacks,pending_recoveries,attack_restrictions,saved_at'});const setups=await supabaseRequest('defender_setups',{query:'?select=player_id,setup'});const stateMap=new Map(states.map(r=>[String(r.player_id),r]));const setupMap=new Map(setups.map(r=>[String(r.player_id),r.setup||{}]));db.users=rows.map(row=>{const s=stateMap.get(String(row.id));const state=normalizeState({gold:s?.gold,buildings:s?.buildings,army:s?.army,activeUpgrade:s?.active_upgrade,activeTraining:s?.active_training,activeAttacks:s?.active_attacks,pendingRecoveries:s?.pending_recoveries,attackRestrictions:s?.attack_restrictions,defenderSetups:setupMap.get(String(row.id))||{},savedAt:s?.saved_at?new Date(s.saved_at).getTime():Date.now()});return{id:String(row.id),username:row.username,salt:row.password_salt,passwordHash:row.password_hash,state,cell:Number.isInteger(Number(row.castle_cell))?Number(row.castle_cell):null,lastStateAt:s?.saved_at?new Date(s.saved_at).getTime():Date.now()};});return db;}
+async function saveUser(user){const now=Date.now();user.state=normalizeState(user.state);user.state.savedAt=now;user.lastStateAt=now;await supabaseRequest('players',{method:'POST',query:'?on_conflict=id',prefer:'resolution=merge-duplicates',body:{id:user.id,username:user.username,password_hash:user.passwordHash,password_salt:user.salt,castle_cell:user.cell}});await supabaseRequest('player_states',{method:'POST',query:'?on_conflict=player_id',prefer:'resolution=merge-duplicates',body:{player_id:user.id,gold:user.state.gold,buildings:user.state.buildings,army:user.state.army,active_upgrade:user.state.activeUpgrade,active_training:user.state.activeTraining,active_attacks:user.state.activeAttacks,pending_recoveries:user.state.pendingRecoveries,attack_restrictions:user.state.attackRestrictions,saved_at:new Date(now).toISOString(),updated_at:new Date(now).toISOString()}});await supabaseRequest('defender_setups',{method:'POST',query:'?on_conflict=player_id',prefer:'resolution=merge-duplicates',body:{player_id:user.id,setup:user.state.defenderSetups||{},updated_at:new Date(now).toISOString()}});}
+async function findUserByUsername(username){const rows=await supabaseRequest('players',{query:`?username=ilike.${encodeURIComponent(username)}&select=id,username,password_hash,password_salt,castle_cell`});if(!rows?.length)return null;const row=rows[0];const states=await supabaseRequest('player_states',{query:`?player_id=eq.${encodeURIComponent(row.id)}&select=gold,buildings,army,active_upgrade,active_training,active_attacks,pending_recoveries,attack_restrictions,saved_at`});const setups=await supabaseRequest('defender_setups',{query:`?player_id=eq.${encodeURIComponent(row.id)}&select=setup`});const s=states?.[0];return{id:String(row.id),username:row.username,salt:row.password_salt,passwordHash:row.password_hash,state:normalizeState({gold:s?.gold,buildings:s?.buildings,army:s?.army,activeUpgrade:s?.active_upgrade,activeTraining:s?.active_training,activeAttacks:s?.active_attacks,pendingRecoveries:s?.pending_recoveries,attackRestrictions:s?.attack_restrictions,defenderSetups:setups?.[0]?.setup||{},savedAt:s?.saved_at?new Date(s.saved_at).getTime():Date.now()}),cell:Number.isInteger(Number(row.castle_cell))?Number(row.castle_cell):null,lastStateAt:s?.saved_at?new Date(s.saved_at).getTime():Date.now()};}
 
-const names = {
-  archer: "کماندار",
-  cavalry: "سواره‌نظام",
-  swordsman: "شمشیرزن"
-};
-
-const emptyArmy = () => ({ archer: 100, cavalry: 100, swordsman: 100 });
-const emptyDefense = () => Array.from({length:6},()=>({type:"",count:0}));
-
-async function initDb(){
-  if(!process.env.DATABASE_URL){
-    throw new Error("DATABASE_URL تنظیم نشده است.");
-  }
-
-  // هر دستور SQL جداگانه اجرا می‌شود تا pg آن را به prepared statement معتبر تبدیل کند.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS castles (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      army JSONB NOT NULL,
-      defense_slots JSONB NOT NULL,
-      under_attack BOOLEAN NOT NULL DEFAULT FALSE,
-      battle_id INTEGER
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS attacks (
-      id BIGSERIAL PRIMARY KEY,
-      attacker_id INTEGER NOT NULL REFERENCES castles(id),
-      target_id INTEGER NOT NULL REFERENCES castles(id),
-      army_side TEXT NOT NULL,
-      attacker_slots JSONB NOT NULL,
-      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      arrives_at TIMESTAMPTZ NOT NULL,
-      resolved_at TIMESTAMPTZ,
-      status TEXT NOT NULL DEFAULT 'pending'
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS battles (
-      id BIGSERIAL PRIMARY KEY,
-      target_id INTEGER NOT NULL UNIQUE REFERENCES castles(id),
-      defender_slots JSONB NOT NULL,
-      armies JSONB NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
-      ended BOOLEAN NOT NULL DEFAULT FALSE,
-      winner_side TEXT
-    )
-  `);
-
-  await pool.query(`
-    INSERT INTO castles(id,name,army,defense_slots)
-    SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb
-    FROM generate_series(1,11) x
-    ON CONFLICT (id) DO NOTHING
-  `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
-
-  await pool.query(`
-    ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
-  `);
-  await pool.query(`
-    UPDATE battles
-    SET ends_at = created_at + INTERVAL '30 minutes'
-    WHERE ends_at IS NULL
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes')
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ALTER COLUMN ends_at SET NOT NULL
-  `);
-}
-
-function normalizeSlots(slots){
-  return (Array.isArray(slots)?slots:[])
-    .map(s=>({
-      type:String(s?.type||""),
-      count:Math.max(0,Math.floor(Number(s?.count)||0))
-    }))
-    .filter(s=>names[s.type] && s.count>0)
-    .slice(0,6);
-}
-
-function cellXY(cell){
-  return {
-    x:Number(cell.slice(1))-1,
-    y:"ABCDEFGHIJKLMNOPQRST".indexOf(cell[0])
-  };
-}
-
-const blocks = {
-  "مدافع":[
-    ["D4","D5","D6","E4","E5","E6"],
-    ["D7","D8","D9","E7","E8","E9"],
-    ["D1","D2","D3","E1","E2","E3"],
-    ["D10","D11","D12","E10","E11","E12"]
-  ],
-  "مهاجم":[
-    ["P4","P5","P6","Q4","Q5","Q6"],
-    ["P7","P8","P9","Q7","Q8","Q9"],
-    ["P1","P2","P3","Q1","Q2","Q3"],
-    ["P10","P11","P12","Q10","Q11","Q12"]
-  ]
-};
-
-function makeArmy(side, castleId, slots, blockIndex, armyId){
-  const block=blocks[side]?.[blockIndex];
-  if(!block)return null;
-  const normalized=normalizeSlots(slots);
-  const units=normalized.map((slot,index)=>{
-    const cell=block[index];
-    const pos=cellXY(cell);
-    return {
-      id:String(armyId)+"-unit-"+(index+1),
-      type:names[slot.type],
-      rawType:slot.type,
-      count:slot.count,
-      castle:Number(castleId),
-      side,
-      x:pos.x,
-      y:pos.y,
-      cell,
-      health:slot.count*(slot.type==="archer"?500:1000)
-    };
+function sanitizeDefenseSlots(slots, army){
+  const valid=new Set(UNIT_TYPES);
+  const rem={archer:int(army?.archer),cavalry:int(army?.cavalry),swordsman:int(army?.swordsman)};
+  return Array.from({length:6},(_,i)=>{
+    const x=Array.isArray(slots)?(slots[i]||{}):{};
+    const type=valid.has(x.type)?x.type:'archer';
+    const requested=int(x.count);
+    const count=Math.min(requested,rem[type]);
+    rem[type]-=count;
+    return {type,count};
   });
+}
+function attackForClient(a, attacker, defender){
+  return {...a, attackerName:attacker?.username||'مهاجم', defenderName:defender?.username||'مدافع', arrivalAt:Number(a.arrivalAt)||0};
+}
+
+function sanitizeBattleReport(input, user){
+  const report=input && typeof input==='object' ? input : {};
+  const rows=Array.isArray(report.rows) ? report.rows.slice(0, 12).map(row=>({
+    castleName:String(row?.castleName || 'قلعه').slice(0,120),
+    type:String(row?.type || '').slice(0,40),
+    initial:Math.max(0,int(row?.initial)),
+    losses:Math.max(0,int(row?.losses)),
+    remaining:Math.max(0,int(row?.remaining))
+  })) : [];
   return {
-    armyId:String(armyId),
-    castleId:Number(castleId),
-    side,
-    blockIndex,
-    slots:normalized,
-    units
+    battleId:String(report.battleId || '').slice(0,120),
+    attackerName:String(report.attackerName || 'مهاجم').slice(0,120),
+    defenderName:String(report.defenderName || 'مدافع').slice(0,120),
+    winner:String(report.winner || '').slice(0,120),
+    endReason:String(report.endReason || '').slice(0,120),
+    rows,
+    createdBy:String(user?.id || '').slice(0,120)
   };
 }
-
-function publicCastle(row){
-  return {
-    id:row.id,
-    name:row.name,
-    army:row.army,
-    defenseSlots:row.defense_slots,
-    underAttack:row.under_attack,
-    battleId:row.battle_id
-  };
+async function persistAttackToUsers(attacker, defender){
+  await saveUser(attacker);
+  await saveUser(defender);
 }
 
-async function getCastles(client=pool){
-  const r=await client.query("SELECT * FROM castles ORDER BY id");
-  return r.rows.map(publicCastle);
+function hashPassword(password,salt=crypto.randomBytes(16).toString('hex')){
+  return {salt,hash:crypto.scryptSync(password,salt,64).toString('hex')};
 }
 
-async function getBattleByTarget(targetId, client=pool){
-  const r=await client.query(
-    "SELECT * FROM battles WHERE target_id=$1 AND ended=FALSE",
-    [targetId]
-  );
-  if(!r.rows[0])return null;
-  const b=r.rows[0];
-  return {
-    batId:Number(b.id),
-    targetId:Number(b.target_id),
-    defenderSlots:b.defender_slots,
-    armies:b.armies,
-    createdAt:new Date(b.created_at).getTime(),
-    endsAt:new Date(b.ends_at).getTime(),
-    ended:b.ended,
-    winnerSide:b.winner_side
-  };
+function checkPassword(password,user){
+  try {
+    const h=crypto.scryptSync(password,user.salt,64).toString('hex');
+    const a=Buffer.from(h,'hex');
+    const b=Buffer.from(user.passwordHash,'hex');
+    return a.length===b.length && crypto.timingSafeEqual(a,b);
+  } catch { return false; }
 }
 
-function battleJson(row){
-  if(!row)return null;
-  return {
-    batId:Number(row.id),
-    targetId:Number(row.target_id),
-    defenderSlots:row.defender_slots,
-    armies:row.armies,
-    createdAt:new Date(row.created_at).getTime(),
-    endsAt:new Date(row.ends_at).getTime(),
-    ended:row.ended,
-    winnerSide:row.winner_side
-  };
-}
-
-async function expireBattles(){
-  const client=await pool.connect();
-  try{
-    await client.query('BEGIN');
-    const r=await client.query(`
-      SELECT id,target_id FROM battles
-      WHERE ended=FALSE AND ends_at<=NOW()
-      FOR UPDATE
-    `);
-    for(const b of r.rows){
-      await client.query('DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'', [b.target_id]);
-      await client.query('DELETE FROM battles WHERE id=$1', [b.id]);
-      await client.query(
-        'UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',
-        [b.target_id,b.id]
-      );
-    }
-    await client.query('COMMIT');
-  }catch(e){
-    await client.query('ROLLBACK');
-    throw e;
-  }finally{client.release();}
-}
-
-async function currentBattleForCastle(castleId){
-  const r=await pool.query(`
-    SELECT b.*
-    FROM battles b
-    WHERE b.ended=FALSE
-      AND (
-        b.target_id=$1
-        OR EXISTS (
-          SELECT 1
-          FROM jsonb_array_elements(b.armies) a
-          WHERE (a->>'castleId')::int=$1
-        )
-      )
-    ORDER BY b.id DESC
-    LIMIT 1
-  `,[castleId]);
-  return battleJson(r.rows[0]);
-}
-
-// ذخیره مقصد انتخاب‌شده برای یک واحد. حرکت واقعی فقط در پایان راند انجام می‌شود.
-app.put("/api/battle/:id/move", async (req,res)=>{
-  const battleId=Number(req.params.id);
-  const unitId=String(req.body?.unitId||"");
-  const destination=String(req.body?.destination||"").toUpperCase();
-  const castleId=Number(req.body?.castleId);
-  const rowMatch=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
-
-  if(!Number.isInteger(battleId)||!unitId||!rowMatch||!Number.isInteger(castleId))
-    return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
-
-  const x=Number(rowMatch[2])-1;
-  const y="ABCDEFGHIJKLMNOPQRST".indexOf(rowMatch[1]);
-  if(x<0||x>11||y<0||y>19)
-    return res.status(400).json({error:"خانه مقصد نامعتبر است."});
-
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const r=await client.query(
-      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
-      [battleId]
-    );
-    if(!r.rows[0]){
-      await client.query("ROLLBACK");
-      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
-    }
-
-    const battle=r.rows[0];
-    const armies=Array.isArray(battle.armies)?battle.armies:[];
-    let found=null;
-    for(const army of armies){
-      for(const unit of (army.units||[])){
-        if(String(unit.id)===unitId){ found={army,unit}; break; }
-      }
-      if(found)break;
-    }
-
-    if(!found){
-      await client.query("ROLLBACK");
-      return res.status(404).json({error:"واحد نیرو در این نبرد پیدا نشد."});
-    }
-    if(Number(found.army.castleId)!==castleId){
-      await client.query("ROLLBACK");
-      return res.status(403).json({error:"این واحد متعلق به این قلعه نیست."});
-    }
-
-    // فقط مقصد ذخیره می‌شود؛ x/y/cell در پایان راند تغییر می‌کنند.
-    found.unit.moveTarget=destination;
-
-    const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),battleId]
-    );
-    await client.query("COMMIT");
-    res.json({ok:true,battle:battleJson(updated.rows[0])});
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error(e);
-    res.status(500).json({error:"ذخیره مقصد حرکت ناموفق بود."});
-  }finally{client.release();}
-});
-
-// پایان راند: مقصدهای ذخیره‌شده در SQL به cell/x/y تبدیل می‌شوند.
-app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
-  const battleId=Number(req.params.id);
-  if(!Number.isInteger(battleId))
-    return res.status(400).json({error:"شماره نبرد نامعتبر است."});
-
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const r=await client.query(
-      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
-      [battleId]
-    );
-    if(!r.rows[0]){
-      await client.query("ROLLBACK");
-      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
-    }
-
-    const battle=r.rows[0];
-    const armies=Array.isArray(battle.armies)?battle.armies:[];
-    let moved=0;
-    for(const army of armies){
-      for(const unit of (army.units||[])){
-        const destination=String(unit.moveTarget||"").toUpperCase();
-        const m=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
-        if(!m)continue;
-        const x=Number(m[2])-1;
-        const y="ABCDEFGHIJKLMNOPQRST".indexOf(m[1]);
-        if(x<0||x>11||y<0||y>19)continue;
-        unit.cell=destination;
-        unit.x=x;
-        unit.y=y;
-        delete unit.moveTarget;
-        moved++;
-      }
-    }
-
-    const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),battleId]
-    );
-    await client.query("COMMIT");
-    res.json({ok:true,moved,battle:battleJson(updated.rows[0])});
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error(e);
-    res.status(500).json({error:"اعمال حرکت‌های راند ناموفق بود."});
-  }finally{client.release();}
-});
-
-app.get("/api/battle/:id/state", async (req,res)=>{
-  const id=Number(req.params.id);
-  if(!Number.isInteger(id))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
-  try{
-    const r=await pool.query(
-      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW()",
-      [id]
-    );
-    if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
-    res.json({ok:true,battle:battleJson(r.rows[0])});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خواندن وضعیت نبرد ناموفق بود."});
-  }
-});
-
-app.put("/api/battle/:id/state", async (req,res)=>{
-  const id=Number(req.params.id);
-  const armies=Array.isArray(req.body.armies)?req.body.armies:null;
-  if(!Number.isInteger(id)||!armies)return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
-
-  try{
-    const r=await pool.query(
-      `UPDATE battles
-       SET armies=$1::jsonb
-       WHERE id=$2 AND ended=FALSE AND ends_at>NOW()
-       RETURNING *`,
-      [JSON.stringify(armies),id]
-    );
-    if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
-    res.json({ok:true,battle:battleJson(r.rows[0])});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"ذخیره موقعیت نیروها ناموفق بود."});
-  }
-});
-
-
-// پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
-app.post("/api/reset-game", async (req,res)=>{
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-
-    // همه نبردها، حمله‌ها و اطلاعات قلعه‌های قبلی حذف می‌شوند.
-    await client.query("TRUNCATE TABLE attacks, battles, castles RESTART IDENTITY CASCADE");
-
-    await client.query(`
-      INSERT INTO castles(id,name,army,defense_slots,under_attack,battle_id)
-      SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb, FALSE, NULL
-      FROM generate_series(1,11) x
-    `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
-
-    await client.query("COMMIT");
-    res.json({ok:true,castles:await getCastles()});
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error("reset-game",e);
-    res.status(500).json({error:"پاک‌سازی و بازنویسی اطلاعات بازی ناموفق بود."});
-  }finally{
-    client.release();
-  }
-});
-
-app.get("/api/state", async (req,res)=>{
-  try{
-    await resolveDueAttacks();
-    await expireBattles();
-    res.json({castles:await getCastles()});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خطا در خواندن اطلاعات بازی"});
-  }
-});
-
-app.post("/api/defense/:id", async (req,res)=>{
-  const id=Number(req.params.id);
-  const slots=normalizeSlots(req.body.slots);
-  if(!Number.isInteger(id)||id<1||id>11)
-    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
-  if(slots.length>6)
-    return res.status(400).json({error:"حداکثر ۶ ردیف نیرو مجاز است."});
-
-  try{
-    await pool.query(
-      "UPDATE castles SET defense_slots=$1::jsonb WHERE id=$2",
-      [JSON.stringify(slots.concat(Array.from({length:6-slots.length},()=>({type:"",count:0}))),),id]
-    );
-    res.json({ok:true,castles:await getCastles()});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"ذخیره چینش دفاعی ناموفق بود."});
-  }
-});
-
-app.post("/api/defenses/randomize", async (req,res)=>{
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const types=["archer","cavalry","swordsman"];
-    for(let castleId=1;castleId<=11;castleId++){
-      const slots=emptyDefense();
-      const n=1+Math.floor(Math.random()*6);
-      for(let i=0;i<n;i++){
-        slots[i]={
-          type:types[Math.floor(Math.random()*types.length)],
-          count:1+Math.floor(Math.random()*100)
-        };
-      }
-      await client.query(
-        "UPDATE castles SET defense_slots=$1::jsonb WHERE id=$2",
-        [JSON.stringify(slots),castleId]
-      );
-    }
-    await client.query("COMMIT");
-    res.json({ok:true,castles:await getCastles()});
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error(e);
-    res.status(500).json({error:"ساخت چینش‌های تصادفی ناموفق بود."});
-  }finally{client.release();}
-});
-
-app.post("/api/attack", async (req,res)=>{
-  const attackerId=Number(req.body.attackerId);
-  const targetId=Number(req.body.targetId);
-  const side=String(req.body.armySide||"");
-  const slots=normalizeSlots(req.body.attackerSlots);
-
-  if(!Number.isInteger(attackerId)||!Number.isInteger(targetId))
-    return res.status(400).json({error:"قلعه حمله‌کننده یا هدف نامعتبر است."});
-  if(attackerId===targetId)
-    return res.status(400).json({error:"قلعه نمی‌تواند به خودش حمله کند."});
-  if(side!=="مهاجم"&&side!=="مدافع")
-    return res.status(400).json({error:"ساید نیرو نامعتبر است."});
-  if(!slots.length)
-    return res.status(400).json({error:"حداقل یک واحد نیرو لازم است."});
-
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-
-    const sourceQ=await client.query(
-      "SELECT * FROM castles WHERE id=$1 FOR UPDATE",[attackerId]
-    );
-    const targetQ=await client.query(
-      "SELECT * FROM castles WHERE id=$1",[targetId]
-    );
-    if(!sourceQ.rows[0]||!targetQ.rows[0]){
-      await client.query("ROLLBACK");
-      return res.status(404).json({error:"قلعه پیدا نشد."});
-    }
-
-    const source=sourceQ.rows[0];
-    const army={...source.army};
-    const totals={archer:0,cavalry:0,swordsman:0};
-    for(const s of slots)totals[s.type]+=s.count;
-
-    for(const type of Object.keys(names)){
-      if(totals[type]>Number(army[type]||0)){
-        await client.query("ROLLBACK");
-        return res.status(400).json({error:`تعداد ${names[type]} بیشتر از نیروهای موجود است.`});
-      }
-    }
-
-    for(const type of Object.keys(names)){
-      army[type]=Number(army[type])-totals[type];
-    }
-
-    await client.query(
-      "UPDATE castles SET army=$1::jsonb WHERE id=$2",
-      [JSON.stringify(army),attackerId]
-    );
-
-    const arrivesAt=new Date(Date.now()+ARRIVAL_SECONDS*1000);
-    const attack=await client.query(`
-      INSERT INTO attacks(attacker_id,target_id,army_side,attacker_slots,arrives_at)
-      VALUES($1,$2,$3,$4::jsonb,$5)
-      RETURNING *
-    `,[attackerId,targetId,side,JSON.stringify(slots),arrivesAt]);
-
-    await client.query("COMMIT");
-
-    res.json({
-      ok:true,
-      attack:{
-        id:String(attack.rows[0].id),
-        attackerId,
-        targetId,
-        armySide:side,
-        attackerSlots:slots,
-        startedAt:new Date(attack.rows[0].started_at).getTime(),
-        arrivesAt:arrivesAt.getTime()
-      }
-    });
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error(e);
-    res.status(500).json({error:"ثبت حمله ناموفق بود."});
-  }finally{client.release();}
-});
-
-async function resolveAttack(attackId){
-  const client=await pool.connect();
-  try{
-    await client.query("BEGIN");
-
-    const aq=await client.query(
-      "SELECT * FROM attacks WHERE id=$1 FOR UPDATE",[attackId]
-    );
-    if(!aq.rows[0])throw new Error("حمله پیدا نشد.");
-    const attack=aq.rows[0];
-
-    if(attack.status==="resolved"){
-      const battle=await getBattleByTarget(attack.target_id,client);
-      await client.query("COMMIT");
-      return {battle};
-    }
-
-    if(Date.now()<new Date(attack.arrives_at).getTime()){
-      await client.query("ROLLBACK");
-      return {notDue:true,arrivesAt:new Date(attack.arrives_at).getTime()};
-    }
-
-    const targetQ=await client.query(
-      "SELECT * FROM castles WHERE id=$1 FOR UPDATE",[attack.target_id]
-    );
-    if(!targetQ.rows[0])throw new Error("قلعه هدف پیدا نشد.");
-    const target=targetQ.rows[0];
-
-    let battle=await getBattleByTarget(attack.target_id,client);
-
-    if(!battle){
-      const defenderSlots=normalizeSlots(target.defense_slots);
-      if(!defenderSlots.length)throw new Error("برای قلعه هدف چینش دفاعی ثبت نشده است.");
-
-      const battleRow=await client.query(`
-        INSERT INTO battles(target_id,defender_slots,armies,ends_at)
-        VALUES($1,$2::jsonb,'[]'::jsonb,NOW()+INTERVAL '30 minutes')
-        RETURNING *
-      `,[attack.target_id,JSON.stringify(defenderSlots)]);
-
-      const b=battleRow.rows[0];
-      const defenderArmy=makeArmy(
-        "مدافع",
-        attack.target_id,
-        defenderSlots,
-        0,
-        "bat-"+b.id+"-defender"
-      );
-
-      await client.query(
-        "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
-        [JSON.stringify(defenderArmy?[defenderArmy]:[]),b.id]
-      );
-      await client.query(
-        "UPDATE castles SET under_attack=TRUE,battle_id=$1 WHERE id=$2",
-        [b.id,attack.target_id]
-      );
-      battle=await getBattleByTarget(attack.target_id,client);
-    }
-
-    const sameSide=(battle.armies||[]).filter(a=>a.side===attack.army_side);
-    if(sameSide.length>=4){
-      await client.query(
-        "UPDATE attacks SET status='rejected',resolved_at=NOW() WHERE id=$1",
-        [attackId]
-      );
-      await returnTroops(client,attack);
-      await client.query("COMMIT");
-      return {battle,rejected:true};
-    }
-
-    const army=makeArmy(
-      attack.army_side,
-      attack.attacker_id,
-      attack.attacker_slots,
-      sameSide.length,
-      "bat-"+battle.batId+"-army-"+((battle.armies||[]).length+1)
-    );
-    if(!army)throw new Error("ساخت ارتش ناموفق بود.");
-
-    const armies=[...(battle.armies||[]),army];
-    let unitNo=1;
-    for(const a of armies){
-      for(const u of (a.units||[]))u.unit=unitNo++;
-    }
-
-    await client.query(
-      "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
-      [JSON.stringify(armies),battle.batId]
-    );
-    await client.query(
-      "UPDATE attacks SET status='resolved',resolved_at=NOW() WHERE id=$1",
-      [attackId]
-    );
-
-    await client.query("COMMIT");
-    return {battle:{...battle,armies}};
-  }catch(e){
-    await client.query("ROLLBACK");
-    throw e;
-  }finally{client.release();}
-}
-
-async function returnTroops(client,attack){
-  const sourceQ=await client.query(
-    "SELECT army FROM castles WHERE id=$1 FOR UPDATE",[attack.attacker_id]
-  );
-  if(!sourceQ.rows[0])return;
-  const army={...sourceQ.rows[0].army};
-  for(const s of normalizeSlots(attack.attacker_slots)){
-    army[s.type]=Number(army[s.type]||0)+s.count;
-  }
-  await client.query(
-    "UPDATE castles SET army=$1::jsonb WHERE id=$2",
-    [JSON.stringify(army),attack.attacker_id]
-  );
-}
-
-async function resolveDueAttacks(){
-  const r=await pool.query(`
-    SELECT id FROM attacks
-    WHERE status='pending' AND arrives_at<=NOW()
-    ORDER BY id
-    LIMIT 20
-  `);
-  for(const row of r.rows){
-    try{await resolveAttack(row.id);}catch(e){console.error("resolve",row.id,e);}
-  }
-}
-
-app.post("/api/attack/:id/resolve",async(req,res)=>{
-  try{
-    const result=await resolveAttack(String(req.params.id));
-    if(result.notDue)
-      return res.status(409).json({error:"زمان رسیدن نیرو هنوز تمام نشده است.",arrivesAt:result.arrivesAt});
-    res.json({
-      ok:true,
-      battle:result.battle,
-      rejected:!!result.rejected,
-      castles:await getCastles()
-    });
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:e.message||"اجرای batman روی سرور ناموفق بود."});
-  }
-});
-
-
-app.post("/api/battle/:id/end", async(req,res)=>{
-  const battleId=Number(req.params.id);
-  if(!Number.isInteger(battleId))
-    return res.status(400).json({error:"شماره نبرد نامعتبر است."});
-
-  const client=await pool.connect();
-  try{
-    await client.query('BEGIN');
-    const r=await client.query(
-      'SELECT target_id FROM battles WHERE id=$1 AND ended=FALSE FOR UPDATE',
-      [battleId]
-    );
-    if(!r.rows[0]){
-      await client.query('COMMIT');
-      return res.json({ok:true,deleted:false});
-    }
-    const targetId=r.rows[0].target_id;
-    await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
-    await client.query(
-      'DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'',
-      [targetId]
-    );
-    await client.query(
-      'UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',
-      [targetId,battleId]
-    );
-    await client.query('COMMIT');
-    res.json({ok:true,deleted:true,battleId});
-  }catch(e){
-    await client.query('ROLLBACK');
-    console.error(e);
-    res.status(500).json({error:"پاک کردن اطلاعات نبرد ناموفق بود."});
-  }finally{client.release();}
-});
-
-app.get("/api/pending", async (req,res)=>{
-  const castleId=Number(req.query.castleId);
-  if(!Number.isInteger(castleId))
-    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
-  try{
-    await resolveDueAttacks();
-    await expireBattles();
-    const r=await pool.query(`
-      SELECT id,attacker_id,target_id,army_side,arrives_at
-      FROM attacks
-      WHERE attacker_id=$1 AND status='pending'
-      ORDER BY id DESC
-      LIMIT 1
-    `,[castleId]);
-    if(!r.rows[0]) return res.json({attack:null});
-    const a=r.rows[0];
-    res.json({attack:{
-      id:String(a.id),
-      attackerId:a.attacker_id,
-      targetId:a.target_id,
-      armySide:a.army_side,
-      arrivesAt:new Date(a.arrives_at).getTime()
-    }});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خطا در خواندن حمله در حال حرکت"});
-  }
-});
-
-app.get("/api/battle/current",async(req,res)=>{
-  const castleId=Number(req.query.castleId);
-  if(!Number.isInteger(castleId))
-    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
-  try{
-    await resolveDueAttacks();
-    await expireBattles();
-    res.json({battle:await currentBattleForCastle(castleId)});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خطا در خواندن نبرد"});
-  }
-});
-
-app.get("/health",async(req,res)=>{
-  try{
-    await pool.query("SELECT 1");
-    res.json({ok:true});
-  }catch(e){res.status(500).json({ok:false});}
-});
-
-app.use("/images", express.static(path.join(__dirname, "public", "images")));
-
-app.use(express.static(__dirname, {
-  index: "index.html",
-  extensions: ["html"]
-}));
-
-initDb()
-  .then(()=>{
-    app.listen(PORT,()=>console.log(`Game server listening on ${PORT}`));
-  })
-  .catch(err=>{
-    console.error(err);
-    process.exit(1);
+function token(){return crypto.randomBytes(32).toString('hex');}
+
+function send(res,status,data){
+  const body=JSON.stringify(data);
+  res.writeHead(status,{
+    'Content-Type':'application/json; charset=utf-8',
+    'Cache-Control':'no-store',
+    'Access-Control-Allow-Origin':'*'
   });
+  res.end(body);
+}
+
+async function body(req){
+  let s='';
+  for await(const c of req)s+=c;
+  return s?JSON.parse(s):{};
+}
+
+function auth(req){
+  const h=req.headers.authorization||'';
+  if(!h.startsWith('Bearer '))return null;
+  const id=sessions.get(h.slice(7));
+  return db.users.find(u=>u.id===id)||null;
+}
+
+function publicUser(u){
+  return {
+    id:u.id,
+    username:u.username,
+    state:u.state,
+    castleLevel:u.state?.buildings?.castle?.level||1,
+    cell:u.cell
+  };
+}
+
+function players(){
+  return db.users.map(u=>({
+    id:u.id,
+    username:u.username,
+    castleLevel:u.state?.buildings?.castle?.level||1,
+    cell:u.cell,
+    online:online.has(u.id)
+  }));
+}
+
+function getWorldSize(userCount=db.users.length){
+  return BASE_WORLD_CELLS + Math.max(0, userCount - 1) * CELLS_PER_PLAYER;
+}
+
+// The first 100 cells are a 10x10 square. Every additional player expands
+// the map by 10 cells along successive sides of an outward square spiral.
+function worldCoord(index){
+  index=Math.max(0,Math.floor(Number(index)||0));
+  if(index<BASE_WORLD_CELLS) return {x:index%10,y:Math.floor(index/10)};
+  let k=index-BASE_WORLD_CELLS;
+  const side=Math.floor(k/10);
+  const n=k%10;
+  const ring=Math.floor(side/4)+1;
+  const segment=side%4;
+  if(segment===0) return {x:9+(ring-1)*11-n,y:-ring};
+  if(segment===1) return {x:9+ring,y:n};
+  if(segment===2) return {x:9+(ring-1)*11-n,y:9+ring};
+  return {x:-ring,y:9+ring-n};
+}
+
+function assignCell(){
+  const used=new Set(db.users.map(u=>Number(u.cell)).filter(Number.isInteger));
+  const limit=getWorldSize();
+  const free=[];
+  for(let i=0;i<limit;i++) if(!used.has(i)) free.push(i);
+  if(free.length) return free[crypto.randomInt(free.length)];
+  return Math.max(0,limit-1);
+}
+
+function num(value,fallback=0){
+  const n=Number(value);
+  return Number.isFinite(n)?n:fallback;
+}
+
+function int(value,fallback=0){
+  return Math.max(0,Math.floor(num(value,fallback)));
+}
+
+function goldProductionPerMinute(state){
+  const level=Math.max(1,Math.min(DEVELOPMENT_MAX_LEVEL,int(state.buildings?.goldMine?.level,1)));
+  return BASE_GOLD_PER_MINUTE*Math.pow(1.1,level-1);
+}
+
+function castleUpgradeCost(targetLevel){
+  const level=Math.max(2,int(targetLevel,2));
+  return BASE_GOLD_PER_MINUTE*10*Math.pow(2,level-2);
+}
+
+function offlineGoldCap(state){
+  const castleLevel=Math.max(1,Math.min(DEVELOPMENT_MAX_LEVEL,int(state.buildings?.castle?.level,1)));
+  return castleUpgradeCost(Math.min(DEVELOPMENT_MAX_LEVEL,castleLevel+1))*10;
+}
+
+function trainingTime(level){
+  return BASE_TRAINING_TIME_SECONDS*Math.pow(0.9,Math.max(0,int(level,1)-1));
+}
+
+function normalizeState(raw){
+  const d=initialState();
+  const s=(raw&&typeof raw==='object')?raw:{};
+  d.gold=Math.max(0,num(s.gold,STARTING_GOLD));
+
+  for(const key of BUILDING_TYPES){
+    const level=Math.max(1,Math.min(DEVELOPMENT_MAX_LEVEL,int(s.buildings?.[key]?.level,1)));
+    d.buildings[key]={level};
+  }
+
+  for(const type of UNIT_TYPES) d.army[type]=int(s.army?.[type],d.army[type]);
+
+  if(s.activeUpgrade && BUILDING_TYPES.includes(s.activeUpgrade.type)){
+    const target=Math.max(2,Math.min(DEVELOPMENT_MAX_LEVEL,int(s.activeUpgrade.targetLevel,2)));
+    const remaining=Math.max(0,num(s.activeUpgrade.remaining,0));
+    d.activeUpgrade={type:s.activeUpgrade.type,targetLevel:target,remaining};
+  }
+
+  for(const barracks of ['barracks1','barracks2']){
+    const job=s.activeTraining?.[barracks];
+    if(job && UNIT_TYPES.includes(job.type)){
+      d.activeTraining[barracks]={type:job.type,count:int(job.count),remaining:Math.max(0,num(job.remaining,0))};
+    }
+  }
+
+  d.activeAttacks=Array.isArray(s.activeAttacks)?s.activeAttacks.map(a=>({...a,remaining:Math.max(0,num(a.remaining,0))})).slice(0,100):[];
+  d.defenderSetups=(s.defenderSetups&&typeof s.defenderSetups==='object')?s.defenderSetups:{};
+  d.pendingRecoveries=Array.isArray(s.pendingRecoveries)?s.pendingRecoveries.map(j=>({
+    type:UNIT_TYPES.includes(j.type)?j.type:'archer',
+    count:int(j.count),
+    dueAt:num(j.dueAt,0)
+  })).filter(j=>j.count>0&&j.dueAt>0).slice(0,500):[];
+  d.attackRestrictions=(s.attackRestrictions&&typeof s.attackRestrictions==='object')?s.attackRestrictions:{};
+  d.savedAt=Date.now();
+  return d;
+}
+
+// This mirrors the offline progression that was already implemented in index.html.
+// It deliberately does not invent battle outcomes: an attack that reaches a target is
+// left at remaining=0 so the existing battle engine can resolve it after the client loads.
+function applyOfflineProgress(user, now=Date.now()){
+  if(!user.state) user.state=initialState();
+  user.state=normalizeState(user.state);
+
+  const last=num(user.lastStateAt || user.state.savedAt, now);
+  const elapsed=Math.max(0,(now-last)/1000);
+  if(elapsed<=0){
+    user.state.savedAt=now;
+    user.lastStateAt=now;
+    return 0;
+  }
+
+  const state=user.state;
+
+  // Pending recoveries use their existing absolute dueAt timestamps.
+  const remainingRecoveries=[];
+  for(const job of state.pendingRecoveries){
+    if(num(job.dueAt,0)<=now){
+      state.army[job.type]=int(state.army[job.type])+int(job.count);
+    }else remainingRecoveries.push(job);
+  }
+  state.pendingRecoveries=remainingRecoveries;
+
+  // Same gold-production order as the original client logic.
+  state.gold += goldProductionPerMinute(state)/60*elapsed;
+
+  // Upgrade timer.
+  if(state.activeUpgrade){
+    state.activeUpgrade.remaining=Math.max(0,num(state.activeUpgrade.remaining)-elapsed);
+    if(state.activeUpgrade.remaining<=0){
+      const job=state.activeUpgrade;
+      state.buildings[job.type].level=Math.max(1,Math.min(DEVELOPMENT_MAX_LEVEL,int(job.targetLevel,1)));
+      state.activeUpgrade=null;
+    }
+  }
+
+  // Training timers: same single-batch-per-barracks behavior as the original client.
+  for(const barracks of ['barracks1','barracks2']){
+    const job=state.activeTraining[barracks];
+    if(!job) continue;
+    job.remaining=num(job.remaining)-elapsed;
+    if(job.remaining<=0){
+      state.army[job.type]=int(state.army[job.type])+int(job.count);
+      state.activeTraining[barracks]=null;
+    }
+  }
+
+  // Returning armies come back automatically while offline. Non-returning attacks are
+  // marked as arrived and are resolved by the existing battle engine on the client.
+  for(const attack of state.activeAttacks){
+    attack.remaining=Math.max(0,num(attack.remaining)-elapsed);
+    if(attack.remaining<=0 && attack.returning){
+      for(const type of UNIT_TYPES) state.army[type]=int(state.army[type])+int(attack.composition?.[type]);
+      attack._completedOfflineReturn=true;
+    }
+  }
+  state.activeAttacks=state.activeAttacks.filter(a=>!a._completedOfflineReturn);
+
+  state.gold=Math.min(state.gold,offlineGoldCap(state));
+  state.savedAt=now;
+  user.lastStateAt=now;
+  return elapsed;
+}
+
+function touch(user){online.set(user.id,Date.now());}
+
+const server=http.createServer(async(req,res)=>{
+  if(req.method==='OPTIONS'){
+    res.writeHead(204,{
+      'Access-Control-Allow-Origin':'*',
+      'Access-Control-Allow-Headers':'Content-Type, Authorization',
+      'Access-Control-Allow-Methods':'GET,POST,PUT,OPTIONS'
+    });
+    return res.end();
+  }
+
+  try{
+    if(req.url==='/api/register'&&req.method==='POST'){
+      const {username,password}=await body(req);
+      if(!username||!password||username.length<3||password.length<4)
+        return send(res,400,{error:'نام کاربری یا رمز عبور معتبر نیست.'});
+      if(db.users.some(u=>u.username.toLowerCase()===username.toLowerCase()))
+        return send(res,409,{error:'این نام کاربری قبلاً ثبت شده است.'});
+
+      const p=hashPassword(password);
+      const now=Date.now();
+      const u={
+        id:crypto.randomUUID(),
+        username,
+        salt:p.salt,
+        passwordHash:p.hash,
+        state:initialState(),
+        cell:assignCell(),
+        lastStateAt:now
+      };
+      u.state.savedAt=now;
+      db.users.push(u);
+      await saveUser(u);
+
+      const t=token();
+      sessions.set(t,u.id);
+      touch(u);
+      return send(res,201,{token:t,user:publicUser(u)});
+    }
+
+    if(req.url==='/api/login'&&req.method==='POST'){
+      const {username,password}=await body(req);
+      const u=await findUserByUsername(String(username||'').trim());
+      if(!u||!checkPassword(String(password||''),u))
+        return send(res,401,{error:'نام کاربری یا رمز عبور نادرست است.'});
+
+      applyOfflineProgress(u);
+      if(!Number.isInteger(u.cell)||u.cell<0||u.cell>=getWorldSize()) u.cell=assignCell();
+      await saveUser(u);
+
+      const t=token();
+      sessions.set(t,u.id);
+      touch(u);
+      return send(res,200,{token:t,user:publicUser(u),worldSize:getWorldSize()});
+    }
+
+    // Public static files must be served before authentication.
+    if(req.method==='GET') {
+      const requestPath=new URL(req.url,`http://${req.headers.host||'localhost'}`).pathname;
+      let fileName=null;
+      if(requestPath==='/'||requestPath==='/index.html'||requestPath==='/ghalee1.png') fileName=requestPath==='/'?'index.html':requestPath.slice(1);
+      else if(requestPath.startsWith('/images/')) fileName=requestPath.slice(1);
+      if(fileName){
+        const filePath=path.resolve(__dirname,fileName);
+        const imagesRoot=path.resolve(__dirname,'images');
+        const allowedRoot=fileName==='index.html'||fileName==='ghalee1.png';
+        const allowedImage=filePath.startsWith(imagesRoot+path.sep);
+        if(allowedRoot||allowedImage){
+          if(fs.existsSync(filePath)&&fs.statSync(filePath).isFile()){
+            const ext=path.extname(filePath).toLowerCase();
+            const types={'.html':'text/html; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.svg':'image/svg+xml'};
+            res.writeHead(200,{'Content-Type':types[ext]||'application/octet-stream','Cache-Control':'no-cache'});
+            return fs.createReadStream(filePath).pipe(res);
+          }
+          return send(res,404,{error:'فایل پیدا نشد.'});
+        }
+      }
+    }
+    if(req.method==='GET' && (req.url==='/' || req.url==='/index.html' || req.url==='/ghalee1.png')){
+      const fileName=req.url==='/'?'index.html':req.url.slice(1);
+      const filePath=path.join(__dirname,fileName);
+      if(fs.existsSync(filePath)){
+        const ext=path.extname(filePath).toLowerCase();
+        const type=ext==='.html'?'text/html; charset=utf-8':ext==='.png'?'image/png':'application/octet-stream';
+        res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-cache'});
+        return fs.createReadStream(filePath).pipe(res);
+      }
+      return send(res,404,{error:'فایل پیدا نشد.'});
+    }
+
+    const u=auth(req);
+    if(!u)return send(res,401,{error:'ابتدا وارد حساب شوید.'});
+    touch(u);
+
+    if(req.url==='/api/attack'&&req.method==='POST'){
+      const input=await body(req);
+      const defender=db.users.find(x=>String(x.id)===String(input.targetId));
+      if(!defender) return send(res,404,{error:'بازیکن هدف پیدا نشد.'});
+      if(String(defender.id)===String(u.id)) return send(res,400,{error:'نمی‌توانید به خودتان حمله کنید.'});
+      const slots=Array.isArray(input.slots)?input.slots.slice(0,6):[];
+      const composition={archer:0,cavalry:0,swordsman:0};
+      for(const slot of slots){ if(UNIT_TYPES.includes(slot?.type)) composition[slot.type]+=int(slot.count); }
+      const total=composition.archer+composition.cavalry+composition.swordsman;
+      const cost=Math.max(0,int(input.attackCost,total));
+      if(total<1) return send(res,400,{error:'حداقل یک نیرو برای حمله لازم است.'});
+      for(const type of UNIT_TYPES){ if(composition[type]>int(u.state.army[type])) return send(res,400,{error:`تعداد ${type} بیشتر از نیروهای موجود است.`}); }
+      if(Number(u.state.gold)<cost) return send(res,400,{error:'طلای کافی برای حمله وجود ندارد.'});
+      const distance=Math.max(1,num(input.distance,1));
+      const travelSeconds=Math.max(60,int(input.travelSeconds,Math.round(distance*60)));
+      const now=Date.now();
+      const attackId=crypto.randomUUID();
+      const defenderSetup=sanitizeDefenseSlots(defender.state.defenderSetups?.self?.slots,defender.state.army);
+      u.state.gold-=cost;
+      for(const type of UNIT_TYPES) u.state.army[type]-=composition[type];
+      const attack={id:attackId,attackerId:u.id,targetId:defender.id,attackerName:u.username,targetName:defender.username,distance,remaining:travelSeconds,totalTravel:travelSeconds,arrivalAt:now+travelSeconds*1000,status:'traveling',role:'attacker',slots,composition,defenderSetup,attackCost:cost,createdAt:now};
+      const incoming={...attack,role:'defender',remaining:travelSeconds};
+      u.state.activeAttacks=Array.isArray(u.state.activeAttacks)?u.state.activeAttacks:[];
+      defender.state.activeAttacks=Array.isArray(defender.state.activeAttacks)?defender.state.activeAttacks:[];
+      u.state.activeAttacks.push(attack);
+      defender.state.activeAttacks.push(incoming);
+      await persistAttackToUsers(u,defender);
+      return send(res,201,{ok:true,attack,state:u.state});
+    }
+
+    if(req.url==='/api/attacks/outgoing'&&req.method==='GET'){
+      const now=Date.now();
+      const outgoing=Array.isArray(u.state.activeAttacks)?u.state.activeAttacks.filter(a=>a.role==='attacker'&&!a.battleEndedAt):[];
+      let changed=false;
+      for(const a of outgoing){
+        if(a.status==='traveling' && Number(a.arrivalAt)<=now){ a.status='arrived'; a.remaining=0; changed=true; }
+      }
+      if(changed) await saveUser(u);
+      const result=outgoing.map(a=>attackForClient(a, u, db.users.find(x=>String(x.id)===String(a.targetId))));
+      return send(res,200,{attacks:result});
+    }
+
+    if(req.url==='/api/attacks/incoming'&&req.method==='GET'){
+      const now=Date.now();
+      const incoming=Array.isArray(u.state.activeAttacks)?u.state.activeAttacks.filter(a=>a.role==='defender'&&!a.battleEndedAt):[];
+      let changed=false;
+      for(const a of incoming){
+        if(a.status==='traveling' && Number(a.arrivalAt)<=now){ a.status='arrived'; a.remaining=0; a.defenderSetup=sanitizeDefenseSlots(u.state.defenderSetups?.self?.slots,u.state.army); changed=true; }
+      }
+      if(changed) await saveUser(u);
+      const result=[];
+      for(const a of incoming){
+        const attacker=db.users.find(x=>String(x.id)===String(a.attackerId));
+        result.push(attackForClient(a,attacker,u));
+      }
+      return send(res,200,{attacks:result});
+    }
+
+    if(req.url.startsWith('/api/attacks/')&&req.method==='POST'){
+      const id=req.url.split('/')[3];
+      const incoming=Array.isArray(u.state.activeAttacks)?u.state.activeAttacks.find(a=>String(a.id)===String(id)&&a.role==='defender'):null;
+      if(!incoming) return send(res,404,{error:'حمله پیدا نشد.'});
+      if(Number(incoming.arrivalAt)>Date.now()) return send(res,400,{error:'هنوز زمان رسیدن نیروها نرسیده است.'});
+      incoming.status='arrived'; incoming.remaining=0;
+      await saveUser(u);
+      return send(res,200,{attack:incoming});
+    }
+
+    if(req.url==='/api/battle-reports'&&req.method==='POST'){
+      const input=await body(req);
+      const report=sanitizeBattleReport(input,u);
+      if(!report.battleId) return send(res,400,{error:'شماره شناسه نبرد ارسال نشده است.'});
+      if(!report.rows.length) return send(res,400,{error:'اطلاعات نیروهای نبرد وجود ندارد.'});
+      const rows=await supabaseRequest('battle_reports',{
+        method:'POST',
+        query:'?on_conflict=battle_id',
+        prefer:'resolution=merge-duplicates,return=representation',
+        body:{
+          battle_id:report.battleId,
+          attacker_name:report.attackerName,
+          defender_name:report.defenderName,
+          winner:report.winner,
+          end_reason:report.endReason,
+          report:report.rows,
+          created_by:report.createdBy
+        }
+      });
+      const saved=Array.isArray(rows)?rows[0]:rows;
+      return send(res,200,{ok:true,report:{
+        id:saved?.id,
+        battleNumber:saved?.battle_number,
+        battleId:saved?.battle_id || report.battleId,
+        attackerName:saved?.attacker_name || report.attackerName,
+        defenderName:saved?.defender_name || report.defenderName,
+        winner:saved?.winner || report.winner,
+        endReason:saved?.end_reason || report.endReason,
+        rows:saved?.report || report.rows,
+        createdAt:saved?.created_at || null
+      }});
+    }
+
+    if(req.url==='/api/battle-reports'&&req.method==='GET'){
+      const rows=await supabaseRequest('battle_reports',{query:'?select=id,battle_number,battle_id,attacker_name,defender_name,winner,end_reason,report,created_at&order=battle_number.desc'});
+      return send(res,200,{reports:(rows||[]).map(r=>({
+        id:r.id,battleNumber:r.battle_number,battleId:r.battle_id,attackerName:r.attacker_name,defenderName:r.defender_name,winner:r.winner,endReason:r.end_reason,rows:Array.isArray(r.report)?r.report:[],createdAt:r.created_at
+      }))});
+    }
+
+    if(req.url==='/api/battle-reports'&&req.method==='DELETE'){
+      await supabaseRequest('battle_reports',{method:'DELETE',query:'?id=gt.0'});
+      return send(res,200,{ok:true});
+    }
+
+    if(req.url==='/api/state'&&req.method==='PUT'){
+      const incoming=await body(req);
+      // Server time is authoritative. The client cannot choose savedAt or use a browser clock
+      // to manufacture offline gold.
+      u.state=normalizeState(incoming);
+      u.state.savedAt=Date.now();
+      u.lastStateAt=u.state.savedAt;
+      await saveUser(u);
+      return send(res,200,{ok:true,state:u.state});
+    }
+
+    if(req.url==='/api/state'&&req.method==='GET'){
+      applyOfflineProgress(u);
+      await saveUser(u);
+      return send(res,200,{state:u.state});
+    }
+
+    if(req.url==='/api/players'&&req.method==='GET'){
+      // Do not alter other players' states here; this endpoint is only the persistent world view.
+      return send(res,200,{selfId:u.id,worldSize:getWorldSize(),players:players(),cellLayout:db.users.map(x=>({id:x.id,cell:x.cell,...worldCoord(x.cell)}))});
+    }
+
+    return send(res,404,{error:'مسیر پیدا نشد.'});
+  }catch(e){
+    console.error(e);
+    return send(res,500,{error:'خطای داخلی سرور.'});
+  }
+});
+
+setInterval(()=>{
+  const now=Date.now();
+  for(const [id,t] of online) if(now-t>15000) online.delete(id);
+},5000);
+
+await loadDB();
+console.log(`Loaded ${db.users.length} player(s) from Supabase.`);
+server.listen(PORT,()=>console.log(`Strategy game server running on port ${PORT}`));
