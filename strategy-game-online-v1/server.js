@@ -7,7 +7,6 @@ app.use(express.json({limit:"1mb"}));
 
 const PORT = process.env.PORT || 3000;
 const ARRIVAL_SECONDS = Number(process.env.ARRIVAL_SECONDS || 10);
-const ROUND_SECONDS = 20;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -63,25 +62,7 @@ async function initDb(){
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
-      winner_side TEXT,
-      report_armies JSONB NOT NULL DEFAULT '[]'::jsonb,
-      round_number INTEGER NOT NULL DEFAULT 0,
-      round_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      round_ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '20 seconds')
-    )
-  `);
-
-  await pool.query(`
-    ALTER TABLE battles ADD COLUMN IF NOT EXISTS report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS battle_reports (
-      id BIGSERIAL PRIMARY KEY,
-      battle_id BIGINT NOT NULL UNIQUE,
-      report JSONB NOT NULL,
-      winner_side TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      winner_side TEXT
     )
   `);
 
@@ -97,52 +78,9 @@ async function initDb(){
     ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ
   `);
   await pool.query(`
-    ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS round_number INTEGER NOT NULL DEFAULT 0
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS round_started_at TIMESTAMPTZ
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ADD COLUMN IF NOT EXISTS round_ends_at TIMESTAMPTZ
-  `);
-  await pool.query(`
     UPDATE battles
     SET ends_at = created_at + INTERVAL '30 minutes'
     WHERE ends_at IS NULL
-  `);
-  await pool.query(`
-    UPDATE battles
-    SET round_started_at = created_at
-    WHERE round_started_at IS NULL
-  `);
-  await pool.query(`
-    UPDATE battles
-    SET round_ends_at = round_started_at + INTERVAL '20 seconds'
-    WHERE round_ends_at IS NULL
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ALTER COLUMN round_started_at SET DEFAULT NOW()
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ALTER COLUMN round_started_at SET NOT NULL
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ALTER COLUMN round_ends_at SET DEFAULT (NOW() + INTERVAL '20 seconds')
-  `);
-  await pool.query(`
-    ALTER TABLE battles
-    ALTER COLUMN round_ends_at SET NOT NULL
-  `);
-  // مربوط به تلاش قبلی برای تاریخچه راندها بود و دیگر استفاده نمی‌شود.
-  await pool.query(`
-    ALTER TABLE battles
-    DROP COLUMN IF EXISTS round_history
   `);
   await pool.query(`
     ALTER TABLE battles
@@ -151,6 +89,27 @@ async function initDb(){
   await pool.query(`
     ALTER TABLE battles
     ALTER COLUMN ends_at SET NOT NULL
+  `);
+
+  // تایمر و شماره راند مستقل از مرورگر در SQL نگهداری می‌شوند.
+  await pool.query(`
+    ALTER TABLE battles
+      ADD COLUMN IF NOT EXISTS round_number INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS round_started_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS round_ends_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS round_claimed_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS round_claim_token TEXT
+  `);
+  await pool.query(`
+    UPDATE battles
+    SET round_started_at=COALESCE(round_started_at,created_at),
+        round_ends_at=COALESCE(round_ends_at,created_at+INTERVAL '20 seconds')
+    WHERE round_started_at IS NULL OR round_ends_at IS NULL
+  `);
+  await pool.query(`
+    ALTER TABLE battles
+      ALTER COLUMN round_started_at SET DEFAULT NOW(),
+      ALTER COLUMN round_ends_at SET DEFAULT (NOW()+INTERVAL '20 seconds')
   `);
 }
 
@@ -198,7 +157,6 @@ function makeArmy(side, castleId, slots, blockIndex, armyId){
       type:names[slot.type],
       rawType:slot.type,
       count:slot.count,
-      initialCount:slot.count,
       castle:Number(castleId),
       side,
       x:pos.x,
@@ -247,12 +205,11 @@ async function getBattleByTarget(targetId, client=pool){
     armies:b.armies,
     createdAt:new Date(b.created_at).getTime(),
     endsAt:new Date(b.ends_at).getTime(),
-    ended:b.ended,
-    winnerSide:b.winner_side,
-    reportArmies:b.report_armies,
     roundNumber:Number(b.round_number||0),
-    roundStartedAt:new Date(b.round_started_at||b.created_at).getTime(),
-    roundEndsAt:new Date(b.round_ends_at||((b.round_started_at||b.created_at))).getTime()
+    roundStartedAt:b.round_started_at?new Date(b.round_started_at).getTime():null,
+    roundEndsAt:b.round_ends_at?new Date(b.round_ends_at).getTime():null,
+    ended:b.ended,
+    winnerSide:b.winner_side
   };
 }
 
@@ -266,61 +223,8 @@ function battleJson(row){
     createdAt:new Date(row.created_at).getTime(),
     endsAt:new Date(row.ends_at).getTime(),
     ended:row.ended,
-    winnerSide:row.winner_side,
-    reportArmies:row.report_armies,
-    roundNumber:Number(row.round_number||0),
-    roundStartedAt:new Date(row.round_started_at||row.created_at).getTime(),
-    roundEndsAt:new Date(row.round_ends_at||((row.round_started_at||row.created_at))).getTime()
+    winnerSide:row.winner_side
   };
-}
-
-let battleRoundClockBusy=false;
-
-// ساعت راند کاملاً سمت سرور است و به هیچ کاربر یا صفحه‌ای وابسته نیست.
-// فقط متادیتای راند را نگه می‌دارد و به منطق نبرد/حرکت دست نمی‌زند.
-async function maintainBattleRoundClock(){
-  if(battleRoundClockBusy)return;
-  battleRoundClockBusy=true;
-  const client=await pool.connect();
-  try{
-    await client.query('BEGIN');
-    const r=await client.query(`
-      SELECT id,round_number,round_started_at,round_ends_at
-      FROM battles
-      WHERE ended=FALSE
-        AND round_ends_at<=NOW()
-      FOR UPDATE SKIP LOCKED
-    `);
-
-    const now=Date.now();
-    for(const battle of r.rows){
-      let roundNumber=Number(battle.round_number)||0;
-      let roundEnd=new Date(battle.round_ends_at||battle.round_started_at).getTime();
-      if(!Number.isFinite(roundEnd))roundEnd=now+ROUND_SECONDS*1000;
-
-      while(roundEnd<=now){
-        roundNumber++;
-        roundEnd+=ROUND_SECONDS*1000;
-      }
-
-      const roundStart=roundEnd-(ROUND_SECONDS*1000);
-      await client.query(`
-        UPDATE battles
-        SET round_number=$1,
-            round_started_at=to_timestamp($2/1000.0),
-            round_ends_at=to_timestamp($3/1000.0)
-        WHERE id=$4 AND ended=FALSE
-      `,[roundNumber,roundStart,roundEnd,battle.id]);
-    }
-
-    await client.query('COMMIT');
-  }catch(e){
-    await client.query('ROLLBACK');
-    console.error('ساعت راند نبرد:',e);
-  }finally{
-    client.release();
-    battleRoundClockBusy=false;
-  }
 }
 
 async function expireBattles(){
@@ -417,8 +321,8 @@ app.put("/api/battle/:id/move", async (req,res)=>{
     found.unit.moveTarget=destination;
 
     const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),JSON.stringify(mergeReportArmies(battle.report_armies,armies)),battleId]
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),battleId]
     );
     await client.query("COMMIT");
     res.json({ok:true,battle:battleJson(updated.rows[0])});
@@ -427,6 +331,95 @@ app.put("/api/battle/:id/move", async (req,res)=>{
     console.error(e);
     res.status(500).json({error:"ذخیره مقصد حرکت ناموفق بود."});
   }finally{client.release();}
+});
+
+// دریافت ساعت واقعی راند از SQL. مرورگر فقط آن را نمایش می‌دهد.
+app.get("/api/battle/:id/round", async (req,res)=>{
+  const battleId=Number(req.params.id);
+  if(!Number.isInteger(battleId))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  try{
+    await expireBattles();
+    const r=await pool.query(
+      `SELECT id,round_number,round_started_at,round_ends_at,round_claimed_at
+       FROM battles WHERE id=$1 AND ended=FALSE`,[battleId]
+    );
+    if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    const b=r.rows[0];
+    res.json({
+      ok:true,
+      roundNumber:Number(b.round_number||0),
+      roundStartedAt:b.round_started_at?new Date(b.round_started_at).getTime():null,
+      roundEndsAt:b.round_ends_at?new Date(b.round_ends_at).getTime():null,
+      roundClaimedAt:b.round_claimed_at?new Date(b.round_claimed_at).getTime():null
+    });
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"خواندن زمان راند ناموفق بود."});
+  }
+});
+
+// فقط یک مرورگر می‌تواند راند رسیده را پردازش کند. اگر مرورگر قطع شود،
+// بعد از 15 ثانیه کلاینت دیگری می‌تواند همان راند را تحویل بگیرد.
+app.post("/api/battle/:id/round/claim", async (req,res)=>{
+  const battleId=Number(req.params.id);
+  if(!Number.isInteger(battleId))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  const crypto=require("crypto");
+  const token=crypto.randomBytes(24).toString("hex");
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const q=await client.query(
+      `SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE`,[battleId]
+    );
+    if(!q.rows[0]){await client.query("ROLLBACK");return res.status(404).json({error:"نبرد فعال پیدا نشد."});}
+    const b=q.rows[0];
+    const due=!b.round_ends_at || new Date(b.round_ends_at).getTime()<=Date.now();
+    if(!due){
+      await client.query("COMMIT");
+      return res.json({ok:true,claimed:false,roundNumber:Number(b.round_number||0),roundEndsAt:new Date(b.round_ends_at).getTime()});
+    }
+    const claimTime=b.round_claimed_at?new Date(b.round_claimed_at).getTime():0;
+    if(b.round_claimed_at && Date.now()-claimTime<15000){
+      await client.query("COMMIT");
+      return res.json({ok:true,claimed:false,roundNumber:Number(b.round_number||0),roundEndsAt:new Date(b.round_ends_at).getTime()});
+    }
+    const u=await client.query(
+      `UPDATE battles SET round_claimed_at=NOW(),round_claim_token=$1
+       WHERE id=$2 AND ended=FALSE RETURNING round_number,round_started_at,round_ends_at`,[token,battleId]
+    );
+    await client.query("COMMIT");
+    const row=u.rows[0];
+    res.json({ok:true,claimed:true,token,roundNumber:Number(row.round_number||0),roundStartedAt:new Date(row.round_started_at).getTime(),roundEndsAt:new Date(row.round_ends_at).getTime()});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error(e);
+    res.status(500).json({error:"دریافت راند ناموفق بود."});
+  }finally{client.release();}
+});
+
+// پس از موفقیت کامل محاسبات راند، راند بعدی اتمیک شروع می‌شود.
+app.post("/api/battle/:id/round/commit", async (req,res)=>{
+  const battleId=Number(req.params.id);
+  const token=String(req.body?.token||"");
+  if(!Number.isInteger(battleId)||!token)return res.status(400).json({error:"اطلاعات راند نامعتبر است."});
+  try{
+    const r=await pool.query(
+      `UPDATE battles
+       SET round_number=round_number+1,
+           round_started_at=NOW(),
+           round_ends_at=NOW()+INTERVAL '20 seconds',
+           round_claimed_at=NULL,
+           round_claim_token=NULL
+       WHERE id=$1 AND ended=FALSE AND round_claim_token=$2
+       RETURNING round_number,round_started_at,round_ends_at`,[battleId,token]
+    );
+    if(!r.rows[0])return res.status(409).json({error:"این راند قبلاً پردازش شده یا نبرد تمام شده است."});
+    const row=r.rows[0];
+    res.json({ok:true,roundNumber:Number(row.round_number),roundStartedAt:new Date(row.round_started_at).getTime(),roundEndsAt:new Date(row.round_ends_at).getTime()});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"ثبت پایان راند ناموفق بود."});
+  }
 });
 
 // پایان راند: مقصدهای ذخیره‌شده در SQL به cell/x/y تبدیل می‌شوند.
@@ -467,8 +460,8 @@ app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
     }
 
     const updated=await client.query(
-      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 AND ended=FALSE AND ends_at>NOW() RETURNING *",
-      [JSON.stringify(armies),JSON.stringify(mergeReportArmies(battle.report_armies,armies)),battleId]
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2 AND ended=FALSE AND ends_at>NOW() RETURNING *",
+      [JSON.stringify(armies),battleId]
     );
     await client.query("COMMIT");
     res.json({ok:true,moved,battle:battleJson(updated.rows[0])});
@@ -501,18 +494,12 @@ app.put("/api/battle/:id/state", async (req,res)=>{
   if(!Number.isInteger(id)||!armies)return res.status(400).json({error:"اطلاعات حرکت نامعتبر است."});
 
   try{
-    const current=await pool.query(
-      "SELECT report_armies FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
-      [id]
-    );
-    if(!current.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
-    const reportArmies=mergeReportArmies(current.rows[0].report_armies,armies);
     const r=await pool.query(
       `UPDATE battles
-       SET armies=$1::jsonb, report_armies=$2::jsonb
-       WHERE id=$3 AND ended=FALSE AND ends_at>NOW()
+       SET armies=$1::jsonb
+       WHERE id=$2 AND ended=FALSE AND ends_at>NOW()
        RETURNING *`,
-      [JSON.stringify(armies),JSON.stringify(reportArmies),id]
+      [JSON.stringify(armies),id]
     );
     if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
     res.json({ok:true,battle:battleJson(r.rows[0])});
@@ -522,57 +509,6 @@ app.put("/api/battle/:id/state", async (req,res)=>{
   }
 });
 
-
-app.get("/api/battle-reports", async(req,res)=>{
-  try{
-    const r=await pool.query(`
-      SELECT id,battle_id,winner_side,created_at
-      FROM battle_reports
-      ORDER BY battle_id DESC
-    `);
-    res.json({ok:true,reports:r.rows.map(x=>({
-      id:Number(x.id),
-      battleId:Number(x.battle_id),
-      winnerSide:x.winner_side,
-      createdAt:new Date(x.created_at).getTime()
-    }))});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خواندن گزارش‌های نبرد ناموفق بود."});
-  }
-});
-
-app.get("/api/battle-reports/:id", async(req,res)=>{
-  const battleId=Number(req.params.id);
-  if(!Number.isInteger(battleId))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
-  try{
-    const r=await pool.query(
-      `SELECT battle_id,report,winner_side,created_at FROM battle_reports WHERE battle_id=$1`,
-      [battleId]
-    );
-    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد پیدا نشد."});
-    res.json({
-      ok:true,
-      battleId:Number(r.rows[0].battle_id),
-      report:Array.isArray(r.rows[0].report)?r.rows[0].report:[],
-      winnerSide:r.rows[0].winner_side,
-      createdAt:new Date(r.rows[0].created_at).getTime()
-    });
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"خواندن گزارش نبرد ناموفق بود."});
-  }
-});
-
-app.delete("/api/battle-reports", async(req,res)=>{
-  try{
-    const r=await pool.query("DELETE FROM battle_reports");
-    res.json({ok:true,deleted:Number(r.rowCount||0)});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"پاک کردن گزارش‌های نبرد ناموفق بود."});
-  }
-});
 
 // پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
 app.post("/api/reset-game", async (req,res)=>{
@@ -794,8 +730,8 @@ async function resolveAttack(attackId){
       );
 
       await client.query(
-        "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",
-        [JSON.stringify(defenderArmy?[defenderArmy]:[]), JSON.stringify(defenderArmy?[defenderArmy]:[]), b.id]
+        "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
+        [JSON.stringify(defenderArmy?[defenderArmy]:[]),b.id]
       );
       await client.query(
         "UPDATE castles SET under_attack=TRUE,battle_id=$1 WHERE id=$2",
@@ -831,8 +767,8 @@ async function resolveAttack(attackId){
     }
 
     await client.query(
-      "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",
-      [JSON.stringify(armies), JSON.stringify(mergeReportArmies(battle.report_armies, armies)), battle.batId]
+      "UPDATE battles SET armies=$1::jsonb WHERE id=$2",
+      [JSON.stringify(armies),battle.batId]
     );
     await client.query(
       "UPDATE attacks SET status='resolved',resolved_at=NOW() WHERE id=$1",
@@ -892,87 +828,6 @@ app.post("/api/attack/:id/resolve",async(req,res)=>{
 });
 
 
-// وضعیت جداگانه مخصوص گزارش؛ از حذف ارتش‌ها در fotjang مستقل می‌ماند.
-function mergeReportArmies(existing, current){
-  const saved=Array.isArray(existing)?existing.map(a=>JSON.parse(JSON.stringify(a))):[];
-  const live=Array.isArray(current)?current:[];
-  const byId=new Map(saved.map(a=>[String(a.armyId),a]));
-  for(const army of live){
-    const key=String(army?.armyId||'');
-    if(!key)continue;
-    let target=byId.get(key);
-    if(!target){
-      target=JSON.parse(JSON.stringify(army));
-      target.units=(target.units||[]).map(u=>({...u}));
-      byId.set(key,target);
-      saved.push(target);
-    }
-    const liveUnits=Array.isArray(army.units)?army.units:[];
-    const liveById=new Map(liveUnits.map(u=>[String(u.id),u]));
-    const targetUnits=Array.isArray(target.units)?target.units:[];
-    for(const unit of targetUnits){
-      const now=liveById.get(String(unit.id));
-      unit.count=now?Math.max(0,Math.floor(Number(now.count)||0)):0;
-      if(now && Number.isFinite(Number(now.health)))unit.health=Number(now.health);
-      if(now?.cell)unit.cell=now.cell;
-      if(Number.isFinite(Number(now?.x)))unit.x=Number(now.x);
-      if(Number.isFinite(Number(now?.y)))unit.y=Number(now.y);
-    }
-  }
-  return saved;
-}
-
-// ساخت گزارش نبرد به صورت مستقل از منطق نبرد.
-// این تابع فقط snapshot ارتش‌ها را می‌گیرد و گزارش نهایی را تولید می‌کند.
-function gozbat(battleRow){
-  const armies=Array.isArray(battleRow?.report_armies)?battleRow.report_armies:(Array.isArray(battleRow?.armies)?battleRow.armies:[]);
-  const reportMap=new Map();
-
-  for(const army of armies){
-    const castleId=Number(army?.castleId);
-    if(!Number.isInteger(castleId))continue;
-    const castleName='قلعه '+castleId;
-
-    const initialByType={};
-    for(const slot of (Array.isArray(army?.slots)?army.slots:[])){
-      const rawType=String(slot?.type||'');
-      if(!rawType)continue;
-      initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(slot?.count)||0));
-    }
-
-    // سازگاری با داده‌های قدیمی که slots نداشتند.
-    if(!Object.keys(initialByType).length){
-      for(const unit of (Array.isArray(army?.units)?army.units:[])){
-        const rawType=String(unit?.rawType||'');
-        if(!rawType)continue;
-        initialByType[rawType]=(initialByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.initialCount ?? unit?.count)||0));
-      }
-    }
-
-    const remainingByType={};
-    for(const unit of (Array.isArray(army?.units)?army.units:[])){
-      const rawType=String(unit?.rawType||'');
-      if(!rawType)continue;
-      remainingByType[rawType]=(remainingByType[rawType]||0)+Math.max(0,Math.floor(Number(unit?.count)||0));
-    }
-
-    for(const rawType of Object.keys(initialByType)){
-      const initial=initialByType[rawType];
-      const remaining=remainingByType[rawType]||0;
-      reportMap.set(String(castleId)+'|'+rawType,{
-        castleId,
-        castleName,
-        type:names[rawType]||rawType,
-        initial,
-        losses:Math.max(0,initial-remaining),
-        remaining
-      });
-    }
-  }
-
-  return Array.from(reportMap.values());
-}
-
 app.post("/api/battle/:id/end", async(req,res)=>{
   const battleId=Number(req.params.id);
   if(!Number.isInteger(battleId))
@@ -989,36 +844,18 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       await client.query('COMMIT');
       return res.json({ok:true,deleted:false});
     }
-    const battleRow=r.rows[0];
-    const fullBattleQ=await client.query(
-      'SELECT * FROM battles WHERE id=$1 FOR UPDATE',
-      [battleId]
-    );
-    const fullBattle=fullBattleQ.rows[0];
-
-    // گزارش کاملاً مستقل از حذف نبرد ساخته و در جدول مخصوص گزارش‌ها ذخیره می‌شود.
-    const report=gozbat(fullBattle);
-    await client.query(
-      `INSERT INTO battle_reports(battle_id,report,winner_side)
-       VALUES($1,$2::jsonb,$3)
-       ON CONFLICT (battle_id) DO UPDATE SET
-         report=EXCLUDED.report,
-         winner_side=EXCLUDED.winner_side,
-         created_at=NOW()`,
-      [battleId,JSON.stringify(report),req.body?.winnerSide||null]
-    );
-
+    const targetId=r.rows[0].target_id;
     await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
     await client.query(
       'DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'',
-      [battleRow.target_id]
+      [targetId]
     );
     await client.query(
       'UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',
-      [battleRow.target_id,battleId]
+      [targetId,battleId]
     );
     await client.query('COMMIT');
-    res.json({ok:true,deleted:true,battleId,reportSaved:true});
+    res.json({ok:true,deleted:true,battleId});
   }catch(e){
     await client.query('ROLLBACK');
     console.error(e);
@@ -1085,9 +922,6 @@ app.use(express.static(__dirname, {
 
 initDb()
   .then(()=>{
-    // مستقل از کاربران؛ تا وقتی ردیف نبرد وجود دارد ساعت راند را نگه می‌دارد.
-    setInterval(maintainBattleRoundClock,1000);
-    maintainBattleRoundClock().catch(()=>{});
     app.listen(PORT,()=>console.log(`Game server listening on ${PORT}`));
   })
   .catch(err=>{
