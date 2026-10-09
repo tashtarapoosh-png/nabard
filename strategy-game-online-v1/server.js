@@ -1,6 +1,6 @@
 const express = require("express");
 const path = require("path");
-const { randomUUID } = require("crypto");
+const { randomUUID, scryptSync, timingSafeEqual } = require("crypto");
 const { Pool } = require("pg");
 
 const app = express();
@@ -22,6 +22,25 @@ const names = {
 
 const emptyArmy = () => ({ archer: 100, cavalry: 100, swordsman: 100 });
 const emptyDefense = () => Array.from({length:6},()=>({type:"",count:0}));
+
+function hashPassword(password){
+  const salt=randomUUID().replace(/-/g,'');
+  return salt+':'+scryptSync(String(password),salt,64).toString('hex');
+}
+function verifyPassword(password,stored){
+  if(!stored||!stored.includes(':'))return false;
+  const [salt,hash]=stored.split(':');
+  const actual=scryptSync(String(password),salt,64);
+  const expected=Buffer.from(hash,'hex');
+  return actual.length===expected.length&&timingSafeEqual(actual,expected);
+}
+function defaultBuildings(){return {castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}};}
+function randomDefense(){
+  const slots=emptyDefense(),types=['archer','cavalry','swordsman'];
+  const n=2+Math.floor(Math.random()*5);
+  for(let i=0;i<n;i++)slots[i]={type:types[Math.floor(Math.random()*types.length)],count:1+Math.floor(Math.random()*100)};
+  return slots;
+}
 
 async function initDb(){
   if(!process.env.DATABASE_URL){
@@ -95,12 +114,36 @@ async function initDb(){
     )
   `);
 
-  await pool.query(`
-    INSERT INTO castles(id,name,army,defense_slots)
-    SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb
-    FROM generate_series(1,11) x
-    ON CONFLICT (id) DO NOTHING
-  `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
+  // حساب کاربری، مختصات ثابت نقشه و داده‌های توسعه قلعه در همان رکورد قلعه نگهداری می‌شوند.
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS username TEXT`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS password_hash TEXT`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS map_x INTEGER`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS map_y INTEGER`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS gold BIGINT NOT NULL DEFAULT 3000`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS buildings JSONB NOT NULL DEFAULT '{"castle":{"level":1},"wall":{"level":1},"barracks1":{"level":1},"barracks2":{"level":1},"goldMine":{"level":1}}'::jsonb`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS battle_history JSONB NOT NULL DEFAULT '[]'::jsonb`);
+
+  // تبدیل یک‌بارهٔ قلعه‌های آزمایشی قدیمی به چهار حساب پیش‌فرض موردنیاز.
+  const legacy=await pool.query("SELECT COUNT(*)::int AS n FROM castles WHERE username IS NOT NULL");
+  if(Number(legacy.rows[0].n)===0){
+    await pool.query("TRUNCATE TABLE battle_reports, attacks, battles, castles RESTART IDENTITY CASCADE");
+    const defaults=[
+      {id:1,username:'jahan1',x:-2,y:2},
+      {id:2,username:'jahan2',x:2,y:2},
+      {id:3,username:'jahan3',x:-2,y:-2},
+      {id:4,username:'jahan4',x:2,y:-2}
+    ];
+    for(const c of defaults){
+      const slots=emptyDefense(); const types=['archer','cavalry','swordsman'];
+      const n=2+Math.floor(Math.random()*5);
+      for(let i=0;i<n;i++)slots[i]={type:types[Math.floor(Math.random()*types.length)],count:1+Math.floor(Math.random()*100)};
+      await pool.query(`INSERT INTO castles(id,name,army,defense_slots,username,password_hash,map_x,map_y,gold,buildings)
+        VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,3000,$9::jsonb)`,
+        [c.id,'قلعه '+c.id,JSON.stringify(emptyArmy()),JSON.stringify(slots),c.username,hashPassword('1234'),c.x,c.y,JSON.stringify(defaultBuildings())]);
+    }
+  } else {
+    await pool.query("INSERT INTO castles(id,name,army,defense_slots,username,password_hash,map_x,map_y) SELECT x,'قلعه '||x,$1::jsonb,$2::jsonb,'jahan'||x,$3,NULL,NULL FROM generate_series(1,4) x ON CONFLICT(id) DO NOTHING",[JSON.stringify(emptyArmy()),JSON.stringify(emptyDefense()),hashPassword('1234')]);
+  }
 
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS under_attack BOOLEAN NOT NULL DEFAULT FALSE`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS battle_id BIGINT`);
@@ -195,7 +238,12 @@ function publicCastle(row){
     army:row.army,
     defenseSlots:row.defense_slots,
     underAttack:row.under_attack,
-    battleId:row.battle_id
+    battleId:row.battle_id,
+    username:row.username||null,
+    mapX:row.map_x,
+    mapY:row.map_y,
+    gold:Number(row.gold||0),
+    buildings:row.buildings||defaultBuildings()
   };
 }
 
@@ -627,29 +675,67 @@ app.delete("/api/battle-reports", async(req,res)=>{
 });
 
 // پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
-app.post("/api/reset-game", async (req,res)=>{
+// ثبت‌نام/ورود؛ شماره قلعه جدید در تراکنش و با قفل جدول افزایشی تخصیص داده می‌شود.
+app.post('/api/auth/login',async(req,res)=>{
+  try{
+    const username=String(req.body.username||'').trim();
+    const password=String(req.body.password||'');
+    const q=await pool.query('SELECT * FROM castles WHERE LOWER(username)=LOWER($1)',[username]);
+    const row=q.rows[0];
+    if(!row||!verifyPassword(password,row.password_hash))return res.status(401).json({error:'نام کاربری یا رمز عبور نادرست است.'});
+    res.json({ok:true,castle:publicCastle(row)});
+  }catch(e){console.error('login',e);res.status(500).json({error:'ورود انجام نشد.'});}
+});
+app.post('/api/auth/register',async(req,res)=>{
+  const username=String(req.body.username||'').trim();
+  const password=String(req.body.password||'');
+  if(!/^[a-zA-Z0-9_]{3,24}$/.test(username))return res.status(400).json({error:'نام کاربری باید ۳ تا ۲۴ حرف انگلیسی، عدد یا زیرخط باشد.'});
+  if(password.length<4||password.length>100)return res.status(400).json({error:'رمز عبور باید حداقل ۴ نویسه داشته باشد.'});
   const client=await pool.connect();
   try{
-    await client.query("BEGIN");
+    await client.query('BEGIN');
+    await client.query('LOCK TABLE castles IN EXCLUSIVE MODE');
+    const exists=await client.query('SELECT 1 FROM castles WHERE LOWER(username)=LOWER($1)',[username]);
+    if(exists.rowCount){await client.query('ROLLBACK');return res.status(409).json({error:'این نام کاربری قبلاً ثبت شده است.'});}
+    const maxq=await client.query('SELECT COALESCE(MAX(id),0)::int AS max_id FROM castles');
+    const id=Number(maxq.rows[0].max_id)+1;
+    // مختصات از حلقه‌های مارپیچی بیرون از محدودهٔ چهار قلعهٔ اولیه انتخاب می‌شود و ثابت می‌ماند.
+    const usedQ=await client.query('SELECT map_x,map_y FROM castles WHERE map_x IS NOT NULL AND map_y IS NOT NULL');
+    const used=new Set(usedQ.rows.map(r=>r.map_x+','+r.map_y));
+    let candidates=[];
+    for(let radius=3;radius<100&&candidates.length===0;radius++){
+      for(let x=-radius;x<=radius;x++)for(let y=-radius;y<=radius;y++){
+        if(Math.max(Math.abs(x),Math.abs(y))!==radius)continue;
+        if(!used.has(x+','+y))candidates.push({x,y});
+      }
+      // خانه‌های حلقه بیرونی را در ترتیب مارپیچی تقریبی می‌چرخانیم.
+      if(candidates.length)candidates.sort((a,b)=>Math.atan2(a.y,a.x)-Math.atan2(b.y,b.x));
+    }
+    if(!candidates.length)throw new Error('خانه آزاد برای قلعه پیدا نشد.');
+    const pos=candidates[Math.floor(Math.random()*candidates.length)];
+    const army=emptyArmy(),defense=randomDefense();
+    const row=await client.query(`INSERT INTO castles(id,name,army,defense_slots,username,password_hash,map_x,map_y,gold,buildings,battle_history)
+      VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,3000,$9::jsonb,'[]'::jsonb) RETURNING *`,
+      [id,'قلعه '+id,JSON.stringify(army),JSON.stringify(defense),username,hashPassword(password),pos.x,pos.y,JSON.stringify(defaultBuildings())]);
+    await client.query('COMMIT');
+    res.status(201).json({ok:true,castle:publicCastle(row.rows[0])});
+  }catch(e){await client.query('ROLLBACK');console.error('register',e);res.status(500).json({error:'ثبت‌نام انجام نشد.'});}
+  finally{client.release();}
+});
+app.put('/api/castle/:id/development',async(req,res)=>{
+  const id=Number(req.params.id);const gold=Math.max(0,Math.floor(Number(req.body.gold)||0));
+  const buildings=req.body.buildings&&typeof req.body.buildings==='object'?req.body.buildings:defaultBuildings();
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
+  try{const q=await pool.query('UPDATE castles SET gold=$1,buildings=$2::jsonb WHERE id=$3 RETURNING id,gold,buildings',[gold,JSON.stringify(buildings),id]);if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});res.json({ok:true,castle:q.rows[0]});}
+  catch(e){console.error('save development',e);res.status(500).json({error:'ذخیره اطلاعات توسعه قلعه ناموفق بود.'});}
+});
+app.get('/api/map',async(req,res)=>{
+  try{const q=await pool.query('SELECT id,name,username,map_x,map_y,army,defense_slots,gold,buildings FROM castles ORDER BY id');res.json({castles:q.rows.map(r=>({id:r.id,name:r.name,username:r.username,x:r.map_x,y:r.map_y,army:r.army,defenseSlots:r.defense_slots,gold:Number(r.gold||0),buildings:r.buildings}))});}
+  catch(e){console.error('map',e);res.status(500).json({error:'خواندن نقشه ناموفق بود.'});}
+});
 
-    // همه نبردها، حمله‌ها و اطلاعات قلعه‌های قبلی حذف می‌شوند.
-    await client.query("TRUNCATE TABLE battle_reports, attacks, battles, castles RESTART IDENTITY CASCADE");
-
-    await client.query(`
-      INSERT INTO castles(id,name,army,defense_slots,under_attack,battle_id)
-      SELECT x, 'قلعه '||x, $1::jsonb, $2::jsonb, FALSE, NULL
-      FROM generate_series(1,11) x
-    `,[JSON.stringify(emptyArmy()), JSON.stringify(emptyDefense())]);
-
-    await client.query("COMMIT");
-    res.json({ok:true,castles:await getCastles()});
-  }catch(e){
-    await client.query("ROLLBACK");
-    console.error("reset-game",e);
-    res.status(500).json({error:"پاک‌سازی و بازنویسی اطلاعات بازی ناموفق بود."});
-  }finally{
-    client.release();
-  }
+app.post("/api/reset-game", async (req,res)=>{
+  return res.status(403).json({error:"پاک‌سازی عمومی در این نسخه غیرفعال است تا حساب‌ها و مختصات قلعه‌ها ناخواسته حذف نشوند."});
 });
 
 app.get("/api/state", async (req,res)=>{
@@ -666,7 +752,7 @@ app.get("/api/state", async (req,res)=>{
 app.post("/api/defense/:id", async (req,res)=>{
   const id=Number(req.params.id);
   const slots=normalizeSlots(req.body.slots);
-  if(!Number.isInteger(id)||id<1||id>11)
+  if(!Number.isInteger(id)||id<1)
     return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   if(slots.length>6)
     return res.status(400).json({error:"حداکثر ۶ ردیف نیرو مجاز است."});
@@ -688,15 +774,9 @@ app.post("/api/defenses/randomize", async (req,res)=>{
   try{
     await client.query("BEGIN");
     const types=["archer","cavalry","swordsman"];
-    for(let castleId=1;castleId<=11;castleId++){
-      const slots=emptyDefense();
-      const n=1+Math.floor(Math.random()*6);
-      for(let i=0;i<n;i++){
-        slots[i]={
-          type:types[Math.floor(Math.random()*types.length)],
-          count:1+Math.floor(Math.random()*100)
-        };
-      }
+    for(const castleRow of (await client.query("SELECT id FROM castles ORDER BY id")).rows){
+      const castleId=castleRow.id;
+      const slots=randomDefense();
       await client.query(
         "UPDATE castles SET defense_slots=$1::jsonb WHERE id=$2",
         [JSON.stringify(slots),castleId]
@@ -1065,20 +1145,9 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       'SELECT * FROM battles WHERE id=$1 FOR UPDATE',
       [battleId]
     );
-    let fullBattle=fullBattleQ.rows[0];
+    const fullBattle=fullBattleQ.rows[0];
 
-    // آخرین وضعیت راند (به‌خصوص تلفات راند پایانی) را قبل از ساخت گزارش
-    // دوباره از payload پایان نبرد با snapshot ذخیره‌شده ادغام می‌کنیم.
-    // این کار باعث می‌شود حذف واحدهای کاملاً کشته‌شده نیز به‌صورت تلفات صفر باقی‌مانده ثبت شود.
-    const finalArmies=Array.isArray(req.body?.armies)?req.body.armies:(Array.isArray(fullBattle.armies)?fullBattle.armies:[]);
-    const finalReportArmies=mergeReportArmies(fullBattle.report_armies,finalArmies);
-    const snapshotUpdate=await client.query(
-      'UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 RETURNING *',
-      [JSON.stringify(finalArmies),JSON.stringify(finalReportArmies),battleId]
-    );
-    if(snapshotUpdate.rows[0])fullBattle=snapshotUpdate.rows[0];
-
-    // گزارش نهایی در جدول SQL جداگانه ذخیره می‌شود و با حذف نبرد از بین نمی‌رود.
+    // گزارش کاملاً مستقل از حذف نبرد ساخته و در جدول مخصوص گزارش‌ها ذخیره می‌شود.
     const report=gozbat(fullBattle);
     await client.query(
       `INSERT INTO battle_reports(battle_id,report,winner_side)

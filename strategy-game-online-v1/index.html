@@ -151,6 +151,21 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   .developmentBottomBar button{min-height:38px;padding:5px 2px;font-size:9px;white-space:normal;line-height:1.15;flex:1 1 0}
 }
 
+
+/* حساب کاربری و نقشه بازیکنان */
+#authOverlay{position:fixed;inset:0;z-index:50000;background:rgba(5,10,15,.94);display:flex;align-items:center;justify-content:center;padding:16px}
+#authCard{width:min(420px,96vw);background:#202d37;border:1px solid #657686;border-radius:14px;padding:22px;box-shadow:0 20px 70px #000;text-align:center}
+#authCard input{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:12px;border-radius:8px;background:#101820;color:white;border:1px solid #586775}
+#authActions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+#playerMapScreen{position:fixed;inset:0;z-index:40000;display:none;overflow:auto;background:#101a22;color:#fff;padding:16px;box-sizing:border-box}
+#playerMapScreen.active{display:block}
+#playerMapGrid{display:grid;grid-template-columns:repeat(var(--map-cols,5),minmax(64px,1fr));gap:5px;max-width:1000px;margin:18px auto}
+.map-cell{min-height:70px;background:#1c2b34;border:1px solid #3b4b55;border-radius:7px;display:flex;align-items:center;justify-content:center;text-align:center;position:relative;font-size:11px;padding:3px;box-sizing:border-box}
+.map-cell.castle-cell{background:#345b3d;border-color:#8ebf77;cursor:pointer;font-weight:800}
+.map-cell .coords{position:absolute;bottom:3px;left:4px;font-size:9px;opacity:.65;font-weight:400}
+#castleProfile{position:fixed;inset:0;z-index:45000;display:none;align-items:center;justify-content:center;background:#000a;padding:14px}
+#castleProfile .profile-card{width:min(440px,96vw);max-height:85vh;overflow:auto;background:#202d37;border:1px solid #657686;border-radius:12px;padding:18px}
+#castleProfile .profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 </style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
@@ -184,7 +199,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 <section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
-<section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+<section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><label>نقش نیروها <select id="mapAttackSide" class="side-select"><option value="مهاجم">مهاجم</option><option value="مدافع">مدافع / کمک به دفاع</option></select></label><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 
 
 <section id="developmentPanel" class="screen">
@@ -266,6 +281,16 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 </div>
 <div id="battleTables"></div>
 <div id="battleScene" style="display:none"></div><div class="actions" style="margin-top:14px"><button id="battleBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+<div id="authOverlay">
+ <div id="authCard"><h2>ورود به بازی</h2><p>یکی از گزینه‌ها را انتخاب کنید.</p>
+  <div id="authFields" style="display:none"><input id="authUsername" autocomplete="username" placeholder="نام کاربری"><input id="authPassword" type="password" autocomplete="current-password" placeholder="رمز عبور"></div>
+  <div id="authError" style="color:#ffb5a8;min-height:22px"></div>
+  <div id="authActions"><button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button></div>
+ </div>
+</div>
+<section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div><h2>نقشه بازیکنان</h2><p>برای مشاهده پروفایل، روی قلعهٔ بازیکن کلیک کنید.</p><div id="mapInfo"></div><div id="playerMapGrid"></div></section>
+<div id="castleProfile"><div class="profile-card"><button id="profileClose" class="back" style="float:left">×</button><h2 id="profileTitle">پروفایل قلعه</h2><div id="profileBody"></div><div class="profile-actions"><button id="profileAttack">⚔️ حمله</button><button id="profileDefense">🛡️ دفاع</button><button id="profileMessage">✉️ پیام</button></div></div></div>
+
 <script>
 "use strict";
 
@@ -304,6 +329,7 @@ let nextBattleId=1;
 const battleRegistry={};
 let remainingSeconds=10;
 let randTimerId=null;
+let movementAppliedForRoundKey="";
 let randStarted=false;
 let roundClockBattleId=null;
 let randwar=0;
@@ -382,13 +408,10 @@ async function resetGameData(){
 function renderCastles(){
   const g=document.getElementById("castleGrid");
   g.innerHTML="";
-  for(let i=1;i<=10;i++){
-    const b=document.createElement("button");
-    b.className="castle-btn";
-    b.textContent=castles[i].name;
-    b.onclick=()=>openCastle(i);
-    g.appendChild(b);
-  }
+  Object.keys(castles).map(Number).sort((a,b)=>a-b).forEach(i=>{
+    const b=document.createElement("button");b.className="castle-btn";b.textContent=castles[i].name;
+    b.onclick=()=>openCastle(i);g.appendChild(b);
+  });
 }
 
 function renderSixSlots(containerId,prefix,values){
@@ -1021,6 +1044,14 @@ async function rand(){
 
   randTimerId=setInterval(async ()=>{
     updateRoundTimerDisplay();
+    // مقصدهای ثبت‌شده در نیمهٔ اول راند، در میانهٔ همان راند اعمال و نمایش داده شوند.
+    const movementKey=String(roundClockBattleId)+":"+String(randwar);
+    if(currentRoundEndsAt && movementAppliedForRoundKey!==movementKey &&
+       Date.now()+serverClockOffset>=currentRoundEndsAt-10000 &&
+       Date.now()+serverClockOffset<currentRoundEndsAt){
+      movementAppliedForRoundKey=movementKey;
+      await applyRoundMoves();
+    }
     if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
       await processDueRound();
       updateRoundTimerDisplay();
@@ -1269,7 +1300,7 @@ renderCastles();
 let sqlConnected=true;
 let onlineAttackId=null;
 async function api(url,options={}){
-  const res=await fetch(url,{headers:{"Content-Type":"application/json",...(options.headers||{})},...options});
+  const res=await fetch(url,{cache:'no-store',headers:{"Content-Type":"application/json",...(options.headers||{})},...options});
   let data={}; try{data=await res.json();}catch(e){}
   if(!res.ok)throw new Error(data.error||"خطای سرور");
   return data;
@@ -1277,12 +1308,13 @@ async function api(url,options={}){
 function applyServerCastles(list){
   if(!Array.isArray(list))return;
   list.forEach(c=>{
-    if(!castles[c.id])return;
+    if(!castles[c.id])castles[c.id]={id:c.id,name:c.name,army:{archer:100,cavalry:100,swordsman:100},defenseSlots:Array.from({length:6},()=>({type:"",count:0}))};
     castles[c.id].name=c.name;
     castles[c.id].army=c.army||castles[c.id].army;
     castles[c.id].defenseSlots=Array.isArray(c.defenseSlots)?c.defenseSlots:castles[c.id].defenseSlots;
     castles[c.id].underAttack=!!c.underAttack;
     castles[c.id].battleId=c.battleId||null;
+    castles[c.id].username=c.username||null;castles[c.id].mapX=c.mapX;castles[c.id].mapY=c.mapY;castles[c.id].gold=c.gold;castles[c.id].buildings=c.buildings;
   });
 }
 async function syncState(){
@@ -1304,7 +1336,8 @@ async function onlineStartAttack(){
   const slots=collectAttack();
   const used=slots.filter(x=>x.type&&x.count>0);
   if(used.length<1||used.length>6)return alert('هر ارتش باید بین ۱ تا ۶ واحد نیرو داشته باشد.');
-  const side=document.getElementById('target-side-'+selectedTargetId).value;
+  const oldSide=document.getElementById('target-side-'+selectedTargetId);
+  const side=oldSide?oldSide.value:(document.getElementById('mapAttackSide')?.value||'مهاجم');
   try{
     const data=await api('/api/attack',{method:'POST',body:JSON.stringify({attackerId:selectedCastleId,targetId:selectedTargetId,armySide:side,attackerSlots:slots})});
     onlineAttackId=data.attack.id;
@@ -1381,7 +1414,7 @@ async function openBattleReports(){
   select.innerHTML='<option value="">در حال خواندن گزارش‌ها...</option>';
   overlay.style.display='flex';
   try{
-    const data=await api('/api/battle-reports');
+    const data=await api('/api/battle-reports?_='+Date.now());
     const reports=Array.isArray(data.reports)?data.reports:[];
     if(!reports.length){
       select.innerHTML='<option value="">هنوز هیچ گزارش نبردی ذخیره نشده است.</option>';
@@ -1399,7 +1432,7 @@ document.getElementById('battleReportNumberSelect').onchange=async function(){
   const battleId=Number(this.value);
   if(!Number.isInteger(battleId)||battleId<1)return;
   try{
-    const report=await api('/api/battle-reports/'+encodeURIComponent(battleId));
+    const report=await api('/api/battle-reports/'+encodeURIComponent(battleId)+'?_='+Date.now());
     closeBattleReportSelect();
     showBattleReport(report);
   }catch(e){alert(e.message);}
@@ -1427,9 +1460,9 @@ endbat=async function(winningSide){
   let savedReport=null;
   if(battle){
     try{
-      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null,armies:battle.armies})});
+      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
       // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
-      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId));
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?_='+Date.now());
     }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
@@ -1479,11 +1512,12 @@ function developmentLoad(){
   try{ if(raw)s=Object.assign(developmentClone(developmentDefaults),JSON.parse(raw)); }catch(e){}
   s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),s.buildings||{});
   s.training=Object.assign(developmentClone(developmentDefaults.training),s.training||{});
+  if(!raw&&castles[selectedCastleId]){if(Number.isFinite(Number(castles[selectedCastleId].gold)))s.gold=Number(castles[selectedCastleId].gold);if(castles[selectedCastleId].buildings)s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),castles[selectedCastleId].buildings);}
   developmentState=s;
   developmentProgress();
   localStorage.setItem(developmentKey(),JSON.stringify(developmentState));
 }
-function developmentSave(){if(developmentState)localStorage.setItem(developmentKey(),JSON.stringify(developmentState));}
+function developmentSave(){if(developmentState){localStorage.setItem(developmentKey(),JSON.stringify(developmentState));if(selectedCastleId!==null){fetch('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gold:Math.floor(Number(developmentState.gold)||0),buildings:developmentState.buildings})}).catch(()=>{});}}}
 function developmentProductionPerMinute(){return 100+Math.max(0,(developmentState?.buildings?.goldMine?.level||1)-1)*50;}
 function developmentUpgradeCost(type,target){return (type==='castle'?500:250)*target;}
 function developmentUpgradeTime(type,target){return (type==='castle'?30:20)*target;}
@@ -1669,10 +1703,7 @@ function developmentBuildingFromPoint(event){
   return null;
 }
 
-document.getElementById('attackBtn').onclick=()=>{
-  renderTargets();
-  show('targets');
-};
+document.getElementById('attackBtn').onclick=()=>openPlayerMap();
 document.getElementById('defenseBtn').onclick=()=>{
   renderDefense();
   show('defense');
@@ -1704,4 +1735,27 @@ document.getElementById('developmentScene').addEventListener('click',e=>{
 // یک نوسازی سبک برای صفحه توسعه؛ هیچ تابع نبردی در این تایمر اجرا نمی‌شود.
 developmentTickId=setInterval(()=>{if(!developmentState||!document.getElementById('developmentPanel').classList.contains('active'))return;developmentProgress();developmentUpdateTop();},1000);
 </script>
+
+<script>
+// لایهٔ حساب کاربری و نقشه روی همان بازی اصلی
+let authMode=''; let mapCastles=[]; let profileCastleId=null;
+function authShowFields(mode){authMode=mode;document.getElementById('authFields').style.display='block';document.getElementById('authError').textContent='';document.getElementById('authUsername').value='';document.getElementById('authPassword').value='';document.getElementById('authUsername').focus();document.getElementById('authActions').innerHTML='';const submit=document.createElement('button');submit.textContent=mode==='register'?'ساخت حساب':'ورود';submit.onclick=authSubmit;const back=document.createElement('button');back.textContent='بازگشت';back.className='back';back.onclick=authReset;document.getElementById('authActions').append(submit,back);}
+function authReset(){document.getElementById('authFields').style.display='none';document.getElementById('authError').textContent='';document.getElementById('authActions').innerHTML='<button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button>';document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=()=>{document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای ادامه، صفحه را دوباره بارگذاری کنید.</p>';};}
+async function authSubmit(){const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;localStorage.setItem('strategyGameUsername',data.castle.username);document.getElementById('authOverlay').style.display='none';await syncState();openDevelopment();}catch(e){document.getElementById('authError').textContent=e.message||'خطا';}}
+async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
+function renderPlayerMap(){const grid=document.getElementById('playerMapGrid');grid.innerHTML='';if(!mapCastles.length)return;const xs=mapCastles.map(c=>Number(c.x)||0),ys=mapCastles.map(c=>Number(c.y)||0);let minX=Math.min(-2,...xs),maxX=Math.max(2,...xs),minY=Math.min(-2,...ys),maxY=Math.max(2,...ys);const cols=maxX-minX+1,rows=maxY-minY+1;grid.style.setProperty('--map-cols',Math.min(cols,12));grid.style.gridTemplateColumns='repeat('+Math.min(cols,12)+',minmax(58px,1fr))';document.getElementById('mapInfo').textContent='محدوده نقشه: '+cols+' × '+rows+' خانه | مختصات قلعه‌ها پس از ثبت‌نام ثابت می‌ماند.';for(let y=maxY;y>=minY;y--){for(let x=minX;x<=maxX;x++){const c=document.createElement('div');c.className='map-cell';const castle=mapCastles.find(k=>Number(k.x)===x&&Number(k.y)===y);if(castle){c.classList.add('castle-cell');c.innerHTML='<div>🏰<br>'+escapeMapText(castle.name)+'<br><small>'+escapeMapText(castle.username||'بازیکن')+'</small></div><span class="coords">('+x+','+y+')</span>';c.onclick=()=>openCastleProfile(castle.id);}else{c.innerHTML='<span style="opacity:.3">·</span><span class="coords">('+x+','+y+')</span>';}grid.appendChild(c);}}}
+function escapeMapText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function openCastleProfile(id){const c=mapCastles.find(x=>Number(x.id)===Number(id));if(!c)return;profileCastleId=Number(id);document.getElementById('profileTitle').textContent=c.name+' — '+(c.username||'بازیکن');const army=c.army||{};document.getElementById('profileBody').innerHTML='<p>شماره قلعه: '+c.id+'</p><p>مختصات: ('+c.x+','+c.y+')</p><p>🏹 کماندار: '+Number(army.archer||0)+' | 🐎 سواره: '+Number(army.cavalry||0)+' | ⚔️ شمشیرزن: '+Number(army.swordsman||0)+'</p>';document.getElementById('profileAttack').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('profileDefense').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('castleProfile').style.display='flex';}
+document.getElementById('profileClose').onclick=()=>document.getElementById('castleProfile').style.display='none';
+document.getElementById('profileMessage').onclick=()=>alert('سامانه پیام‌رسانی در مرحله بعد اضافه می‌شود.');
+document.getElementById('profileDefense').onclick=()=>{if(Number(profileCastleId)===Number(selectedCastleId))return;selectedTargetId=Number(profileCastleId);document.getElementById('castleProfile').style.display='none';document.getElementById('attackTitle').textContent='کمک دفاعی به '+(castles[selectedTargetId]?.name||('قلعه '+selectedTargetId));document.getElementById('mapAttackSide').value='مدافع';renderAttackSlots();document.getElementById('playerMapScreen').classList.remove('active');show('attack');};
+document.getElementById('profileAttack').onclick=()=>{if(Number(profileCastleId)===Number(selectedCastleId))return alert('نمی‌توانید به قلعه خودتان حمله کنید.');selectedTargetId=Number(profileCastleId);document.getElementById('castleProfile').style.display='none';document.getElementById('attackTitle').textContent='حمله به '+(castles[selectedTargetId]?.name||('قلعه '+selectedTargetId));document.getElementById('mapAttackSide').value='مهاجم';renderAttackSlots();document.getElementById('playerMapScreen').classList.remove('active');show('attack');};
+document.getElementById('mapBack').onclick=()=>{document.getElementById('playerMapScreen').classList.remove('active');openDevelopment();};
+document.getElementById('mapRefresh').onclick=()=>openPlayerMap();
+document.getElementById('mapLogout').onclick=()=>{selectedCastleId=null;selectedTargetId=null;document.getElementById('playerMapScreen').classList.remove('active');document.getElementById('authOverlay').style.display='flex';authReset();};
+document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=()=>{document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای ادامه، صفحه را دوباره بارگذاری کنید.</p>';};
+// صفحهٔ انتخاب قلعهٔ آزمایشی را پشت پنجرهٔ ورود نگه می‌داریم؛ ورود همیشه انتخاب حساب را تعیین می‌کند.
+document.getElementById('castleBack').onclick=()=>{if(selectedCastleId!==null)openDevelopment();else show('select');};
+</script>
+
 </body></html>
