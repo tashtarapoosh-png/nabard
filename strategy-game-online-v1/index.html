@@ -119,7 +119,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentLayer{display:none}
 .developmentAttackTimer{position:absolute;z-index:8;left:31.5%;top:2.5%;width:58.5%;height:4.2%;display:none;align-items:center;justify-content:flex-start;padding:0 2%;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.2vw,12px);font-weight:900;text-align:right;direction:ltr;white-space:nowrap;pointer-events:none}
 .developmentAttackTimerInfo{position:absolute;z-index:8;left:31.5%;top:6.3%;max-width:58%;padding:2px 5px;background:#101827cc;color:#fff;font-size:8px;display:none;pointer-events:none}
-.developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:0;padding:0;background:transparent;color:#fff;font-size:clamp(8px,2.3vw,13px);font-weight:800;line-height:1.1;text-align:center;pointer-events:none;text-shadow:0 1px 3px #000}
+.developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:23px;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.82);color:#fff;font-size:clamp(8px,2.1vw,11px);font-weight:800;line-height:1.1;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000;box-sizing:border-box}
 .developmentTimerOverlay{position:absolute;z-index:6;transform:translateX(-50%);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827d9;color:#fff;font-size:8px;text-align:center;pointer-events:none}
 .developmentTopCompact{position:absolute;inset:0;z-index:3;pointer-events:none}
 .developmentCastleName,.developmentStatCompact{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;pointer-events:none}
@@ -129,11 +129,11 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #developmentArcherCompact{left:50.8%;top:11.6%;width:7.6%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
 #developmentCavalryCompact{left:68.4%;top:11.6%;width:7.6%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
 #developmentSwordsmanCompact{left:86.3%;top:11.6%;width:7.3%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
-#developmentLevel-castle{left:49.5%;top:calc(23.7% - 1mm);width:10.5%;height:2.7%}
-#developmentLevel-barracks1{left:20.5%;top:calc(38% - .5mm);width:6.3%;height:2.1%}
-#developmentLevel-barracks2{left:calc(80.8% + .5mm);top:calc(38% - .5mm);width:5.4%;height:2.1%}
-#developmentLevel-wall{left:77.6%;top:54.6%;width:5.2%;height:2%}
-#developmentLevel-goldMine{left:22.5%;top:58.7%;width:5.1%;height:2%}
+#developmentLevel-castle{left:52.5%;top:25%;}
+#developmentLevel-barracks1{left:24%;top:37.5%;}
+#developmentLevel-barracks2{left:83%;top:37.5%;}
+#developmentLevel-wall{left:79%;top:54.5%;}
+#developmentLevel-goldMine{left:21%;top:58.5%;}
 .dev-hit{position:absolute;z-index:7;display:block;padding:0;border:0;background:transparent;cursor:pointer;outline:none}.dev-hit:focus-visible{outline:2px dashed #ffe08a;background:#ffffff18}
 .developmentBottomBar{position:absolute;inset:0;z-index:10;pointer-events:none;background:transparent;display:block!important;padding:0;box-shadow:none;backdrop-filter:none;min-height:0}
 .developmentBottomBar button{position:absolute;display:block!important;pointer-events:auto!important;opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;padding:0!important;margin:0!important;min-height:0!important;min-width:0!important;border-radius:0!important;z-index:12;cursor:pointer}
@@ -261,7 +261,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   <button id="battleSceneBtn">نمایش صحنه نبرد</button>
 </div>
 <div id="battleTables"></div>
-<div id="battleScene" style="display:none"></div><div class="actions" style="margin-top:14px"><button id="battleBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+<div id="battleScene" style="display:none"></div><div class="actions" style="margin-top:14px"><button id="battleBack" class="back">توسعه قلعه</button><button id="battleRetreatBtn" class="exit">عقب‌نشینی</button></div></div></section>
 <div id="authOverlay">
  <div id="authCard"><h2>ورود به بازی</h2><p>یکی از گزینه‌ها را انتخاب کنید.</p>
   <div id="authFields" style="display:none"><input id="authUsername" autocomplete="username" placeholder="نام کاربری"><input id="authPassword" type="password" autocomplete="current-password" placeholder="رمز عبور"></div>
@@ -338,7 +338,10 @@ function exitGame(){
   remainingSeconds=10;
   document.getElementById("castleTimer").style.display="none";
   document.getElementById("castleTimerInfo").style.display="none";
-  show("select");
+  document.body.classList.remove("battle-background");
+  document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+  document.getElementById("authOverlay").style.display="flex";
+  authReset();
 }
 
 function openCastle(id){
@@ -374,12 +377,16 @@ async function resetGameData(){
   try{
     const data=await api("/api/reset-game",{method:"POST",body:JSON.stringify({username:localStorage.getItem("strategyGameUsername")})});
     applyServerCastles(data.castles);
-    selectedCastleId=null;
     selectedTargetId=null;
     attackData=null;
     Object.keys(localStorage).filter(k=>k.startsWith(DEVELOPMENT_KEY_PREFIX)).forEach(k=>localStorage.removeItem(k));
-    alert("اطلاعات SQL پاک شد و چهار قلعهٔ اولیه بازسازی شدند.");
-    await openPlayerMap();
+    if(selectedCastleId===null) selectedCastleId=1;
+    u.castle=selectedCastleId;
+    developmentState=null;
+    developmentLoad();
+    developmentSave();
+    alert("اطلاعات بازی بازنشانی شد و موجودی طلای قلعه jahan1 از ۳۰۰۰ شروع می‌شود.");
+    await openDevelopment();
   }catch(e){
     alert(e.message||"پاک‌سازی اطلاعات ناموفق بود.");
   }finally{
@@ -1288,7 +1295,22 @@ document.getElementById("battleSceneBtn").onclick=async()=>{
     alert(e.message);
   }
 };
-document.getElementById("battleBack").onclick=()=>openDevelopment();
+document.getElementById("battleBack").onclick=()=>{document.body.classList.remove('battle-background');openDevelopment();};
+document.getElementById('battleRetreatBtn').onclick=async()=>{
+  const battle=getCurrentBattle();
+  if(!battle)return alert('نبرد فعالی برای عقب‌نشینی پیدا نشد.');
+  if(!confirm('نیروهای این قلعه از نبرد خارج شوند؟ نیروهای خارج‌شده از این نبرد حذف می‌شوند.'))return;
+  try{
+    const result=await api('/api/battle/'+encodeURIComponent(battle.batId)+'/retreat',{method:'POST',body:JSON.stringify({castleId:Number(selectedCastleId)})});
+    // همگام‌سازی وضعیت نبرد از SQL پس از عقب‌نشینی
+    if(result.battle){battleRegistry[String(result.battle.targetId)]=result.battle;}
+    if(result.ended){alert('ساید مقابل پیروز شد؛ نبرد پایان یافت.');}
+    else alert('نیروهای این قلعه عقب‌نشینی کردند و اطلاعات در SQL ذخیره شد.');
+    document.body.classList.remove('battle-background');
+    await syncState();
+    await openDevelopment();
+  }catch(e){alert(e.message||'عقب‌نشینی انجام نشد.');}
+};
 
 renderCastles();
 
@@ -1739,9 +1761,10 @@ developmentTickId=setInterval(()=>{if(!developmentState||!document.getElementByI
 <script>
 // لایهٔ حساب کاربری و نقشه روی همان بازی اصلی
 let authMode=''; let mapCastles=[]; let profileCastleId=null;
+function closeGameCompletely(){if(timerId)clearInterval(timerId);timerId=null;document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('authOverlay').style.display='flex';document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای شروع دوباره، صفحه را بارگذاری کنید.</p>';document.body.classList.remove('battle-background');}
 function authShowFields(mode){authMode=mode;document.getElementById('authFields').style.display='block';document.getElementById('authError').textContent='';document.getElementById('authUsername').value='';document.getElementById('authPassword').value='';document.getElementById('authUsername').focus();document.getElementById('authActions').innerHTML='';const submit=document.createElement('button');submit.textContent=mode==='register'?'ساخت حساب':'ورود';submit.onclick=authSubmit;const back=document.createElement('button');back.textContent='بازگشت';back.className='back';back.onclick=authReset;document.getElementById('authActions').append(submit,back);}
-function authReset(){document.getElementById('authFields').style.display='none';document.getElementById('authError').textContent='';document.getElementById('authActions').innerHTML='<button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button>';document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=()=>{document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای ادامه، صفحه را دوباره بارگذاری کنید.</p>';};}
-async function authSubmit(){const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;localStorage.setItem('strategyGameUsername',data.castle.username);document.getElementById('authOverlay').style.display='none';await syncState();await openPlayerMap();}catch(e){document.getElementById('authError').textContent=e.message||'خطا';}}
+function authReset(){document.getElementById('authFields').style.display='none';document.getElementById('authError').textContent='';document.getElementById('authActions').innerHTML='<button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button>';document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=closeGameCompletely;}
+async function authSubmit(){const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;localStorage.setItem('strategyGameUsername',data.castle.username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();}catch(e){document.getElementById('authError').textContent=e.message||'خطا';}}
 async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
 function renderPlayerMap(){const grid=document.getElementById('playerMapGrid');grid.innerHTML='';if(!mapCastles.length)return;const xs=mapCastles.map(c=>Number(c.x)||0),ys=mapCastles.map(c=>Number(c.y)||0);let minX=Math.min(-2,...xs),maxX=Math.max(2,...xs),minY=Math.min(-2,...ys),maxY=Math.max(2,...ys);const cols=maxX-minX+1,rows=maxY-minY+1;grid.style.setProperty('--map-cols',Math.min(cols,12));grid.style.gridTemplateColumns='repeat('+Math.min(cols,12)+',minmax(58px,1fr))';document.getElementById('mapInfo').textContent='محدوده نقشه: '+cols+' × '+rows+' خانه | مختصات قلعه‌ها پس از ثبت‌نام ثابت می‌ماند.';for(let y=maxY;y>=minY;y--){for(let x=minX;x<=maxX;x++){const c=document.createElement('div');c.className='map-cell';const castle=mapCastles.find(k=>Number(k.x)===x&&Number(k.y)===y);if(castle){c.classList.add('castle-cell');c.innerHTML='<div>🏰<br>'+escapeMapText(castle.name)+'<br><small>'+escapeMapText(castle.username||'بازیکن')+'</small></div><span class="coords">('+x+','+y+')</span>';c.onclick=()=>openCastleProfile(castle.id);}else{c.innerHTML='<span style="opacity:.3">·</span><span class="coords">('+x+','+y+')</span>';}grid.appendChild(c);}}}
 function escapeMapText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -1753,7 +1776,7 @@ document.getElementById('profileAttack').onclick=()=>{if(Number(profileCastleId)
 document.getElementById('mapBack').onclick=()=>{document.getElementById('playerMapScreen').classList.remove('active');openDevelopment();};
 document.getElementById('mapRefresh').onclick=()=>openPlayerMap();
 document.getElementById('mapLogout').onclick=()=>{selectedCastleId=null;selectedTargetId=null;document.getElementById('playerMapScreen').classList.remove('active');document.getElementById('authOverlay').style.display='flex';authReset();};
-document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=()=>{document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای ادامه، صفحه را دوباره بارگذاری کنید.</p>';};
+document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=closeGameCompletely;
 // صفحهٔ انتخاب قلعهٔ آزمایشی را پشت پنجرهٔ ورود نگه می‌داریم؛ ورود همیشه انتخاب حساب را تعیین می‌کند.
 document.getElementById('castleBack').onclick=()=>openPlayerMap();
 document.getElementById('resetGameBtn').onclick=resetGameData;

@@ -1145,6 +1145,48 @@ function gozbat(battleRow){
   return Array.from(reportMap.values());
 }
 
+app.post("/api/battle/:id/retreat", async(req,res)=>{
+  const battleId=Number(req.params.id);
+  const castleId=Number(req.body?.castleId);
+  if(!Number.isInteger(battleId)||!Number.isInteger(castleId))
+    return res.status(400).json({error:"شناسه نبرد یا قلعه نامعتبر است."});
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const q=await client.query('SELECT * FROM battles WHERE id=$1 AND ended=FALSE FOR UPDATE',[battleId]);
+    if(!q.rows[0]){await client.query('ROLLBACK');return res.status(404).json({error:"نبرد فعال پیدا نشد."});}
+    const row=q.rows[0];
+    const armies=Array.isArray(row.armies)?row.armies:[];
+    const retreating=armies.filter(a=>Number(a.castleId)===castleId);
+    if(!retreating.length){await client.query('ROLLBACK');return res.status(404).json({error:"نیرویی از این قلعه در نبرد نیست."});}
+    const reportArmies=mergeReportArmies(row.report_armies,armies);
+    const retreatIds=new Set(retreating.map(a=>String(a.armyId)));
+    for(const a of reportArmies){if(retreatIds.has(String(a.armyId))){a.units=(a.units||[]).map(u=>({...u,count:0,health:0}));a.retreated=true;}}
+    const remaining=armies.filter(a=>Number(a.castleId)!==castleId);
+    const liveUnits=remaining.flatMap(a=>(a.units||[]).filter(u=>Number(u.count)>0).map(u=>({side:u.side||a.side,count:Number(u.count)})));
+    const sides=new Set(liveUnits.map(u=>u.side));
+    let ended=false, winnerSide=null;
+    if(liveUnits.length===0||sides.size<=1){
+      ended=true;
+      winnerSide=liveUnits.length?liveUnits[0].side:(retreating[0].side==='مهاجم'?'مدافع':'مهاجم');
+      const finalRow={...row,armies:remaining,report_armies:reportArmies};
+      const report=gozbat(finalRow);
+      await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side) VALUES($1,$2::jsonb,$3) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,created_at=NOW()`,[battleId,JSON.stringify(report),winnerSide]);
+      await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
+      await client.query('DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'',[row.target_id]);
+      await client.query('UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',[row.target_id,battleId]);
+    }else{
+      await client.query('UPDATE battles SET armies=$1::jsonb,report_armies=$2::jsonb WHERE id=$3',[JSON.stringify(remaining),JSON.stringify(reportArmies),battleId]);
+    }
+    await client.query('COMMIT');
+    res.json({ok:true,ended,winnerSide,battle:ended?null:battleJson({...row,armies:remaining,report_armies:reportArmies})});
+  }catch(e){
+    try{await client.query('ROLLBACK');}catch{}
+    console.error('battle retreat failed',e);
+    res.status(500).json({error:'ذخیره عقب‌نشینی در SQL ناموفق بود.'});
+  }finally{client.release();}
+});
+
 app.post("/api/battle/:id/end", async(req,res)=>{
   const battleId=Number(req.params.id);
   if(!Number.isInteger(battleId))
