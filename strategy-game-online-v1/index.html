@@ -119,7 +119,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentLayer{display:none}
 .developmentAttackTimer{position:absolute;z-index:8;left:31.5%;top:2.5%;width:58.5%;height:4.2%;display:none;align-items:center;justify-content:flex-start;padding:0 2%;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.2vw,12px);font-weight:900;text-align:right;direction:ltr;white-space:nowrap;pointer-events:none}
 .developmentAttackTimerInfo{position:absolute;z-index:8;left:31.5%;top:6.3%;max-width:58%;padding:2px 5px;background:#101827cc;color:#fff;font-size:8px;display:none;pointer-events:none}
-.developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:0;padding:0;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.1vw,11px);font-weight:800;line-height:1.1;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000;box-sizing:border-box}
+.developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:22px;padding:3px 7px;border:1px solid rgba(255,255,255,.22);border-radius:5px;background:rgba(0,0,0,.88);color:#fff;font-size:clamp(9px,2.2vw,12px);font-weight:800;line-height:1.15;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000;box-sizing:border-box}
 .developmentTimerOverlay{position:absolute;z-index:6;transform:translateX(-50%);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827d9;color:#fff;font-size:8px;text-align:center;pointer-events:none}
 .developmentTopCompact{position:absolute;inset:0;z-index:3;pointer-events:none}
 .developmentCastleName,.developmentStatCompact{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;pointer-events:none}
@@ -1529,16 +1529,22 @@ function developmentClone(v){return JSON.parse(JSON.stringify(v));}
 function developmentKey(){return DEVELOPMENT_KEY_PREFIX+String(selectedCastleId||0);}
 function developmentLoad(){
   const raw=localStorage.getItem(developmentKey());
-  let s=developmentDefaults;
-  try{ if(raw)s=Object.assign(developmentClone(developmentDefaults),JSON.parse(raw)); }catch(e){}
-  s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),s.buildings||{});
-  s.training=Object.assign(developmentClone(developmentDefaults.training),s.training||{});
-  if(!raw&&castles[selectedCastleId]){if(Number.isFinite(Number(castles[selectedCastleId].gold)))s.gold=Number(castles[selectedCastleId].gold);if(castles[selectedCastleId].buildings)s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),castles[selectedCastleId].buildings);}
+  let saved={};
+  try{if(raw)saved=JSON.parse(raw)||{};}catch(e){}
+  const s=developmentClone(developmentDefaults);
+  // طلا و سطوح ساختمان‌ها از دادهٔ قلعه‌ای می‌آیند که سرور از SQL بارگذاری کرده؛ localStorage مرجع آن‌ها نیست.
+  const serverCastle=selectedCastleId!==null?castles[selectedCastleId]:null;
+  if(serverCastle){
+    if(Number.isFinite(Number(serverCastle.gold)))s.gold=Number(serverCastle.gold);
+    if(serverCastle.buildings)s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),serverCastle.buildings);
+  }
+  // فقط وضعیت آموزش‌های در حال انجام در مرورگر نگهداری می‌شود.
+  s.training=Object.assign(developmentClone(developmentDefaults.training),saved.training||{});
   developmentState=s;
   developmentProgress();
   localStorage.setItem(developmentKey(),JSON.stringify(developmentState));
 }
-function developmentSave(){if(developmentState){localStorage.setItem(developmentKey(),JSON.stringify(developmentState));if(selectedCastleId!==null){fetch('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gold:Math.floor(Number(developmentState.gold)||0),buildings:developmentState.buildings})}).catch(()=>{});}}}
+function developmentSave(){if(developmentState){localStorage.setItem(developmentKey(),JSON.stringify(developmentState));if(selectedCastleId!==null){if(castles[selectedCastleId]){castles[selectedCastleId].gold=Math.floor(Number(developmentState.gold)||0);castles[selectedCastleId].buildings=developmentClone(developmentState.buildings);}fetch('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gold:Math.floor(Number(developmentState.gold)||0),buildings:developmentState.buildings})}).catch(()=>{});}}}
 function developmentProductionPerMinute(){return 100+Math.max(0,(developmentState?.buildings?.goldMine?.level||1)-1)*50;}
 function developmentUpgradeCost(type,target){return (type==='castle'?500:250)*target;}
 function developmentUpgradeTime(type,target){return (type==='castle'?30:20)*target;}
@@ -1574,7 +1580,7 @@ function developmentProgress(){
 function developmentUpdateTop(){
   if(!developmentState||selectedCastleId===null)return;
   const c=castles[selectedCastleId];
-  document.getElementById('developmentCastleName').textContent='قلعه '+(c.id||selectedCastleId);
+  document.getElementById('developmentCastleName').textContent=String(c.id||selectedCastleId);
   document.getElementById('developmentGoldCompact').textContent=Math.floor(developmentState.gold||0).toLocaleString('fa-IR');
   document.getElementById('developmentProductionCompact').textContent='';
   document.getElementById('developmentArcherCompact').textContent=Number(c.army.archer||0).toLocaleString('fa-IR');
