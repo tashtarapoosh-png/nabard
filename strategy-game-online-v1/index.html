@@ -127,8 +127,8 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentTopCompact{position:absolute;top:5px;left:6px;right:6px;z-index:20;display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:8px;background:rgba(12,17,22,.78);backdrop-filter:blur(3px);box-sizing:border-box}
 .developmentCastleName{font-size:12px;font-weight:800;white-space:nowrap;margin-left:2px}
 .developmentStatCompact{flex:1;min-width:0;padding:4px 5px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.06);color:#fff;font-size:9px;font-weight:700;text-align:center;line-height:1.15;white-space:nowrap}
-.developmentBottomBar{position:absolute;left:6px;right:6px;bottom:5px;z-index:6001;display:flex;gap:5px;padding:5px;border-radius:8px;background:rgba(12,17,22,.94);backdrop-filter:blur(3px);visibility:visible;opacity:1;pointer-events:auto}
-.developmentBottomBar button{position:relative;z-index:6002;pointer-events:auto;flex:1 1 0;min-width:0;min-height:34px;padding:7px 4px;border-radius:6px;font-size:11px;line-height:1.2;white-space:normal;overflow-wrap:anywhere}
+.developmentBottomBar{position:fixed;left:6px;right:6px;bottom:max(5px,env(safe-area-inset-bottom));z-index:20000;display:flex!important;gap:5px;padding:5px;border-radius:8px;background:rgba(12,17,22,.97);backdrop-filter:blur(3px);visibility:visible!important;opacity:1!important;pointer-events:auto!important;min-height:48px;box-shadow:0 2px 14px rgba(0,0,0,.65)}
+.developmentBottomBar button{position:relative;z-index:20001;display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;flex:1 1 0;min-width:0;min-height:38px;padding:7px 4px;border:1px solid rgba(255,255,255,.28);border-radius:6px;font-size:11px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;color:#fff}
 #developmentMessage{position:absolute;left:50%;bottom:51px;transform:translateX(-50%);z-index:21;max-width:80vw;padding:3px 7px;border-radius:5px;background:rgba(0,0,0,.65);font-size:9px;color:#fff;display:none;white-space:nowrap}
 #developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:rgba(35,59,42,.92);color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.35)}
 #buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.72);overflow:auto;pointer-events:auto}
@@ -147,8 +147,8 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   .developmentTopCompact{gap:3px;padding:3px 4px}.developmentCastleName{font-size:10px}.developmentStatCompact{font-size:8px;padding:4px 3px}
   .developmentBottomBar{gap:3px;padding:3px}.developmentBottomBar button{padding:4px 3px;font-size:8px}.developmentLevelOverlay{min-width:20px;padding:2px 5px;font-size:10px}
   #developmentDefenseButton{font-size:8px;padding:4px 6px}
-  .developmentBottomBar{left:4px;right:4px;bottom:4px;gap:3px;padding:4px}
-  .developmentBottomBar button{min-height:38px;padding:5px 2px;font-size:9px;white-space:normal;line-height:1.15}
+  .developmentBottomBar{left:4px;right:4px;bottom:max(4px,env(safe-area-inset-bottom));gap:3px;padding:4px;min-height:46px}
+  .developmentBottomBar button{min-height:38px;padding:5px 2px;font-size:9px;white-space:normal;line-height:1.15;flex:1 1 0}
 }
 
 </style></head>
