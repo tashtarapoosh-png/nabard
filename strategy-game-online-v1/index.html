@@ -193,6 +193,7 @@ let randTimerId=null;
 let randStarted=false;
 let randwar=0;
 let randRemainingSeconds=20;
+let roundTickBusy=false;
 let currentBattleForScene=null;
 
 function show(id){
@@ -215,8 +216,11 @@ function exitGame(){
 }
 
 function openCastle(id){
-  selectedCastleId=id;
-  document.getElementById("castleTitle").textContent=castles[id].name+" - شماره قلعه "+id;
+  selectedCastleId=Number(id);
+  selectedTargetId=null;
+  if(!castles[selectedCastleId])return;
+  document.getElementById("castleTitle").textContent=castles[selectedCastleId].name+" - شماره قلعه "+selectedCastleId;
+  // انتخاب قلعه فقط صفحه خود قلعه را باز می‌کند؛ انتخاب هدف فقط با دکمه «حمله» است.
   show("castle");
 }
 
@@ -267,7 +271,7 @@ function renderCastles(){
     const b=document.createElement("button");
     b.className="castle-btn";
     b.textContent=castles[i].name;
-    b.onclick=()=>openCastle(i);
+    b.addEventListener("click",()=>openCastle(i));
     g.appendChild(b);
   }
 }
@@ -777,50 +781,80 @@ function renderBattleScene(){
   viobat();
 }
 
-function rand(){
+async function rand(){
   if(randStarted)return;
 
+  let battle=currentBattleForScene || await loadBattleForSelectedCastle().catch(()=>null);
+  if(!battle || !battle.batId)return;
+
   randStarted=true;
-  randwar=0;
-  randRemainingSeconds=20;
+  randwar=Number(battle.roundNumber||0);
+  randRemainingSeconds=Math.max(0,Number(battle.roundSecondsRemaining ?? 20));
 
   const box=document.getElementById("randTimerBox");
   const timer=document.getElementById("randTimerValue");
   const war=document.getElementById("randWarValue");
-
   if(box)box.style.display="block";
-  if(timer)timer.textContent="00:20";
-  if(war)war.textContent="راند: "+randwar;
 
-  if(randTimerId)clearInterval(randTimerId);
-  randTimerId=setInterval(async ()=>{
-    randRemainingSeconds--;
-
-    if(randRemainingSeconds<=0){
-      randwar++;
-      randRemainingSeconds=20;
-
-      // دقیقاً در ابتدای هر راند: viobat وضعیت فعلی را از SQL می‌گیرد و نمایش می‌دهد.
-      await viobat();
-      jang();
-      fotjang();
-      const battleAfterCombat=getCurrentBattle();
-      if(battleAfterCombat){
-        const saved=await persistBattleCombat(battleAfterCombat);
-        if(!saved)return;
-      }
-      const battleEnded=sidchek();
-      if(!battleEnded){
-        await applyRoundMoves();
-      }
-    }
-
+  const paintRoundClock=()=>{
     if(timer){
       const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
       const ss=String(randRemainingSeconds%60).padStart(2,"0");
       timer.textContent=mm+":"+ss;
     }
     if(war)war.textContent="راند: "+randwar;
+  };
+  paintRoundClock();
+
+  if(randTimerId)clearInterval(randTimerId);
+  randTimerId=setInterval(async ()=>{
+    if(roundTickBusy)return;
+    randRemainingSeconds=Math.max(0,randRemainingSeconds-1);
+    paintRoundClock();
+    if(randRemainingSeconds>0)return;
+
+    roundTickBusy=true;
+    try{
+      const tick=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round-tick",{method:"POST",body:"{}"});
+      if(tick.battle){
+        battle=tick.battle;
+        battleRegistry[String(battle.targetId)]=battle;
+        currentBattleForScene=battle;
+        randwar=Number(battle.roundNumber||0);
+        randRemainingSeconds=Math.max(0,Number(battle.roundSecondsRemaining ?? battle.roundDurationSeconds ?? 20));
+      }
+
+      // فقط مرورگری که راند را به‌صورت اتمی در SQL جلو برده، عملیات همان راند را اجرا می‌کند.
+      if(tick.advanced){
+        await viobat();
+        jang();
+        fotjang();
+        const battleAfterCombat=getCurrentBattle();
+        if(battleAfterCombat){
+          const saved=await persistBattleCombat(battleAfterCombat);
+          if(!saved)return;
+        }
+        const battleEnded=sidchek();
+        if(!battleEnded)await applyRoundMoves();
+      }
+      paintRoundClock();
+    }catch(err){
+      console.error("خواندن/ذخیره راند در SQL ناموفق بود:",err);
+      // در صورت خطای شبکه، تایمر از وضعیت ذخیره‌شده دوباره همگام می‌شود.
+      try{
+        const fresh=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/state");
+        if(fresh.battle){
+          battle=fresh.battle;
+          battleRegistry[String(battle.targetId)]=battle;
+          currentBattleForScene=battle;
+          randwar=Number(battle.roundNumber||0);
+          randRemainingSeconds=Math.max(0,Number(battle.roundSecondsRemaining ?? 20));
+        }
+      }catch(_){ }
+      paintRoundClock();
+    }finally{
+      roundTickBusy=false;
+    }
   },1000);
 }
 
@@ -1015,6 +1049,7 @@ document.getElementById("randomDefenseBtn").onclick=randomizeAllDefenses;
 document.getElementById("resetGameBtn").onclick=resetGameData;
 
 document.getElementById("attackBtn").onclick=()=>{
+  if(selectedCastleId===null)return alert("ابتدا یک قلعه را انتخاب کنید.");
   renderTargets();
   show("targets");
 };
@@ -1041,9 +1076,16 @@ document.getElementById("startAttack").onclick=startAttack;
 
 
 document.getElementById("battleSceneBtn").onclick=viobat;
-document.getElementById("battleBtn").onclick=()=>{
-  u.castle=selectedCastleId;
-  show("battle");
+document.getElementById("battleBtn").onclick=async()=>{
+  try{
+    const battle=await loadBattleForSelectedCastle();
+    if(!battle)return alert("این قلعه در حال حاضر در نبردی نیست.");
+    u.castle=selectedCastleId;
+    show("battle");
+    setBattlePerspective();
+    await viobat();
+    if(!randStarted)await rand();
+  }catch(e){alert(e.message);}
 };
 document.getElementById("battleBack").onclick=()=>show("castle");
 

@@ -63,13 +63,19 @@ async function initDb(){
       ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
       winner_side TEXT,
-      report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
+      report_armies JSONB NOT NULL DEFAULT '[]'::jsonb,
+      round_number INTEGER NOT NULL DEFAULT 0,
+      round_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      round_duration_seconds INTEGER NOT NULL DEFAULT 20
     )
   `);
 
   await pool.query(`
     ALTER TABLE battles ADD COLUMN IF NOT EXISTS report_armies JSONB NOT NULL DEFAULT '[]'::jsonb
   `);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_number INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_duration_seconds INTEGER NOT NULL DEFAULT 20`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS battle_reports (
@@ -200,6 +206,10 @@ async function getBattleByTarget(targetId, client=pool){
     armies:b.armies,
     createdAt:new Date(b.created_at).getTime(),
     endsAt:new Date(b.ends_at).getTime(),
+    roundNumber:Number(b.round_number||0),
+    roundStartedAt:new Date(b.round_started_at||b.created_at).getTime(),
+    roundDurationSeconds:Number(b.round_duration_seconds||20),
+    roundSecondsRemaining:Math.max(0,Math.ceil((new Date(b.round_started_at||b.created_at).getTime()+Number(b.round_duration_seconds||20)*1000-Date.now())/1000)),
     ended:b.ended,
     winnerSide:b.winner_side,
     reportArmies:b.report_armies
@@ -215,6 +225,10 @@ function battleJson(row){
     armies:row.armies,
     createdAt:new Date(row.created_at).getTime(),
     endsAt:new Date(row.ends_at).getTime(),
+    roundNumber:Number(row.round_number||0),
+    roundStartedAt:new Date(row.round_started_at||row.created_at).getTime(),
+    roundDurationSeconds:Number(row.round_duration_seconds||20),
+    roundSecondsRemaining:Math.max(0,Math.ceil((new Date(row.round_started_at||row.created_at).getTime()+Number(row.round_duration_seconds||20)*1000-Date.now())/1000)),
     ended:row.ended,
     winnerSide:row.winner_side,
     reportArmies:row.report_armies
@@ -391,6 +405,45 @@ app.get("/api/battle/:id/state", async (req,res)=>{
     console.error(e);
     res.status(500).json({error:"خواندن وضعیت نبرد ناموفق بود."});
   }
+});
+
+// تنها یک درخواست می‌تواند در پایان هر راند شماره و زمان راند را در SQL جلو ببرد.
+app.post("/api/battle/:id/round-tick", async (req,res)=>{
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const q=await client.query(
+      "SELECT * FROM battles WHERE id=$1 AND ended=FALSE AND ends_at>NOW() FOR UPDATE",
+      [id]
+    );
+    if(!q.rows[0]){
+      await client.query("ROLLBACK");
+      return res.status(404).json({error:"نبرد فعال پیدا نشد."});
+    }
+    let row=q.rows[0];
+    let advanced=false;
+    const due=await client.query(
+      "SELECT (round_started_at + round_duration_seconds * INTERVAL '1 second') <= NOW() AS due FROM battles WHERE id=$1",
+      [id]
+    );
+    if(due.rows[0]?.due){
+      const updated=await client.query(
+        `UPDATE battles
+         SET round_number=round_number+1, round_started_at=NOW()
+         WHERE id=$1 AND ended=FALSE AND ends_at>NOW()
+         RETURNING *`,[id]
+      );
+      if(updated.rows[0]){row=updated.rows[0];advanced=true;}
+    }
+    await client.query("COMMIT");
+    res.json({ok:true,advanced,battle:battleJson(row)});
+  }catch(e){
+    await client.query("ROLLBACK");
+    console.error("round-tick",e);
+    res.status(500).json({error:"ذخیره شماره و زمان راند ناموفق بود."});
+  }finally{client.release();}
 });
 
 app.put("/api/battle/:id/state", async (req,res)=>{
