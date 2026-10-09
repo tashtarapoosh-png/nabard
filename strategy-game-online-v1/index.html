@@ -173,6 +173,30 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #castleProfile .profile-card{width:min(440px,96vw);max-height:85vh;overflow:auto;background:#202d37;border:1px solid #657686;border-radius:12px;padding:18px}
 #castleProfile .profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:600px){#playerMapScreen .map-toolbar{top:6px;left:6px;right:6px;padding:8px}#playerMapScreen .map-toolbar h2{font-size:13px}.map-castle{width:88px}.map-castle img{height:76px}.map-castle .map-castle-name{font-size:11px;padding:3px 6px}#playerMapWorld{background-size:520px 521px}}
+
+/* Hide battle-cell grid lines while preserving cell interactions. */
+ .battle-background .battle-grid,
+.battle-background .battle-row,
+.battle-background .battle-cell,
+.battle-background .battle-cell.attacker,
+.battle-background .battle-cell.defender {
+  outline: none !important;
+  box-shadow: none;
+}
+.battle-background .battle-cell,
+.battle-background .battle-cell.attacker,
+.battle-background .battle-cell.defender {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.battle-background .battle-cell.move-option {
+  background: rgba(255,210,63,.38) !important;
+  box-shadow: inset 0 0 0 1px rgba(211,155,0,.7) !important;
+}
+.battle-background .battle-cell.move-target {
+  background: rgba(72,187,120,.48) !important;
+  box-shadow: inset 0 0 0 2px rgba(24,121,78,.85) !important;
+}
 </style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
@@ -1801,27 +1825,3 @@ const _oldDevelopmentUpdateTop=developmentUpdateTop;developmentUpdateTop=functio
 </script>
 
 </body></html>
-
-/* حذف ظاهر جدول از صحنه نبرد؛ خانه‌ها و امکان انتخاب/حرکت نیروها حفظ می‌شوند. */
-.battle-background .battle-grid,
-.battle-background .battle-row,
-.battle-background .battle-cell,
-.battle-background .battle-cell.attacker,
-.battle-background .battle-cell.defender{
-  outline:0 !important;
-  box-shadow:none;
-}
-.battle-background .battle-cell,
-.battle-background .battle-cell.attacker,
-.battle-background .battle-cell.defender{
-  background:transparent !important;
-  border-color:transparent !important;
-}
-.battle-background .battle-cell.move-option{
-  background:rgba(255,210,63,.38) !important;
-  box-shadow:inset 0 0 0 1px rgba(211,155,0,.7) !important;
-}
-.battle-background .battle-cell.move-target{
-  background:rgba(72,187,120,.48) !important;
-  box-shadow:inset 0 0 0 2px rgba(24,121,78,.85) !important;
-}
