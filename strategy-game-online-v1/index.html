@@ -1427,7 +1427,7 @@ endbat=async function(winningSide){
   let savedReport=null;
   if(battle){
     try{
-      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
+      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null,armies:battle.armies})});
       // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
       savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId));
     }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}

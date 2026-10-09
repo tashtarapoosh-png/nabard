@@ -1065,9 +1065,20 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       'SELECT * FROM battles WHERE id=$1 FOR UPDATE',
       [battleId]
     );
-    const fullBattle=fullBattleQ.rows[0];
+    let fullBattle=fullBattleQ.rows[0];
 
-    // گزارش کاملاً مستقل از حذف نبرد ساخته و در جدول مخصوص گزارش‌ها ذخیره می‌شود.
+    // آخرین وضعیت راند (به‌خصوص تلفات راند پایانی) را قبل از ساخت گزارش
+    // دوباره از payload پایان نبرد با snapshot ذخیره‌شده ادغام می‌کنیم.
+    // این کار باعث می‌شود حذف واحدهای کاملاً کشته‌شده نیز به‌صورت تلفات صفر باقی‌مانده ثبت شود.
+    const finalArmies=Array.isArray(req.body?.armies)?req.body.armies:(Array.isArray(fullBattle.armies)?fullBattle.armies:[]);
+    const finalReportArmies=mergeReportArmies(fullBattle.report_armies,finalArmies);
+    const snapshotUpdate=await client.query(
+      'UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3 RETURNING *',
+      [JSON.stringify(finalArmies),JSON.stringify(finalReportArmies),battleId]
+    );
+    if(snapshotUpdate.rows[0])fullBattle=snapshotUpdate.rows[0];
+
+    // گزارش نهایی در جدول SQL جداگانه ذخیره می‌شود و با حذف نبرد از بین نمی‌رود.
     const report=gozbat(fullBattle);
     await client.query(
       `INSERT INTO battle_reports(battle_id,report,winner_side)
