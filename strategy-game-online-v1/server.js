@@ -749,18 +749,6 @@ async function resolveAttack(attackId){
       battle=await getBattleByTarget(attack.target_id,client);
     }
 
-    // Idempotency guard: one SQL attack may contribute at most one army,
-    // even if multiple clients retry arrival while reconnecting or reopening the battle.
-    const alreadyAdded=(battle.armies||[]).find(a=>String(a.sourceAttackId||"")===String(attack.id));
-    if(alreadyAdded){
-      await client.query(
-        "UPDATE attacks SET status='resolved',resolved_at=COALESCE(resolved_at,NOW()) WHERE id=$1",
-        [attackId]
-      );
-      await client.query("COMMIT");
-      return {battle};
-    }
-
     const sameSide=(battle.armies||[]).filter(a=>a.side===attack.army_side);
     if(sameSide.length>=4){
       await client.query(
@@ -777,17 +765,22 @@ async function resolveAttack(attackId){
       attack.attacker_id,
       attack.attacker_slots,
       sameSide.length,
-      "bat-"+battle.batId+"-attack-"+String(attack.id)
+      "bat-"+battle.batId+"-army-"+((battle.armies||[]).length+1)
     );
     if(!army)throw new Error("ساخت ارتش ناموفق بود.");
-    // Keep the originating attack ID on the army as a stable deduplication key.
-    army.sourceAttackId=String(attack.id);
 
-    const armies=[...(battle.armies||[]),army];
-    let unitNo=1;
-    for(const a of armies){
-      for(const u of (a.units||[]))u.unit=unitNo++;
+    // شمارهٔ واحد پس از ایجاد ثابت می‌ماند؛ واحدهای قبلی با ورود ارتش جدید
+    // دوباره شماره‌گذاری نمی‌شوند. از گزارش هم استفاده می‌کنیم تا شمارهٔ
+    // واحدی که در جریان نبرد حذف شده، دوباره به واحد دیگری داده نشود.
+    const existingUnits=[
+      ...(Array.isArray(battle.armies)?battle.armies:[]),
+      ...(Array.isArray(battle.reportArmies)?battle.reportArmies:[])
+    ].flatMap(a=>Array.isArray(a.units)?a.units:[]);
+    let unitNo=Math.max(0,...existingUnits.map(u=>Number(u.unit)||0));
+    for(const u of (army.units||[])){
+      if(!Number(u.unit))u.unit=++unitNo;
     }
+    const armies=[...(battle.armies||[]),army];
 
     await client.query(
       "UPDATE battles SET armies=$1::jsonb, report_armies=$2::jsonb WHERE id=$3",

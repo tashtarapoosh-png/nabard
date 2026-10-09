@@ -127,12 +127,12 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentTopCompact{position:absolute;top:5px;left:6px;right:6px;z-index:20;display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:8px;background:rgba(12,17,22,.78);backdrop-filter:blur(3px);box-sizing:border-box}
 .developmentCastleName{font-size:12px;font-weight:800;white-space:nowrap;margin-left:2px}
 .developmentStatCompact{flex:1;min-width:0;padding:4px 5px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.06);color:#fff;font-size:9px;font-weight:700;text-align:center;line-height:1.15;white-space:nowrap}
-.developmentBottomBar{position:fixed;left:6px;right:6px;bottom:max(5px,env(safe-area-inset-bottom));z-index:20000;display:flex!important;gap:5px;padding:5px;border-radius:8px;background:rgba(12,17,22,.97);backdrop-filter:blur(3px);visibility:visible!important;opacity:1!important;pointer-events:auto!important;min-height:48px;box-shadow:0 2px 14px rgba(0,0,0,.65)}
-.developmentBottomBar button{position:relative;z-index:20001;display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;flex:1 1 0;min-width:0;min-height:38px;padding:7px 4px;border:1px solid rgba(255,255,255,.28);border-radius:6px;font-size:11px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;color:#fff}
+.developmentBottomBar{position:absolute;left:6px;right:6px;bottom:5px;z-index:20;display:flex;gap:5px;padding:4px 5px;border-radius:8px;background:rgba(12,17,22,.82);backdrop-filter:blur(3px)}
+.developmentBottomBar button{position:relative;z-index:1001;pointer-events:auto;flex:1;min-width:0;padding:5px 6px;border-radius:6px;font-size:9px;line-height:1.1;white-space:nowrap}
 #developmentMessage{position:absolute;left:50%;bottom:51px;transform:translateX(-50%);z-index:21;max-width:80vw;padding:3px 7px;border-radius:5px;background:rgba(0,0,0,.65);font-size:9px;color:#fff;display:none;white-space:nowrap}
 #developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:rgba(35,59,42,.92);color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.35)}
-#buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.72);overflow:auto;pointer-events:auto}
-#buildingActionPanel.open,#trainingPanel.open{display:flex;z-index:10000}
+#buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.6);overflow:hidden}
+#buildingActionPanel.open,#trainingPanel.open{display:flex}
 .developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.45);text-align:center}
 .developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}
 .developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
@@ -147,8 +147,6 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   .developmentTopCompact{gap:3px;padding:3px 4px}.developmentCastleName{font-size:10px}.developmentStatCompact{font-size:8px;padding:4px 3px}
   .developmentBottomBar{gap:3px;padding:3px}.developmentBottomBar button{padding:4px 3px;font-size:8px}.developmentLevelOverlay{min-width:20px;padding:2px 5px;font-size:10px}
   #developmentDefenseButton{font-size:8px;padding:4px 6px}
-  .developmentBottomBar{left:4px;right:4px;bottom:max(4px,env(safe-area-inset-bottom));gap:3px;padding:4px;min-height:46px}
-  .developmentBottomBar button{min-height:38px;padding:5px 2px;font-size:9px;white-space:normal;line-height:1.15;flex:1 1 0}
 }
 
 </style></head>
@@ -305,14 +303,11 @@ const battleRegistry={};
 let remainingSeconds=10;
 let randTimerId=null;
 let randStarted=false;
-let roundClockBattleId=null;
 let randwar=0;
 let randRemainingSeconds=20;
 let randProcessing=false;
 let currentRoundToken=null;
 let currentRoundEndsAt=null;
-let processedRoundNumber=0;
-let serverClockOffset=0;
 let currentBattleForScene=null;
 
 function show(id){
@@ -559,14 +554,16 @@ function viobat(){
   if(!battle)return;
   currentBattleForScene=battle;
 
-  // هر واحد باید فقط یک نمایش داشته باشد؛ نسخه‌های تکراری با همان id حذف می‌شوند.
+  // هر واحد فقط با شناسهٔ مستقل خودش شناسایی می‌شود؛ نوع/قلعه/سمت
+  // ممکن است بین چند واحد واقعی مشترک باشد و نباید باعث حذف آن‌ها شود.
+  // بازسازی صحنه فقط داده‌ها را می‌خواند و واحد جدیدی ایجاد نمی‌کند.
   const units=[];
   const seenUnitIds=new Set();
   for(const army of (battle.armies||[])){
     for(const unit of (army.units||[])){
       const id=String(unit.id||"");
-      if(!id || seenUnitIds.has(id))continue;
-      seenUnitIds.add(id);
+      if(id && seenUnitIds.has(id))continue;
+      if(id)seenUnitIds.add(id);
       units.push(unit);
     }
   }
@@ -815,9 +812,6 @@ function endbat(winningSide){
     randTimerId=null;
   }
   randStarted=false;
-  roundClockBattleId=null;
-  processedRoundNumber=0;
-  currentRoundEndsAt=null;
   randRemainingSeconds=20;
 
   const battle=getCurrentBattle();
@@ -921,10 +915,8 @@ async function loadRoundClock(){
   try{
     const data=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round",{method:"GET"});
     currentRoundEndsAt=Number(data.roundEndsAt||0);
-    if(Number.isFinite(Number(data.serverNow)))serverClockOffset=Number(data.serverNow)-Date.now();
     randwar=Number(data.roundNumber||0);
-    processedRoundNumber=Number(data.processedRoundNumber||0);
-    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
+    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-Date.now())/1000));
     return true;
   }catch(err){
     console.error("خواندن تایمر راند ناموفق بود:",err);
@@ -988,7 +980,7 @@ function updateRoundTimerDisplay(){
   const timer=document.getElementById("randTimerValue");
   const war=document.getElementById("randWarValue");
   if(currentRoundEndsAt){
-    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
+    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-Date.now())/1000));
   }
   if(timer){
     const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
@@ -999,26 +991,19 @@ function updateRoundTimerDisplay(){
 }
 
 async function rand(){
-  const activeBattle=getCurrentBattle();
-  if(!activeBattle || !activeBattle.batId)return;
-  const nextBattleId=String(activeBattle.batId);
-  if(randStarted && roundClockBattleId===nextBattleId)return;
-  if(randTimerId)clearInterval(randTimerId);
-  randTimerId=null;
+  if(randStarted)return;
   randStarted=true;
-  roundClockBattleId=nextBattleId;
-  currentRoundEndsAt=null;
 
   const box=document.getElementById("randTimerBox");
   if(box)box.style.display="block";
 
   await loadRoundClock();
   updateRoundTimerDisplay();
-  if(randwar>processedRoundNumber)await processDueRound();
 
+  if(randTimerId)clearInterval(randTimerId);
   randTimerId=setInterval(async ()=>{
     updateRoundTimerDisplay();
-    if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
+    if(currentRoundEndsAt && Date.now()>=currentRoundEndsAt){
       await processDueRound();
       updateRoundTimerDisplay();
     }
@@ -1030,7 +1015,7 @@ async function syncRoundClockAfterReconnect(){
   const ok=await loadRoundClock();
   if(ok){
     updateRoundTimerDisplay();
-    if(randwar>processedRoundNumber || (currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt))await processDueRound();
+    if(currentRoundEndsAt && Date.now()>=currentRoundEndsAt)await processDueRound();
   }
 }
 
@@ -1130,7 +1115,8 @@ function localBatman(){
   // بنابراین اینجا فقط همان snapshot را نمایش می‌دهیم و دوباره ارتش را اضافه نمی‌کنیم.
   if(window.__onlineBatmanResolved){
     const allRows=battle.armies.flatMap(army=>army.units||[]);
-    allRows.forEach((row,index)=>row.unit=row.unit||index+1);
+    let nextUnitNumber=Math.max(0,...allRows.map(row=>Number(row.unit)||0));
+    allRows.forEach(row=>{if(!Number(row.unit))row.unit=++nextUnitNumber;});
     let html='<div class="notice">شماره نبرد: <b>'+battle.batId+'</b> | قلعه هدف: <b>'+battle.targetId+'</b> | ارتش‌های ثبت‌شده: <b>'+battle.armies.length+'</b></div>'+
       '<div class="table-wrap"><table class="battle-table"><thead><tr>'+
       '<th>شماره واحد نیرو</th><th>نوع نیرو</th><th>تعداد نیرو</th><th>شماره قلعه ارسال کننده</th><th>ساید نیرو</th><th>X</th><th>Y</th>'+
@@ -1144,7 +1130,7 @@ function localBatman(){
     show("battle");
     setBattlePerspective();
     viobat();
-    rand();
+    if(!randStarted)rand();
     return;
   }
 
@@ -1174,7 +1160,8 @@ function localBatman(){
   battle.armies.push(newArmy);
 
   const allRows=battle.armies.flatMap(army=>army.units||[]);
-  allRows.forEach((row,index)=>row.unit=index+1);
+  let nextUnitNumber=Math.max(0,...allRows.map(row=>Number(row.unit)||0));
+  allRows.forEach(row=>{if(!Number(row.unit))row.unit=++nextUnitNumber;});
 
   let html=
     '<div class="notice">شماره نبرد: <b>'+battle.batId+'</b> | قلعه هدف: <b>'+battle.targetId+'</b> | ارتش‌های ثبت‌شده: <b>'+battle.armies.length+'</b></div>'+ 
@@ -1640,28 +1627,10 @@ function developmentBuildingHit(img,event){
 function developmentBuildingFromPoint(event){
   const scene=document.getElementById('developmentScene');
   if(!scene||event.target.closest('#developmentDefenseButton'))return null;
-  // ابتدا محدوده واقعی پیکسل‌های غیرشفاف ساختمان بررسی می‌شود.
+  // از بالاترین لایه به پایین بررسی می‌کنیم تا ساختمان درست انتخاب شود.
   for(const type of ['goldMine','barracks2','barracks1','castle','wall']){
     const img=scene.querySelector('[data-building="'+type+'"]');
     if(img&&developmentBuildingHit(img,event))return img;
-  }
-  // اگر تصویر هنوز بارگذاری نشده باشد یا مرورگر خواندن آلفای تصویر را مسدود کند،
-  // از نقاط کلیک جایگزین استفاده می‌کنیم تا پنجره ساختمان همچنان باز شود.
-  const rect=scene.getBoundingClientRect();
-  if(!rect.width||!rect.height)return null;
-  const x=(event.clientX-rect.left)/rect.width*100;
-  const y=(event.clientY-rect.top)/rect.height*100;
-  const hotspots=[
-    {type:'goldMine',x:50,y:68,rx:20,ry:17},
-    {type:'barracks2',x:78,y:53,rx:19,ry:22},
-    {type:'barracks1',x:22,y:53,rx:19,ry:22},
-    {type:'castle',x:50,y:36,rx:25,ry:25},
-    {type:'wall',x:50,y:12,rx:42,ry:12}
-  ];
-  for(const h of hotspots){
-    if(Math.abs(x-h.x)<=h.rx&&Math.abs(y-h.y)<=h.ry){
-      return scene.querySelector('[data-building="'+h.type+'"]');
-    }
   }
   return null;
 }
@@ -1684,7 +1653,7 @@ document.getElementById('battleBtn').onclick=async()=>{
     show('battle');
     setBattlePerspective();
     viobat();
-    rand();
+    if(!randStarted)rand();
   }catch(e){alert(e.message);}
 };
 document.getElementById('developmentUpgradeButton').onclick=startDevelopmentUpgrade;
