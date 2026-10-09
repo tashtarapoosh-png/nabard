@@ -151,6 +151,18 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   .developmentBottomBar button{min-height:38px;padding:5px 2px;font-size:9px;white-space:normal;line-height:1.15;flex:1 1 0}
 }
 
+
+/* پس‌زمینه ثابت و پنل زرد اطلاعات قلعه */
+#developmentInner{background:#162019 url("images/castle-development-background.jpg") center center/cover no-repeat}
+#developmentBackground{display:none!important}
+#developmentField{inset:0!important;align-items:stretch!important}
+#developmentScene{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important}
+#developmentWall,#developmentCastleImage,#developmentBarracks1,#developmentBarracks2,#developmentGoldMine{pointer-events:none}
+#developmentInfoPanel{position:absolute;top:58px;right:10px;z-index:30;width:min(260px,32vw);padding:10px;border:2px solid #9b6d10;border-radius:9px;background:rgba(255,224,105,.94);color:#332307;font-size:12px;font-weight:800;line-height:1.6;box-shadow:0 3px 14px #0008}
+#developmentInfoPanel [data-castle-info]{font-size:14px;margin-bottom:4px}
+.developmentLevelOverlay{min-width:45px;padding:4px 7px;background:rgba(255,224,105,.96);border:1px solid #8a6416;color:#291b04;font-size:11px;white-space:nowrap}
+@media(max-width:650px){#developmentInfoPanel{top:54px;right:5px;width:min(190px,43vw);font-size:9px;padding:6px}#developmentInfoPanel [data-castle-info]{font-size:10px}#developmentScene{width:100vw!important;height:100vh!important}}
+
 </style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
@@ -200,9 +212,10 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
       <div id="castleTimerInfo" class="developmentAttackTimerInfo" style="display:none"></div>
     </div>
 
+    <div id="developmentInfoPanel"><div data-castle-info>اطلاعات قلعه</div><div>تعداد نیروها و میزان طلا از اطلاعات ذخیره‌شده قلعه خوانده می‌شود.</div></div>
     <div id="developmentField">
       <div id="developmentScene">
-        <img id="developmentBackground" class="developmentLayer" src="images/development-background.jpg" alt="زمینه توسعه قلعه" draggable="false">
+        <img id="developmentBackground" class="developmentLayer" src="images/castle-development-background.jpg" alt="پس‌زمینه ثابت توسعه قلعه" draggable="false">
         <img id="developmentWall" class="developmentLayer developmentBuildingImage" data-building="wall" src="images/development-wall.png" alt="دیوار" draggable="false">
         <img id="developmentCastleImage" class="developmentLayer developmentBuildingImage" data-building="castle" src="images/development-castle.png" alt="قلعه" draggable="false">
         <img id="developmentBarracks1" class="developmentLayer developmentBuildingImage" data-building="barracks1" src="images/development-barracks1.png" alt="سربازخانه ۱" draggable="false">
@@ -1283,6 +1296,8 @@ function applyServerCastles(list){
     castles[c.id].defenseSlots=Array.isArray(c.defenseSlots)?c.defenseSlots:castles[c.id].defenseSlots;
     castles[c.id].underAttack=!!c.underAttack;
     castles[c.id].battleId=c.battleId||null;
+    if(c.gold!==undefined && c.gold!==null) castles[c.id].gold=Number(c.gold)||0;
+    if(c.buildingLevels && typeof c.buildingLevels==='object') castles[c.id].buildingLevels=c.buildingLevels;
   });
 }
 async function syncState(){
@@ -1478,6 +1493,11 @@ function developmentLoad(){
   let s=developmentDefaults;
   try{ if(raw)s=Object.assign(developmentClone(developmentDefaults),JSON.parse(raw)); }catch(e){}
   s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),s.buildings||{});
+  const serverCastle=castles[selectedCastleId];
+  if(serverCastle){
+    if(Number.isFinite(Number(serverCastle.gold)))s.gold=Number(serverCastle.gold);
+    if(serverCastle.buildingLevels){for(const key of ['castle','wall','barracks1','barracks2','goldMine']){const lv=Number(serverCastle.buildingLevels[key]);if(Number.isFinite(lv)&&lv>0)s.buildings[key].level=lv;}}
+  }
   s.training=Object.assign(developmentClone(developmentDefaults.training),s.training||{});
   developmentState=s;
   developmentProgress();
@@ -1519,7 +1539,9 @@ function developmentProgress(){
 function developmentUpdateTop(){
   if(!developmentState||selectedCastleId===null)return;
   const c=castles[selectedCastleId];
-  document.getElementById('developmentCastleName').textContent=c.name;
+  document.getElementById('developmentCastleName').textContent=c.name+' • شماره '+c.id;
+  const yellowPanel=document.getElementById('developmentInfoPanel');
+  if(yellowPanel){yellowPanel.querySelector('[data-castle-info]').textContent=c.name+' | اطلاعات قلعه';}
   document.getElementById('developmentGoldCompact').textContent='🪙 طلا: '+Math.floor(developmentState.gold||0);
   document.getElementById('developmentProductionCompact').textContent='📈 تولید: '+developmentProductionPerMinute().toFixed(0)+'/دقیقه';
   document.getElementById('developmentArcherCompact').textContent='🏹 '+Number(c.army.archer||0);
