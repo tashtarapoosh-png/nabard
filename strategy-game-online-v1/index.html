@@ -100,13 +100,163 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .battle-background #battle .battle-unit .unit-castle{padding:0.2px 0.8px;font-size:2px;border-radius:0.6px;}
 .battle-background #battle .battle-unit .army-number{padding:0.2px 1px;font-size:2.2px;border-radius:0.6px;}
 .battle-background #battle .battle-unit .unit-count{padding:0.2px 1px;font-size:2px;border-radius:0.6px;}
+
+/* گزارش نهایی نبرد */
+.battle-report-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)}
+.battle-report-modal{width:min(900px,96vw);max-height:90vh;overflow:hidden;background:linear-gradient(145deg,#263442,#17212b);border:1px solid #647485;border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.55);direction:rtl;color:#f4f7fa}
+.battle-report-head{padding:20px 24px;border-bottom:1px solid #465463;text-align:center;position:relative}
+.battle-report-head h2{margin:0;font-size:25px}.battle-report-head .winner{margin-top:8px;color:#cbd5df;font-size:14px}.battle-report-table td:nth-child(3),.battle-report-table td:nth-child(4),.battle-report-table td:nth-child(5){font-weight:800}
+.battle-report-close{position:absolute;left:14px;top:12px;width:38px;height:38px;padding:0;border-radius:50%;font-size:24px;line-height:38px;background:#8e3b3b}
+.battle-report-body{padding:18px 20px;max-height:62vh;overflow:auto}.battle-report-table{width:100%;border-collapse:collapse;font-size:15px}.battle-report-table th,.battle-report-table td{border:1px solid #4a5866;padding:11px 8px;text-align:center}.battle-report-table th{background:#101820;color:#fff;position:sticky;top:0}.battle-report-table tr:nth-child(even){background:rgba(255,255,255,.035)}
+.battle-report-foot{padding:14px 20px;border-top:1px solid #465463;text-align:center}.battle-report-foot button{min-width:130px}
+.battle-reports-list{margin-top:14px}.battle-report-select{width:100%;max-height:260px;padding:12px;border-radius:10px;border:1px solid #4a5866;background:#111820;color:#fff;font-size:16px;direction:rtl}.battle-report-select option{padding:8px}.report-delete-all{background:#8e3b3b}
+
+/* ===== صفحه توسعه قلعه: بدون اسکرول ===== */
+#developmentPanel.screen{position:fixed;inset:0;z-index:5000;width:100vw;height:100vh;max-width:none;margin:0;padding:0;overflow:hidden;background:#162019}
+#developmentInner{position:relative;width:100%;height:100%;overflow:hidden;background:#162019;direction:rtl}
+#developmentField{position:absolute;inset:58px 0 54px 0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#developmentScene{position:relative;width:min(100vw,calc(100vh - 116px));height:min(100vw,calc(100vh - 116px));aspect-ratio:1/1;overflow:hidden;cursor:default}
+.developmentLayer{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;user-select:none}
+#developmentBackground{z-index:1;pointer-events:none}
+#developmentWall{z-index:2;pointer-events:none}
+.developmentBuildingImage{z-index:3;cursor:pointer;pointer-events:none}
+.developmentAttackTimer{flex:0 0 auto;min-width:52px;padding:4px 6px;border:1px solid rgba(255,213,74,.65);border-radius:6px;background:rgba(12,17,22,.9);color:#fff;font-size:9px;font-weight:900;text-align:center;direction:ltr;white-space:nowrap}
+.developmentAttackTimerInfo{position:absolute;top:100%;right:0;margin-top:3px;max-width:180px;padding:3px 6px;border-radius:5px;background:rgba(12,17,22,.9);color:#fff;font-size:8px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none}
+.developmentLevelOverlay{position:absolute;z-index:7;transform:translate(-50%,-50%);min-width:23px;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.82);color:#fff;font-size:11px;font-weight:800;line-height:1.1;text-align:center;pointer-events:none}
+.developmentTimerOverlay{position:absolute;z-index:8;transform:translateX(-50%);display:none;min-width:90px;padding:3px 5px;border:1px solid #ffd54a;border-radius:6px;background:rgba(10,12,14,.9);color:#fff;font-size:9px;font-weight:700;text-align:center;pointer-events:none}
+.developmentTopCompact{position:absolute;top:5px;left:6px;right:6px;z-index:20;display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:8px;background:rgba(12,17,22,.78);backdrop-filter:blur(3px);box-sizing:border-box}
+.developmentCastleName{font-size:12px;font-weight:800;white-space:nowrap;margin-left:2px}
+.developmentStatCompact{flex:1;min-width:0;padding:4px 5px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.06);color:#fff;font-size:9px;font-weight:700;text-align:center;line-height:1.15;white-space:nowrap}
+.developmentBottomBar{position:absolute;left:6px;right:6px;bottom:5px;z-index:20;display:flex;gap:5px;padding:4px 5px;border-radius:8px;background:rgba(12,17,22,.82);backdrop-filter:blur(3px)}
+.developmentBottomBar button{position:relative;z-index:1001;pointer-events:auto;flex:1;min-width:0;padding:5px 6px;border-radius:6px;font-size:9px;line-height:1.1;white-space:nowrap}
+#developmentMessage{position:absolute;left:50%;bottom:51px;transform:translateX(-50%);z-index:21;max-width:80vw;padding:3px 7px;border-radius:5px;background:rgba(0,0,0,.65);font-size:9px;color:#fff;display:none;white-space:nowrap}
+#developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:rgba(35,59,42,.92);color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.35)}
+#buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.6);overflow:hidden}
+#buildingActionPanel.open,#trainingPanel.open{display:flex}
+.developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.45);text-align:center}
+.developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}
+.developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
+.trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:6px 0}
+.trainingChoiceCompact{padding:5px 3px;border:1px solid #566270;border-radius:7px;background:#202a33;color:#fff;cursor:pointer}
+.trainingChoiceCompact.selected{border-color:#ffd54a;box-shadow:inset 0 0 0 1px #ffd54a}
+.trainingChoiceCompact img{width:44px;height:44px;object-fit:contain;display:block;margin:auto}.trainingChoiceCompact span{font-size:9px;font-weight:700;display:block;margin-top:2px}
+.trainingInputCompact{width:85px;padding:5px;border-radius:6px;border:1px solid #59636f;background:#111820;color:#fff;text-align:center;font-size:10px}
+@media(max-width:650px){
+  #developmentField{inset:52px 0 50px 0}
+  #developmentScene{width:min(100vw,calc(100vh - 102px));height:min(100vw,calc(100vh - 102px))}
+  .developmentTopCompact{gap:3px;padding:3px 4px}.developmentCastleName{font-size:10px}.developmentStatCompact{font-size:8px;padding:4px 3px}
+  .developmentBottomBar{gap:3px;padding:3px}.developmentBottomBar button{padding:4px 3px;font-size:8px}.developmentLevelOverlay{min-width:20px;padding:2px 5px;font-size:10px}
+  #developmentDefenseButton{font-size:8px;padding:4px 6px}
+}
+
 </style></head>
 <body>
-<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button></div></div></section>
-<section id="castle" class="screen"><div class="card"><h2 id="castleTitle"></h2><div class="info"><div class="stat">کماندار<br><b>100</b></div><div class="stat">سواره‌نظام<br><b>100</b></div><div class="stat">شمشیرزن<br><b>100</b></div></div><div id="castleTimer" class="timer" style="display:none">00:10</div><div id="castleTimerInfo" class="notice" style="display:none"></div></div><div class="card"><div class="actions"><button id="attackBtn">حمله</button><button id="battleBtn">ورود به نبرد</button><button id="defenseBtn">چینش دفاعی</button><button id="castleBack" class="back">برگشت به انتخاب قلعه</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+<div id="battleReportSelectOverlay" class="battle-report-overlay">
+  <div class="battle-report-modal">
+    <div class="battle-report-head">
+      <button id="battleReportSelectClose" class="battle-report-close" type="button">×</button>
+      <h2>گزارش‌های نبرد</h2>
+      <div class="winner">شماره نبرد موردنظر را انتخاب کنید</div>
+    </div>
+    <div class="battle-report-body">
+      <div class="battle-reports-list"><select id="battleReportNumberSelect" class="battle-report-select" size="8"><option value="">انتخاب شماره نبرد...</option></select></div>
+      <div class="actions" style="margin-top:16px;justify-content:center">
+        <button id="deleteAllBattleReports" class="report-delete-all" type="button">پاک کردن تمام گزارش‌های نبرد</button>
+      </div>
+    </div>
+    <div class="battle-report-foot"><button id="battleReportSelectCloseBottom" class="back" type="button">بستن</button></div>
+  </div>
+</div>
+<div id="battleReportOverlay" class="battle-report-overlay">
+  <div class="battle-report-modal">
+    <div class="battle-report-head">
+      <button id="battleReportClose" class="battle-report-close" type="button">×</button>
+      <h2 id="battleReportTitle">گزارش نبرد</h2>
+      <div id="battleReportWinner" class="winner"></div>
+    </div>
+    <div class="battle-report-body"><div class="table-wrap"><table class="battle-report-table"><thead><tr><th>نام قلعه</th><th>نوع نیرو</th><th>تعداد اولیه نیرو</th><th>تعداد تلفات نیرو</th><th>باقیمانده نیرو</th></tr></thead><tbody id="battleReportBody"></tbody></table></div></div>
+    <div class="battle-report-foot"><button id="battleReportCloseBottom" class="back" type="button">بستن گزارش</button></div>
+  </div>
+</div>
+
+<section id="select" class="screen active"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="resetGameBtn" class="exit">پاک کردن و بازنویسی کامل اطلاعات بازی</button><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+
+
+<section id="developmentPanel" class="screen">
+  <div id="developmentInner">
+    <div class="developmentTopCompact">
+      <div id="developmentCastleName" class="developmentCastleName">قلعه</div>
+      <div id="developmentGoldCompact" class="developmentStatCompact">🪙 طلا: 0</div>
+      <div id="developmentProductionCompact" class="developmentStatCompact">📈 تولید: 0/دقیقه</div>
+      <div id="developmentArcherCompact" class="developmentStatCompact">🏹 0</div>
+      <div id="developmentCavalryCompact" class="developmentStatCompact">🐎 0</div>
+      <div id="developmentSwordsmanCompact" class="developmentStatCompact">⚔️ 0</div>
+      <div id="castleTimer" class="developmentAttackTimer" style="display:none">00:10</div>
+      <div id="castleTimerInfo" class="developmentAttackTimerInfo" style="display:none"></div>
+    </div>
+
+    <div id="developmentField">
+      <div id="developmentScene">
+        <img id="developmentBackground" class="developmentLayer" src="images/development-background.jpg" alt="زمینه توسعه قلعه" draggable="false">
+        <img id="developmentWall" class="developmentLayer developmentBuildingImage" data-building="wall" src="images/development-wall.png" alt="دیوار" draggable="false">
+        <img id="developmentCastleImage" class="developmentLayer developmentBuildingImage" data-building="castle" src="images/development-castle.png" alt="قلعه" draggable="false">
+        <img id="developmentBarracks1" class="developmentLayer developmentBuildingImage" data-building="barracks1" src="images/development-barracks1.png" alt="سربازخانه ۱" draggable="false">
+        <img id="developmentBarracks2" class="developmentLayer developmentBuildingImage" data-building="barracks2" src="images/development-barracks2.png" alt="سربازخانه ۲" draggable="false">
+        <img id="developmentGoldMine" class="developmentLayer developmentBuildingImage" data-building="goldMine" src="images/development-goldMine.png" alt="معدن طلا" draggable="false">
+        <span id="developmentLevel-castle" class="developmentLevelOverlay" style="left:50%;top:33%;">1</span>
+        <span id="developmentLevel-wall" class="developmentLevelOverlay" style="left:50%;top:12%;">1</span>
+        <span id="developmentLevel-barracks1" class="developmentLevelOverlay" style="left:22%;top:53%;">1</span>
+        <span id="developmentLevel-barracks2" class="developmentLevelOverlay" style="left:78%;top:53%;">1</span>
+        <span id="developmentLevel-goldMine" class="developmentLevelOverlay" style="left:50%;top:68%;">1</span>
+        <span id="developmentTimer-castle" class="developmentTimerOverlay" style="left:50%;top:48%;"></span>
+        <span id="developmentTimer-wall" class="developmentTimerOverlay" style="left:50%;top:17%;"></span>
+        <span id="developmentTimer-barracks1" class="developmentTimerOverlay" style="left:22%;top:67%;"></span>
+        <span id="developmentTimer-barracks2" class="developmentTimerOverlay" style="left:78%;top:67%;"></span>
+        <span id="developmentTimer-goldMine" class="developmentTimerOverlay" style="left:50%;top:82%;"></span>
+      </div>
+    </div>
+
+    <div id="developmentMessage"></div>
+    <div class="developmentBottomBar">
+      <button type="button" id="attackBtn">⚔️ حمله</button>
+      <button type="button" id="battleBtn">⚔️ ورود به نبرد</button>
+      <button type="button" id="defenseBtn">🛡️ چینش دفاعی</button>
+      <button type="button" id="castleBack" class="back">برگشت به انتخاب قلعه</button>
+      <button type="button" id="developmentExitButton" class="exit">خروج</button>
+    </div>
+  </div>
+</section>
+
+<div id="buildingActionPanel">
+  <div class="developmentModal">
+    <h3 id="developmentBuildingTitle">ساختمان</h3>
+    <div id="developmentBuildingInfo" class="devInfo"></div>
+    <button type="button" id="developmentUpgradeButton">⬆️ ارتقا</button>
+    <button type="button" id="developmentTrainButton" style="display:none">🪖 نیرو سازی</button>
+    <button type="button" id="developmentBuildingClose" class="back">بستن</button>
+  </div>
+</div>
+
+<div id="trainingPanel">
+  <div class="developmentModal">
+    <h3 id="trainingTitle">🪖 نیرو سازی</h3>
+    <div id="trainingInfo" class="devInfo"></div>
+    <div class="trainingChoicesCompact">
+      <button type="button" class="trainingChoiceCompact" data-development-train="archer"><img src="images/archer1.png" alt="کماندار"><span>کماندار</span></button>
+      <button type="button" class="trainingChoiceCompact" data-development-train="cavalry"><img src="images/cavalry1.png" alt="سواره"><span>سواره</span></button>
+      <button type="button" class="trainingChoiceCompact" data-development-train="swordsman"><img src="images/swordsman1.png" alt="شمشیرزن"><span>شمشیرزن</span></button>
+    </div>
+    <input id="trainingCountInput" class="trainingInputCompact" type="number" min="1" value="1">
+    <div id="trainingTimer" class="devInfo" style="display:none;margin-top:5px"></div>
+    <div>
+      <button type="button" id="startTrainingButton">شروع</button>
+      <button type="button" id="trainingCloseButton" class="back">بستن</button>
+    </div>
+  </div>
+</div>
 
 <section id="timerScreen" class="screen"><div class="card"><h2>نیرو در حال حرکت است</h2><div id="timer" class="timer">00:10</div><div id="timerInfo" class="notice"></div></div></section>
 <section id="battle" class="screen"><div class="card battle-card"><img class="battle-castle-image" src="images/castle.png" alt="قلعه"><img class="battle-tent-image" src="images/tent.png" alt="چادر"><div id="randTimerBox" class="rand-timer-box"><div id="randTimerValue" class="rand-timer-value">00:20</div><div id="randWarValue" class="rand-war-value">راند: 0</div></div><h2>نتیجه نبرد</h2><p id="battleText">آماده نبرد</p><div class="actions" style="margin:14px 0">
@@ -155,6 +305,9 @@ let randTimerId=null;
 let randStarted=false;
 let randwar=0;
 let randRemainingSeconds=20;
+let randProcessing=false;
+let currentRoundToken=null;
+let currentRoundEndsAt=null;
 let currentBattleForScene=null;
 
 function show(id){
@@ -178,8 +331,7 @@ function exitGame(){
 
 function openCastle(id){
   selectedCastleId=id;
-  document.getElementById("castleTitle").textContent=castles[id].name+" - شماره قلعه "+id;
-  show("castle");
+  openDevelopment();
 }
 
 function randomizeAllDefenses(){
@@ -328,7 +480,7 @@ function beginTimer(){
   document.getElementById("castleTimerInfo").style.display="block";
   document.getElementById("castleTimerInfo").textContent="حمله به "+castles[attackData.targetId].name+" در حال انجام است.";
 
-  show("castle");
+  openDevelopment();
 
   if(timerId)clearInterval(timerId);
   timerId=setInterval(()=>{
@@ -402,8 +554,23 @@ function viobat(){
   if(!battle)return;
   currentBattleForScene=battle;
 
-  const units=battle.armies.flatMap(army=>army.units||[]);
-  const unitMap=new Map(units.map(u=>[u.cell,u]));
+  // هر واحد باید فقط یک نمایش داشته باشد؛ نسخه‌های تکراری با همان id حذف می‌شوند.
+  const units=[];
+  const seenUnitIds=new Set();
+  for(const army of (battle.armies||[])){
+    for(const unit of (army.units||[])){
+      const id=String(unit.id||"");
+      if(!id || seenUnitIds.has(id))continue;
+      seenUnitIds.add(id);
+      units.push(unit);
+    }
+  }
+  const unitMap=new Map();
+  for(const unit of units){
+    const cell=String(unit.cell||"").toUpperCase();
+    if(!/^[A-T](1[0-2]|[1-9])$/.test(cell))continue;
+    if(!unitMap.has(cell))unitMap.set(cell,unit);
+  }
   const defenderView=document.body.classList.contains("battle-defender-view");
   let selectedUnitId=null;
 
@@ -559,7 +726,7 @@ function jang(){
   const typeMultiplier=(attacker,target)=>{
     if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 2;
     if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 2;
-    if(attacker.rawType==="swordsman"&&target.rawType==="cavalry")return 2;
+    if(attacker.rawType==="swordsman"&&target.rawType==="archer")return 2;
     return 1;
   };
 
@@ -659,7 +826,7 @@ function endbat(winningSide){
 }
 
 async function persistBattleMovement(battle){
-  if(!battle || !battle.batId)return;
+  if(!battle || !battle.batId)return false;
   if(typeof sqlConnected==="undefined" || !sqlConnected)return;
   try{
     await api("/api/battle/"+encodeURIComponent(battle.batId)+"/state",{
@@ -724,7 +891,7 @@ async function applyRoundMoves(){
       }
     }catch(err){
       console.error("اعمال حرکت راند از SQL ناموفق بود:",err);
-      return;
+      return false;
     }
   }
 
@@ -733,59 +900,127 @@ async function applyRoundMoves(){
   if(battleScreen && battleScreen.classList.contains("active")){
     viobat();
   }
+  return true;
 }
 
 function renderBattleScene(){
   viobat();
 }
 
-function rand(){
-  if(randStarted)return;
+async function loadRoundClock(){
+  const battle=getCurrentBattle();
+  if(!battle || !battle.batId)return false;
+  try{
+    const data=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round",{method:"GET"});
+    currentRoundEndsAt=Number(data.roundEndsAt||0);
+    randwar=Number(data.roundNumber||0);
+    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-Date.now())/1000));
+    return true;
+  }catch(err){
+    console.error("خواندن تایمر راند ناموفق بود:",err);
+    return false;
+  }
+}
 
-  randStarted=true;
-  randwar=0;
-  randRemainingSeconds=20;
+async function processDueRound(){
+  if(randProcessing)return;
+  const battle=getCurrentBattle();
+  if(!battle || !battle.batId)return;
+  randProcessing=true;
+  try{
+    const claim=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/claim",{
+      method:"POST",body:"{}"
+    });
+    if(!claim.claimed){
+      currentRoundEndsAt=Number(claim.roundEndsAt||currentRoundEndsAt||0);
+      randwar=Number(claim.roundNumber||randwar||0);
+      return;
+    }
 
-  const box=document.getElementById("randTimerBox");
+    currentRoundToken=claim.token;
+    randwar=Number(claim.roundNumber||0);
+    currentRoundEndsAt=Number(claim.roundEndsAt||0);
+    randRemainingSeconds=0;
+
+    // منطق نبرد راند دقیقاً همان قبلی است؛ فقط شروع/پایان راند از SQL هماهنگ می‌شود.
+    await viobat();
+    jang();
+    fotjang();
+
+    const battleAfterCombat=getCurrentBattle();
+    if(battleAfterCombat){
+      const saved=await persistBattleCombat(battleAfterCombat);
+      if(!saved)return;
+    }
+
+    const battleEnded=sidchek();
+    if(battleEnded)return;
+
+    const moved=await applyRoundMoves();
+    if(!moved)return;
+
+    const committed=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/commit",{
+      method:"POST",
+      body:JSON.stringify({token:currentRoundToken})
+    });
+    currentRoundToken=null;
+    currentRoundEndsAt=Number(committed.roundEndsAt||0);
+    randwar=Number(committed.roundNumber||0);
+  }catch(err){
+    console.error("پردازش راند ناموفق بود:",err);
+    // راند در SQL commit نشده؛ بعد از برگشت ارتباط دوباره قابل دریافت است.
+  }finally{
+    randProcessing=false;
+  }
+}
+
+function updateRoundTimerDisplay(){
   const timer=document.getElementById("randTimerValue");
   const war=document.getElementById("randWarValue");
-
-  if(box)box.style.display="block";
-  if(timer)timer.textContent="00:20";
+  if(currentRoundEndsAt){
+    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-Date.now())/1000));
+  }
+  if(timer){
+    const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
+    const ss=String(randRemainingSeconds%60).padStart(2,"0");
+    timer.textContent=mm+":"+ss;
+  }
   if(war)war.textContent="راند: "+randwar;
+}
+
+async function rand(){
+  if(randStarted)return;
+  randStarted=true;
+
+  const box=document.getElementById("randTimerBox");
+  if(box)box.style.display="block";
+
+  await loadRoundClock();
+  updateRoundTimerDisplay();
 
   if(randTimerId)clearInterval(randTimerId);
   randTimerId=setInterval(async ()=>{
-    randRemainingSeconds--;
-
-    if(randRemainingSeconds<=0){
-      randwar++;
-      randRemainingSeconds=20;
-
-      // دقیقاً در لحظه صفر شدن تایمر: وضعیت فعلی از SQL خوانده می‌شود،
-      // سپس همان منطق موجود jang و fotjang اجرا و نتیجه دوباره در SQL ذخیره می‌شود.
-      await refreshBattleFromSql();
-      jang();
-      fotjang();
-      const battleAfterCombat=getCurrentBattle();
-      if(battleAfterCombat){
-        const saved=await persistBattleCombat(battleAfterCombat);
-        if(!saved)return;
-      }
-      const battleEnded=sidchek();
-      if(!battleEnded){
-        await applyRoundMoves();
-      }
+    updateRoundTimerDisplay();
+    if(currentRoundEndsAt && Date.now()>=currentRoundEndsAt){
+      await processDueRound();
+      updateRoundTimerDisplay();
     }
-
-    if(timer){
-      const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
-      const ss=String(randRemainingSeconds%60).padStart(2,"0");
-      timer.textContent=mm+":"+ss;
-    }
-    if(war)war.textContent="راند: "+randwar;
-  },1000);
+  },500);
 }
+
+async function syncRoundClockAfterReconnect(){
+  if(!randStarted)return;
+  const ok=await loadRoundClock();
+  if(ok){
+    updateRoundTimerDisplay();
+    if(currentRoundEndsAt && Date.now()>=currentRoundEndsAt)await processDueRound();
+  }
+}
+
+window.addEventListener("online",syncRoundClockAfterReconnect);
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible")syncRoundClockAfterReconnect();
+});
 
 function localBatman(){
   if(!attackData)return;
@@ -977,19 +1212,8 @@ function getCurrentBattle(){
 document.getElementById("randomDefenseBtn").onclick=randomizeAllDefenses;
 document.getElementById("resetGameBtn").onclick=resetGameData;
 
-document.getElementById("attackBtn").onclick=()=>{
-  renderTargets();
-  show("targets");
-};
-
-document.getElementById("defenseBtn").onclick=()=>{
-  renderDefense();
-  show("defense");
-};
-
 document.getElementById("saveDefense").onclick=saveDefense;
-document.getElementById("defenseBack").onclick=()=>show("castle");
-document.getElementById("castleBack").onclick=()=>show("select");
+document.getElementById("defenseBack").onclick=()=>openDevelopment();
 
 document.getElementById("targetContinue").onclick=()=>{
   if(!selectedTargetId)return alert("ابتدا یک هدف را انتخاب کنید.");
@@ -998,17 +1222,23 @@ document.getElementById("targetContinue").onclick=()=>{
   show("attack");
 };
 
-document.getElementById("targetBack").onclick=()=>show("castle");
+document.getElementById("targetBack").onclick=()=>openDevelopment();
 document.getElementById("attackBack").onclick=()=>show("targets");
 document.getElementById("startAttack").onclick=startAttack;
 
-
-document.getElementById("battleSceneBtn").onclick=viobat;
-document.getElementById("battleBtn").onclick=()=>{
-  u.castle=selectedCastleId;
-  show("battle");
+document.getElementById("battleSceneBtn").onclick=async()=>{
+  try{
+    // صحنه همیشه آخرین وضعیت SQL را نشان می‌دهد، نه snapshot قدیمی مرورگر.
+    const battle=await loadBattleForSelectedCastle();
+    if(!battle)return alert("این قلعه در حال حاضر در نبردی نیست.");
+    setBattlePerspective();
+    viobat();
+  }catch(e){
+    console.error("خواندن آخرین وضعیت صحنه نبرد ناموفق بود:",e);
+    alert(e.message);
+  }
 };
-document.getElementById("battleBack").onclick=()=>show("castle");
+document.getElementById("battleBack").onclick=()=>openDevelopment();
 
 renderCastles();
 
@@ -1073,7 +1303,7 @@ function beginOnlineTimer(arrivesAt){
       batman();
     }
   };
-  show('castle');
+  openDevelopment();
   document.getElementById('castleTimer').style.display='block';
   document.getElementById('castleTimerInfo').style.display='block';
   document.getElementById('castleTimerInfo').textContent='حمله به '+castles[attackData.targetId].name+' در حال انجام است.';
@@ -1095,25 +1325,100 @@ async function batman(){
     window.__onlineBatmanResolved=false;
   }catch(e){console.error(e);alert(e.message);}
 }
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function showBattleReport(data){
+  const overlay=document.getElementById('battleReportOverlay');
+  const body=document.getElementById('battleReportBody');
+  const title=document.getElementById('battleReportTitle');
+  const winner=document.getElementById('battleReportWinner');
+  if(!overlay||!body||!title||!winner)return;
+
+  const rows=Array.isArray(data?.report)?data.report:[];
+  title.textContent='گزارش نبرد شماره '+(data?.battleId??'');
+  winner.textContent=data?.winnerSide ? ('برنده: '+data.winnerSide) : '';
+  body.innerHTML=rows.length ? rows.map(row=>
+    '<tr><td>'+escapeHtml(row.castleName)+'</td><td>'+escapeHtml(row.type)+'</td><td>'+Number(row.initial||0)+'</td><td>'+Number(row.losses||0)+'</td><td>'+Number(row.remaining||0)+'</td></tr>'
+  ).join('') : '<tr><td colspan="5">اطلاعات نیروهای نبرد موجود نیست.</td></tr>';
+  overlay.style.display='flex';
+}
+
+function closeBattleReport(){
+  const overlay=document.getElementById('battleReportOverlay');
+  if(overlay)overlay.style.display='none';
+}
+function closeBattleReportSelect(){
+  const overlay=document.getElementById('battleReportSelectOverlay');
+  if(overlay)overlay.style.display='none';
+}
+
+async function openBattleReports(){
+  const overlay=document.getElementById('battleReportSelectOverlay');
+  const select=document.getElementById('battleReportNumberSelect');
+  if(!overlay||!select)return;
+  select.innerHTML='<option value="">در حال خواندن گزارش‌ها...</option>';
+  overlay.style.display='flex';
+  try{
+    const data=await api('/api/battle-reports');
+    const reports=Array.isArray(data.reports)?data.reports:[];
+    if(!reports.length){
+      select.innerHTML='<option value="">هنوز هیچ گزارش نبردی ذخیره نشده است.</option>';
+      return;
+    }
+    select.innerHTML='<option value="">انتخاب شماره نبرد...</option>'+reports.map(item=>
+      '<option value="'+Number(item.battleId)+'">نبرد شماره '+Number(item.battleId)+(item.winnerSide?' — برنده: '+escapeHtml(item.winnerSide):'')+'</option>'
+    ).join('');
+  }catch(e){
+    select.innerHTML='<option value="">'+escapeHtml(e.message)+'</option>';
+  }
+}
+
+document.getElementById('battleReportNumberSelect').onchange=async function(){
+  const battleId=Number(this.value);
+  if(!Number.isInteger(battleId)||battleId<1)return;
+  try{
+    const report=await api('/api/battle-reports/'+encodeURIComponent(battleId));
+    closeBattleReportSelect();
+    showBattleReport(report);
+  }catch(e){alert(e.message);}
+};
+
+async function deleteAllBattleReports(){
+  if(!confirm('تمام گزارش‌های نبرد حذف شوند؟'))return;
+  try{
+    await api('/api/battle-reports',{method:'DELETE'});
+    await openBattleReports();
+    alert('تمام گزارش‌های نبرد پاک شدند.');
+  }catch(e){alert(e.message);}
+}
+
+document.getElementById('battleReportClose').onclick=closeBattleReport;
+document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
+document.getElementById('battleReportSelectClose').onclick=closeBattleReportSelect;
+document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
+document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
+document.getElementById('battleReportsBtn').onclick=openBattleReports;
+
 const originalEndbat=endbat;
 endbat=async function(winningSide){
   const battle=getCurrentBattle();
+  let savedReport=null;
   if(battle){
-    try{await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:'{}'});}catch(e){console.error('endbat SQL',e);}
+    try{
+      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
+      // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId));
+    }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
   if(battle)delete battleRegistry[String(battle.targetId)];
+  // گزارش همین نبرد بلافاصله پس از پایان نمایش داده می‌شود.
+  if(savedReport)showBattleReport(savedReport);
 };
 
 document.getElementById('startAttack').onclick=onlineStartAttack;
-document.getElementById('battleBtn').onclick=async()=>{
-  try{
-    const battle=await loadBattleForSelectedCastle();
-    if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
-    u.castle=selectedCastleId;
-    show('battle'); setBattlePerspective(); viobat(); if(!randStarted)rand();
-  }catch(e){alert(e.message);}
-};
 document.getElementById('saveDefense').onclick=async()=>{
   try{
     const slots=readSixSlots('def');
@@ -1133,4 +1438,232 @@ syncState().catch(e=>console.error('state',e));
     if(data.attack){attackData=data.attack;onlineAttackId=data.attack.id;beginOnlineTimer(data.attack.arrivesAt);}
   }catch(e){}
 })();
-</script></body></html>
+
+/* ===== توسعه قلعه و نیرو سازی؛ مستقل از منطق نبرد ===== */
+const DEVELOPMENT_KEY_PREFIX='castle_development_v1_';
+const developmentDefaults={
+  gold:3000,
+  buildings:{castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}},
+  training:{barracks1:null,barracks2:null}
+};
+let developmentState=null;
+let developmentBuilding=null;
+let developmentTrainType=null;
+let developmentTickId=null;
+
+function developmentClone(v){return JSON.parse(JSON.stringify(v));}
+function developmentKey(){return DEVELOPMENT_KEY_PREFIX+String(selectedCastleId||0);}
+function developmentLoad(){
+  const raw=localStorage.getItem(developmentKey());
+  let s=developmentDefaults;
+  try{ if(raw)s=Object.assign(developmentClone(developmentDefaults),JSON.parse(raw)); }catch(e){}
+  s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),s.buildings||{});
+  s.training=Object.assign(developmentClone(developmentDefaults.training),s.training||{});
+  developmentState=s;
+  developmentProgress();
+  localStorage.setItem(developmentKey(),JSON.stringify(developmentState));
+}
+function developmentSave(){if(developmentState)localStorage.setItem(developmentKey(),JSON.stringify(developmentState));}
+function developmentProductionPerMinute(){return 100+Math.max(0,(developmentState?.buildings?.goldMine?.level||1)-1)*50;}
+function developmentUpgradeCost(type,target){return (type==='castle'?500:250)*target;}
+function developmentUpgradeTime(type,target){return (type==='castle'?30:20)*target;}
+function developmentTrainingCost(){return 20;}
+function developmentTrainingTime(){return 5;}
+function developmentFormat(sec){sec=Math.max(0,Math.ceil(Number(sec)||0));return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');}
+function developmentMessage(msg){const el=document.getElementById('developmentMessage');if(!el)return;el.textContent=msg||'';el.style.display=msg?'block':'none';if(msg)setTimeout(()=>{if(el.textContent===msg)el.style.display='none';},2200);}
+function developmentProgress(){
+  if(!developmentState)return;
+  const now=Date.now();
+  if(developmentState.training){
+    for(const key of ['barracks1','barracks2']){
+      const job=developmentState.training[key];
+      if(!job)continue;
+      const remain=Math.max(0,(Number(job.endsAt)||0)-now)/1000;
+      job.remaining=remain;
+      if(remain<=0){
+        const n=Math.max(0,Math.floor(Number(job.count)||0));
+        castles[selectedCastleId].army[job.type]=Number(castles[selectedCastleId].army[job.type]||0)+n;
+        developmentState.training[key]=null;
+      }
+    }
+  }
+  // تولید طلای آفلاین/آنلاین ساده بر اساس زمان ذخیره‌شده خود همین صفحه.
+  const last=Number(developmentState.lastGoldAt)||now;
+  const elapsed=Math.max(0,(now-last)/60000);
+  if(elapsed>0 && elapsed<1440){
+    developmentState.gold=Number(developmentState.gold||0)+elapsed*developmentProductionPerMinute();
+  }
+  developmentState.lastGoldAt=now;
+  developmentSave();
+}
+function developmentUpdateTop(){
+  if(!developmentState||selectedCastleId===null)return;
+  const c=castles[selectedCastleId];
+  document.getElementById('developmentCastleName').textContent=c.name;
+  document.getElementById('developmentGoldCompact').textContent='🪙 طلا: '+Math.floor(developmentState.gold||0);
+  document.getElementById('developmentProductionCompact').textContent='📈 تولید: '+developmentProductionPerMinute().toFixed(0)+'/دقیقه';
+  document.getElementById('developmentArcherCompact').textContent='🏹 '+Number(c.army.archer||0);
+  document.getElementById('developmentCavalryCompact').textContent='🐎 '+Number(c.army.cavalry||0);
+  document.getElementById('developmentSwordsmanCompact').textContent='⚔️ '+Number(c.army.swordsman||0);
+  for(const type of ['castle','wall','barracks1','barracks2','goldMine']){
+    const el=document.getElementById('developmentLevel-'+type);if(el)el.textContent=String(developmentState.buildings[type]?.level||1);
+  }
+  for(const type of ['castle','wall','barracks1','barracks2','goldMine']){
+    const el=document.getElementById('developmentTimer-'+type);if(el)el.style.display='none';
+  }
+  if(developmentState.activeUpgrade){
+    const left=Math.max(0,Number(developmentState.activeUpgrade.endsAt)-Date.now());
+    const el=document.getElementById('developmentTimer-'+developmentState.activeUpgrade.type);
+    if(el && left>0){el.style.display='block';el.textContent='⏱ '+developmentFormat(left/1000);}
+    if(left<=0){
+      const job=developmentState.activeUpgrade;
+      if(job && developmentState.buildings[job.type]) developmentState.buildings[job.type].level=Math.max(1,Number(job.targetLevel)||developmentState.buildings[job.type].level);
+      developmentState.activeUpgrade=null;developmentSave();developmentProgress();
+    }
+  }
+  for(const key of ['barracks1','barracks2']){
+    const job=developmentState.training[key];
+    const el=document.getElementById('developmentTimer-'+key);
+    if(job && el && Number(job.endsAt)>Date.now()){el.style.display='block';el.textContent='🪖 '+developmentFormat((Number(job.endsAt)-Date.now())/1000);}
+  }
+}
+function openDevelopment(){
+  if(selectedCastleId===null)return;
+  developmentLoad();
+  show('developmentPanel');
+  developmentUpdateTop();
+}
+function closeDevelopment(){
+  document.getElementById('buildingActionPanel').classList.remove('open');
+  document.getElementById('trainingPanel').classList.remove('open');
+  show('select');
+}
+function openDevelopmentBuilding(type){
+  if(!developmentState)developmentLoad();
+  developmentBuilding=type;
+  const b=developmentState.buildings[type]||{level:1};
+  const names={castle:'قلعه',wall:'دیوار',barracks1:'سربازخانه ۱',barracks2:'سربازخانه ۲',goldMine:'معدن طلا'};
+  const target=b.level+1;
+  const cost=developmentUpgradeCost(type,target);
+  let info='سطح فعلی: '+b.level+'<br>هزینه ارتقا: '+cost+' طلا';
+  if(type==='goldMine')info+='<br>تولید فعلی: '+developmentProductionPerMinute()+' طلا/دقیقه';
+  if(type==='barracks1'||type==='barracks2')info+='<br>نیرو سازی در همین سربازخانه انجام می‌شود.';
+  document.getElementById('developmentBuildingTitle').textContent=names[type];
+  document.getElementById('developmentBuildingInfo').innerHTML=info;
+  document.getElementById('developmentUpgradeButton').disabled=!!developmentState.activeUpgrade;
+  document.getElementById('developmentTrainButton').style.display=(type==='barracks1'||type==='barracks2')?'inline-block':'none';
+  document.getElementById('buildingActionPanel').classList.add('open');
+}
+function closeDevelopmentBuilding(){document.getElementById('buildingActionPanel').classList.remove('open');}
+function startDevelopmentUpgrade(){
+  if(!developmentBuilding)return;
+  if(developmentState.activeUpgrade)return developmentMessage('یک ارتقا در حال انجام است.');
+  const b=developmentState.buildings[developmentBuilding];const target=b.level+1;const cost=developmentUpgradeCost(developmentBuilding,target);
+  if(Number(developmentState.gold)<cost)return developmentMessage('طلای کافی نیست.');
+  developmentState.gold-=cost;
+  developmentState.activeUpgrade={type:developmentBuilding,targetLevel:target,endsAt:Date.now()+developmentUpgradeTime(developmentBuilding,target)*1000};
+  developmentSave();closeDevelopmentBuilding();developmentMessage('ارتقای '+developmentBuilding+' شروع شد.');developmentUpdateTop();
+}
+function openDevelopmentTraining(){
+  const key=developmentBuilding;
+  if(key!=='barracks1'&&key!=='barracks2')return;
+  const busy=developmentState.training[key];
+  document.getElementById('trainingTitle').textContent='🪖 نیرو سازی '+(key==='barracks1'?'سربازخانه ۱':'سربازخانه ۲');
+  document.getElementById('trainingInfo').innerHTML=busy?'در حال ساخت: '+busy.count+' '+(busy.type==='archer'?'کماندار':busy.type==='cavalry'?'سواره':'شمشیرزن'):'نوع نیرو را انتخاب کنید.';
+  document.getElementById('trainingCountInput').value=1;developmentTrainType=null;
+  document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.remove('selected'));
+  closeDevelopmentBuilding();document.getElementById('trainingPanel').classList.add('open');
+}
+function startDevelopmentTraining(){
+  const key=developmentBuilding;
+  if(key!=='barracks1'&&key!=='barracks2')return;
+  if(developmentState.training[key])return developmentMessage('این سربازخانه مشغول است.');
+  if(!developmentTrainType)return developmentMessage('نوع نیرو را انتخاب کنید.');
+  const count=Math.max(1,Math.floor(Number(document.getElementById('trainingCountInput').value)||0));
+  const totalCost=count*developmentTrainingCost();
+  if(developmentState.gold<totalCost)return developmentMessage('طلای کافی نیست.');
+  developmentState.gold-=totalCost;
+  developmentState.training[key]={type:developmentTrainType,count,endsAt:Date.now()+count*developmentTrainingTime()*1000};
+  developmentSave();document.getElementById('trainingPanel').classList.remove('open');developmentMessage('نیرو سازی شروع شد.');developmentUpdateTop();
+}
+const developmentAlphaCache=new WeakMap();
+function developmentBuildingHit(img,event){
+  if(!img.complete||!img.naturalWidth||!img.naturalHeight)return false;
+  const rect=img.getBoundingClientRect();
+  if(!rect.width||!rect.height)return false;
+
+  let mask=developmentAlphaCache.get(img);
+  if(!mask){
+    const canvas=document.createElement('canvas');
+    const w=300;
+    const h=Math.max(1,Math.round(w*img.naturalHeight/img.naturalWidth));
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)return false;
+    try{
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      mask={w,h,data:ctx.getImageData(0,0,w,h).data};
+      developmentAlphaCache.set(img,mask);
+    }catch(e){return false;}
+  }
+
+  // ساختمان‌ها با object-fit:contain در یک کادر مربعی نمایش داده می‌شوند.
+  const scale=Math.min(rect.width/img.naturalWidth,rect.height/img.naturalHeight);
+  const drawW=img.naturalWidth*scale;
+  const drawH=img.naturalHeight*scale;
+  const left=rect.left+(rect.width-drawW)/2;
+  const top=rect.top+(rect.height-drawH)/2;
+  const px=Math.floor((event.clientX-left)/drawW*mask.w);
+  const py=Math.floor((event.clientY-top)/drawH*mask.h);
+  if(px<0||py<0||px>=mask.w||py>=mask.h)return false;
+  return mask.data[(py*mask.w+px)*4+3]>20;
+}
+
+function developmentBuildingFromPoint(event){
+  const scene=document.getElementById('developmentScene');
+  if(!scene||event.target.closest('#developmentDefenseButton'))return null;
+  // از بالاترین لایه به پایین بررسی می‌کنیم تا ساختمان درست انتخاب شود.
+  for(const type of ['goldMine','barracks2','barracks1','castle','wall']){
+    const img=scene.querySelector('[data-building="'+type+'"]');
+    if(img&&developmentBuildingHit(img,event))return img;
+  }
+  return null;
+}
+
+document.getElementById('attackBtn').onclick=()=>{
+  renderTargets();
+  show('targets');
+};
+document.getElementById('defenseBtn').onclick=()=>{
+  renderDefense();
+  show('defense');
+};
+document.getElementById('castleBack').onclick=()=>show('select');
+document.getElementById('developmentExitButton').onclick=exitGame;
+document.getElementById('battleBtn').onclick=async()=>{
+  try{
+    const battle=await loadBattleForSelectedCastle();
+    if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
+    u.castle=selectedCastleId;
+    show('battle');
+    setBattlePerspective();
+    viobat();
+    if(!randStarted)rand();
+  }catch(e){alert(e.message);}
+};
+document.getElementById('developmentUpgradeButton').onclick=startDevelopmentUpgrade;
+document.getElementById('developmentTrainButton').onclick=openDevelopmentTraining;
+document.getElementById('developmentBuildingClose').onclick=closeDevelopmentBuilding;
+document.getElementById('trainingCloseButton').onclick=()=>document.getElementById('trainingPanel').classList.remove('open');
+document.getElementById('startTrainingButton').onclick=startDevelopmentTraining;
+document.querySelectorAll('[data-development-train]').forEach(btn=>btn.onclick=()=>{developmentTrainType=btn.dataset.developmentTrain;document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.toggle('selected',x===btn));});
+document.getElementById('developmentScene').addEventListener('click',e=>{
+  const img=developmentBuildingFromPoint(e);
+  if(img)openDevelopmentBuilding(img.dataset.building);
+});
+
+// یک نوسازی سبک برای صفحه توسعه؛ هیچ تابع نبردی در این تایمر اجرا نمی‌شود.
+developmentTickId=setInterval(()=>{if(!developmentState||!document.getElementById('developmentPanel').classList.contains('active'))return;developmentProgress();developmentUpdateTop();},1000);
+</script>
+</body></html>
