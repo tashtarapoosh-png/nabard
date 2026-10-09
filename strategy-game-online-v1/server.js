@@ -35,15 +35,10 @@ async function initDb(){
       name TEXT NOT NULL,
       army JSONB NOT NULL,
       defense_slots JSONB NOT NULL,
-      gold BIGINT NOT NULL DEFAULT 3000,
-      building_levels JSONB NOT NULL DEFAULT '{"castle":1,"wall":1,"barracks1":1,"barracks2":1,"goldMine":1}'::jsonb,
       under_attack BOOLEAN NOT NULL DEFAULT FALSE,
       battle_id INTEGER
     )
   `);
-
-  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS gold BIGINT NOT NULL DEFAULT 3000`);
-  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS building_levels JSONB NOT NULL DEFAULT '{"castle":1,"wall":1,"barracks1":1,"barracks2":1,"goldMine":1}'::jsonb`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS attacks (
@@ -198,8 +193,6 @@ function publicCastle(row){
     id:row.id,
     name:row.name,
     army:row.army,
-    gold:Number(row.gold||0),
-    buildingLevels:row.building_levels||{"castle":1,"wall":1,"barracks1":1,"barracks2":1,"goldMine":1},
     defenseSlots:row.defense_slots,
     underAttack:row.under_attack,
     battleId:row.battle_id
