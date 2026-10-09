@@ -735,7 +735,27 @@ app.get('/api/map',async(req,res)=>{
 });
 
 app.post("/api/reset-game", async (req,res)=>{
-  return res.status(403).json({error:"پاک‌سازی عمومی در این نسخه غیرفعال است تا حساب‌ها و مختصات قلعه‌ها ناخواسته حذف نشوند."});
+  if(String(req.body?.username||'').trim().toLowerCase()!=='jahan1')
+    return res.status(403).json({error:'بازنشانی کامل فقط برای حساب jahan1 مجاز است.'});
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query('TRUNCATE TABLE battle_reports, attacks, battles, castles RESTART IDENTITY CASCADE');
+    const types=['archer','cavalry','swordsman'];
+    const army=emptyArmy();
+    for(let id=1;id<=4;id++){
+      const slots=emptyDefense();
+      const n=2+Math.floor(Math.random()*5);
+      for(let i=0;i<n;i++)slots[i]={type:types[Math.floor(Math.random()*types.length)],count:1+Math.floor(Math.random()*100)};
+      const pos=[[-2,2],[2,2],[-2,-2],[2,-2]][id-1];
+      await client.query(`INSERT INTO castles(id,name,army,defense_slots,under_attack,battle_id,username,password_hash,map_x,map_y,gold,buildings,battle_history)
+        VALUES($1,$2,$3::jsonb,$4::jsonb,FALSE,NULL,$5,$6,$7,$8,3000,$9::jsonb,'[]'::jsonb)`,
+        [id,'قلعه '+id,JSON.stringify(army),JSON.stringify(slots),'jahan'+id,hashPassword('1234'),pos[0],pos[1],JSON.stringify({castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}})]);
+    }
+    await client.query('COMMIT');
+    res.json({ok:true,castles:await getCastles()});
+  }catch(e){await client.query('ROLLBACK');console.error('reset-game',e);res.status(500).json({error:'بازنشانی اطلاعات بازی ناموفق بود.'});}
+  finally{client.release();}
 });
 
 app.get("/api/state", async (req,res)=>{
@@ -1076,7 +1096,8 @@ function mergeReportArmies(existing, current){
 // ساخت گزارش نبرد به صورت مستقل از منطق نبرد.
 // این تابع فقط snapshot ارتش‌ها را می‌گیرد و گزارش نهایی را تولید می‌کند.
 function gozbat(battleRow){
-  const armies=Array.isArray(battleRow?.report_armies)?battleRow.report_armies:(Array.isArray(battleRow?.armies)?battleRow.armies:[]);
+  // از snapshot گزارش برای حفظ واحدهای حذف‌شده استفاده می‌کنیم، اما شمارش زنده ارتش‌ها بر آن اولویت دارد.
+  const armies=mergeReportArmies(battleRow?.report_armies, battleRow?.armies);
   const reportMap=new Map();
 
   for(const army of armies){
