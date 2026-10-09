@@ -196,7 +196,8 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   </div>
 </div>
 
-<section id="select" class="screen"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
+
+<section id="select" class="screen" style="display:none" aria-hidden="true"><div id="castleGrid" class="grid"></div><button id="randomDefenseBtn" type="button"></button><button id="battleReportsBtn" type="button"></button></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><label>نقش نیروها <select id="mapAttackSide" class="side-select"><option value="مهاجم">مهاجم</option><option value="مدافع">مدافع / کمک به دفاع</option></select></label><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
@@ -357,7 +358,8 @@ function exitGame(){
   remainingSeconds=10;
   document.getElementById("castleTimer").style.display="none";
   document.getElementById("castleTimerInfo").style.display="none";
-  show("select");
+  document.getElementById("authOverlay").style.display="flex";
+  authReset();
 }
 
 function openCastle(id){
@@ -1608,7 +1610,7 @@ function openDevelopment(){
 function closeDevelopment(){
   document.getElementById('buildingActionPanel').classList.remove('open');
   document.getElementById('trainingPanel').classList.remove('open');
-  show('select');
+  openPlayerMap();
 }
 function openDevelopmentBuilding(type){
   if(!developmentState)developmentLoad();
@@ -1726,7 +1728,7 @@ document.getElementById('defenseBtn').onclick=()=>{
   renderDefense();
   show('defense');
 };
-document.getElementById('castleBack').onclick=()=>show('select');
+document.getElementById('castleBack').onclick=()=>openPlayerMap();
 document.getElementById('developmentExitButton').onclick=exitGame;
 document.getElementById('battleBtn').onclick=async()=>{
   try{
@@ -1775,7 +1777,7 @@ document.getElementById('authRegister').onclick=()=>authShowFields('register');d
 // صفحهٔ انتخاب قلعهٔ آزمایشی را پشت پنجرهٔ ورود نگه می‌داریم؛ ورود همیشه انتخاب حساب را تعیین می‌کند.
 document.getElementById('castleBack').onclick=()=>openPlayerMap();
 document.getElementById('resetGameBtn').onclick=resetGameData;
-const _oldDevelopmentUpdateTop=developmentUpdateTop;developmentUpdateTop=function(){_oldDevelopmentUpdateTop();const b=document.getElementById('resetGameBtn');if(b)b.style.display=(selectedCastleId===1 && localStorage.getItem('strategyGameUsername')==='jahan1')?'inline-block':'none';};
+const _oldDevelopmentUpdateTop=developmentUpdateTop;developmentUpdateTop=function(){_oldDevelopmentUpdateTop();const b=document.getElementById('resetGameBtn');if(b)b.style.display=(Number(selectedCastleId)===1 && localStorage.getItem('strategyGameUsername')==='jahan1')?'inline-block':'none';};
 </script>
 
 </body></html>
