@@ -426,7 +426,7 @@ app.put("/api/battle/:id/apply-round-moves", async (req,res)=>{
       for(const unit of (army.units||[])){
         // هر واحد فقط یک بار در هر شماره راند می‌تواند حرکت کند.
         const currentRound=Number(battle.round_number||0);
-        if(Number(unit.movedRound||0)>=currentRound)continue;
+        if(unit.movedRound!==undefined && unit.movedRound!==null && Number(unit.movedRound)>=currentRound)continue;
         const destination=String(unit.moveTarget||"").toUpperCase();
         const m=/^([A-T])(1[0-2]|[1-9])$/.exec(destination);
         if(!m)continue;
