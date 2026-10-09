@@ -161,6 +161,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #playerMapScreen .map-toolbar h2{font-size:15px;margin:0}
 #playerMapScreen .map-toolbar .actions{gap:6px}
 #playerMapScreen .map-toolbar button{padding:7px 10px;font-size:12px}
+#playerMapScreen #mapZoomOut,#playerMapScreen #mapZoomIn,#playerMapScreen #mapZoomReset{min-width:42px;font-weight:800}
 #playerMapViewport{direction:ltr;position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;background:#6d9635;scrollbar-color:#b5a05b #263d1c}
 #playerMapWorld{position:relative;width:2400px;height:1800px;background-image:url('terrain.jpg');background-repeat:repeat;background-size:650px 651px}
 #playerMapWorld:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 48%,rgba(17,39,11,.14) 100%)}
@@ -197,6 +198,16 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   background: rgba(72,187,120,.48) !important;
   box-shadow: inset 0 0 0 2px rgba(24,121,78,.85) !important;
 }
+
+/* دکمه‌های پایین صحنه هم‌اندازهٔ «نمایش صحنه نبرد» و با فاصلهٔ یک دکمه زیر آن قرار می‌گیرند. */
+.battle-background #battle .battle-scene-wrap{overflow:visible}
+.battle-background #battle .actions[style*="margin-top:14px"]{position:fixed!important;top:calc(50% + min(48vh, calc(23vw * 1.6666667)) + 58px)!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:min(58vh,46vw)!important;display:flex!important;flex-direction:row!important;justify-content:center!important;gap:10px!important;margin:0!important;}
+.battle-background #battle .actions[style*="margin-top:14px"] button{flex:1 1 0!important;min-width:0!important;padding:10px 6px!important;font-size:clamp(10px,1.5vw,14px)!important;white-space:nowrap}
+.battle-zoom-controls{position:absolute;z-index:40;left:12px;bottom:12px;display:flex;gap:6px;direction:ltr}
+.battle-zoom-controls button{min-width:42px;padding:8px 10px;background:rgba(24,32,42,.88);border:1px solid rgba(255,255,255,.35);font-weight:800}
+.battle-background .battle-grid{transition:transform .15s ease}
+@media(max-width:650px){.battle-background #battle .actions[style*="margin-top:14px"]{top:auto!important;bottom:12px!important;width:min(82vw,58vh)!important}.battle-zoom-controls{bottom:68px;left:10px}}
+
 </style><style>
 /* دکمه ورود به قلعه در نوار کنترل صحنه نبرد همیشه قابل مشاهده باشد. */
 .battle-background #battle .actions:last-child button#battleEnterCastleBtn{
@@ -312,7 +323,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   <div id="authActions"><button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button></div>
  </div>
 </div>
-<section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="map-toolbar"><h2>نقشهٔ قلمروها</h2><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div></div><div id="playerMapViewport"><div id="playerMapWorld"></div></div><div id="mapInfo">در حال بارگذاری نقشه…</div></section>
+<section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="map-toolbar"><h2>نقشهٔ قلمروها</h2><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapZoomOut" type="button" aria-label="کوچک‌نمایی نقشه بازیکنان">−</button><button id="mapZoomReset" type="button" aria-label="اندازه اصلی نقشه">100٪</button><button id="mapZoomIn" type="button" aria-label="بزرگ‌نمایی نقشه بازیکنان">+</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div></div><div id="playerMapViewport"><div id="playerMapWorld"></div></div><div id="mapInfo">در حال بارگذاری نقشه…</div></section>
 <div id="castleProfile"><div class="profile-card"><button id="profileClose" class="back" style="float:left">×</button><h2 id="profileTitle">پروفایل قلعه</h2><div id="profileBody"></div><div class="profile-actions"><button id="profileAttack">⚔️ حمله</button><button id="profileDefense">🛡️ دفاع</button><button id="profileMessage">✉️ پیام</button></div></div></div>
 
 <script>
@@ -723,9 +734,14 @@ function viobat(){
   out+='</div>';
 
   out+='</div>';
+  out+='<div class="battle-zoom-controls" aria-label="بزرگ‌نمایی نقشه نبرد"><button type="button" data-zoom="out" aria-label="کوچک‌نمایی">−</button><button type="button" data-zoom="reset">۱۰۰٪</button><button type="button" data-zoom="in" aria-label="بزرگ‌نمایی">+</button></div>';
 
   scene.innerHTML=out;
   scene.style.display="block";
+  let battleZoom=Number(scene.dataset.battleZoom||1);
+  const applyBattleZoom=()=>{const grid=scene.querySelector(".battle-grid");if(grid){grid.style.transform=`scale(${battleZoom})`;grid.style.transformOrigin="center center";grid.style.width=(100/battleZoom)+"%";grid.style.marginLeft=((100-100/battleZoom)/2)+"%";}const reset=scene.querySelector('[data-zoom="reset"]');if(reset)reset.textContent=Math.round(battleZoom*100)+"٪";scene.dataset.battleZoom=String(battleZoom);};
+  scene.querySelectorAll("[data-zoom]").forEach(btn=>btn.addEventListener("click",()=>{const mode=btn.dataset.zoom;battleZoom=mode==="in"?Math.min(1.8,battleZoom+0.15):mode==="out"?Math.max(0.6,battleZoom-0.15):1;applyBattleZoom();}));
+  applyBattleZoom();
 
   scene.querySelectorAll('.battle-unit').forEach(btn=>{
     btn.addEventListener('click',function(e){
@@ -824,7 +840,7 @@ function jang(){
   });
 }
 
-function fotjang(){
+async function fotjang(){
   const battle=getCurrentBattle();
   if(!battle)return;
 
@@ -847,6 +863,8 @@ function fotjang(){
 
   // ارتش‌های بدون هیچ واحد زنده نیز از نبرد حذف می‌شوند.
   battle.armies=battle.armies.filter(army=>(army.units||[]).length>0);
+  // بلافاصله پس از محاسبهٔ تلفات، تعداد زندهٔ نیروها در SQL ذخیره می‌شود.
+  await persistBattleCombat(battle);
 }
 
 function sidchek(){
@@ -1030,7 +1048,7 @@ async function processDueRound(){
     // منطق نبرد راند دقیقاً همان قبلی است؛ فقط شروع/پایان راند از SQL هماهنگ می‌شود.
     await viobat();
     jang();
-    fotjang();
+    await fotjang();
 
     const battleAfterCombat=getCurrentBattle();
     if(battleAfterCombat){
@@ -1816,6 +1834,8 @@ async function authSubmit(){const username=document.getElementById('authUsername
 async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');requestAnimationFrame(()=>requestAnimationFrame(centerPlayerMapOwnCastle));}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
 function renderPlayerMap(){const world=document.getElementById('playerMapWorld');world.innerHTML='';if(!mapCastles.length){document.getElementById('mapInfo').textContent='هنوز قلعه‌ای برای نمایش وجود ندارد.';return;}const xs=mapCastles.map(c=>Number(c.x)||0),ys=mapCastles.map(c=>Number(c.y)||0);const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const cell=260,margin=520;const width=Math.max(2400,(maxX-minX)*cell+margin*2),height=Math.max(1800,(maxY-minY)*cell+margin*2);world.style.width=width+'px';world.style.height=height+'px';document.getElementById('mapInfo').textContent='قلعه‌ها از اطلاعات آنلاین بازی و مختصات ذخیره‌شده در پایگاه داده نمایش داده می‌شوند. برای حمله یا کمک دفاعی روی قلعهٔ دیگر کلیک کنید.';for(const castle of mapCastles){const x=margin+(Number(castle.x)-minX)*cell+cell/2,y=margin+(Number(castle.y)-minY)*cell+cell/2;const b=document.createElement('button');b.type='button';b.className='map-castle'+(Number(castle.id)===Number(selectedCastleId)?' own':'');b.dataset.castleId=String(castle.id);b.style.left=x+'px';b.style.top=y+'px';const img=document.createElement('img');img.src='castle.png';img.alt='قلعه';img.draggable=false;const label=document.createElement('span');label.className='map-castle-name';label.textContent=(castle.username||castle.name||('قلعه '+castle.id))+(Number(castle.id)===Number(selectedCastleId)?' • شما':'');b.append(img,label);b.title=(castle.name||'قلعه')+' — ('+castle.x+','+castle.y+')';b.onclick=()=>{world.querySelectorAll('.map-castle').forEach(c=>c.classList.remove('selected'));b.classList.add('selected');openCastleProfile(castle.id);};world.appendChild(b);}}
 function centerPlayerMapOwnCastle(){const viewport=document.getElementById('playerMapViewport'),own=document.querySelector('#playerMapWorld .map-castle.own');if(!viewport||!own)return;const x=parseFloat(own.style.left)||own.offsetLeft,y=parseFloat(own.style.top)||own.offsetTop;viewport.scrollTo({left:Math.max(0,Math.min(viewport.scrollWidth-viewport.clientWidth,x-viewport.clientWidth/2)),top:Math.max(0,Math.min(viewport.scrollHeight-viewport.clientHeight,y-viewport.clientHeight/2)),behavior:'auto'});}
+let playerMapZoom=1;function applyPlayerMapZoom(keepCenter=true){const viewport=document.getElementById('playerMapViewport'),world=document.getElementById('playerMapWorld');if(!viewport||!world)return;const cx=(viewport.scrollLeft+viewport.clientWidth/2)/(Number(world.style.zoom||1)),cy=(viewport.scrollTop+viewport.clientHeight/2)/(Number(world.style.zoom||1));world.style.zoom=String(playerMapZoom);document.getElementById('mapZoomReset').textContent=Math.round(playerMapZoom*100)+'٪';if(keepCenter){requestAnimationFrame(()=>viewport.scrollTo({left:Math.max(0,cx*playerMapZoom-viewport.clientWidth/2),top:Math.max(0,cy*playerMapZoom-viewport.clientHeight/2),behavior:'auto'}));}}
+document.getElementById('mapZoomIn').onclick=()=>{playerMapZoom=Math.min(2.5,Math.round((playerMapZoom+0.15)*100)/100);applyPlayerMapZoom();};document.getElementById('mapZoomOut').onclick=()=>{playerMapZoom=Math.max(0.4,Math.round((playerMapZoom-0.15)*100)/100);applyPlayerMapZoom();};document.getElementById('mapZoomReset').onclick=()=>{playerMapZoom=1;applyPlayerMapZoom();};
 window.addEventListener('resize',()=>{if(document.getElementById('playerMapScreen').classList.contains('active'))setTimeout(centerPlayerMapOwnCastle,80);});
 function escapeMapText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function openCastleProfile(id){const c=mapCastles.find(x=>Number(x.id)===Number(id));if(!c)return;profileCastleId=Number(id);document.getElementById('profileTitle').textContent=c.name+' — '+(c.username||'بازیکن');const army=c.army||{};document.getElementById('profileBody').innerHTML='<p>شماره قلعه: '+c.id+'</p><p>مختصات: ('+c.x+','+c.y+')</p><p>🏹 کماندار: '+Number(army.archer||0)+' | 🐎 سواره: '+Number(army.cavalry||0)+' | ⚔️ شمشیرزن: '+Number(army.swordsman||0)+'</p>';document.getElementById('profileAttack').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('profileDefense').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('castleProfile').style.display='flex';}
