@@ -111,47 +111,45 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .battle-report-foot{padding:14px 20px;border-top:1px solid #465463;text-align:center}.battle-report-foot button{min-width:130px}
 .battle-reports-list{margin-top:14px}.battle-report-select{width:100%;max-height:260px;padding:12px;border-radius:10px;border:1px solid #4a5866;background:#111820;color:#fff;font-size:16px;direction:rtl}.battle-report-select option{padding:8px}.report-delete-all{background:#8e3b3b}
 
-/* ===== صفحه توسعه قلعه: بدون اسکرول ===== */
-#developmentPanel.screen{position:fixed;inset:0;z-index:5000;width:100vw;height:100vh;max-width:none;margin:0;padding:0;overflow:hidden;background:#162019}
-#developmentInner{position:relative;width:100%;height:100%;overflow:hidden;background:#162019;direction:rtl}
-#developmentField{position:absolute;inset:58px 0 54px 0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#developmentScene{position:relative;width:min(100vw,calc(100vh - 116px));height:min(100vw,calc(100vh - 116px));aspect-ratio:1/1;overflow:hidden;cursor:default}
-.developmentLayer{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;user-select:none}
-#developmentBackground{z-index:1;pointer-events:none}
-#developmentWall{z-index:2;pointer-events:none}
-.developmentBuildingImage{z-index:3;cursor:pointer;pointer-events:none}
-.developmentAttackTimer{flex:0 0 auto;min-width:52px;padding:4px 6px;border:1px solid rgba(255,213,74,.65);border-radius:6px;background:rgba(12,17,22,.9);color:#fff;font-size:9px;font-weight:900;text-align:center;direction:ltr;white-space:nowrap}
-.developmentAttackTimerInfo{position:absolute;top:100%;right:0;margin-top:3px;max-width:180px;padding:3px 6px;border-radius:5px;background:rgba(12,17,22,.9);color:#fff;font-size:8px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none}
-.developmentLevelOverlay{position:absolute;z-index:7;transform:translate(-50%,-50%);min-width:23px;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.82);color:#fff;font-size:11px;font-weight:800;line-height:1.1;text-align:center;pointer-events:none}
-.developmentTimerOverlay{position:absolute;z-index:8;transform:translateX(-50%);display:none;min-width:90px;padding:3px 5px;border:1px solid #ffd54a;border-radius:6px;background:rgba(10,12,14,.9);color:#fff;font-size:9px;font-weight:700;text-align:center;pointer-events:none}
-.developmentTopCompact{position:absolute;top:5px;left:6px;right:6px;z-index:20;display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:8px;background:rgba(12,17,22,.78);backdrop-filter:blur(3px);box-sizing:border-box}
-.developmentCastleName{font-size:12px;font-weight:800;white-space:nowrap;margin-left:2px}
-.developmentStatCompact{flex:1;min-width:0;padding:4px 5px;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:rgba(255,255,255,.06);color:#fff;font-size:9px;font-weight:700;text-align:center;line-height:1.15;white-space:nowrap}
-.developmentBottomBar{position:fixed;left:6px;right:6px;bottom:max(5px,env(safe-area-inset-bottom));z-index:20000;display:flex!important;gap:5px;padding:5px;border-radius:8px;background:rgba(12,17,22,.97);backdrop-filter:blur(3px);visibility:visible!important;opacity:1!important;pointer-events:auto!important;min-height:48px;box-shadow:0 2px 14px rgba(0,0,0,.65)}
-.developmentBottomBar button{position:relative;z-index:20001;display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;flex:1 1 0;min-width:0;min-height:38px;padding:7px 4px;border:1px solid rgba(255,255,255,.28);border-radius:6px;font-size:11px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;color:#fff}
-#developmentMessage{position:absolute;left:50%;bottom:51px;transform:translateX(-50%);z-index:21;max-width:80vw;padding:3px 7px;border-radius:5px;background:rgba(0,0,0,.65);font-size:9px;color:#fff;display:none;white-space:nowrap}
-#developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:rgba(35,59,42,.92);color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.35)}
+/* ===== صفحه توسعه قلعه: پس‌زمینه تصویری و جای‌گذاری نسبی ===== */
+#developmentPanel.screen{position:fixed;inset:0;z-index:5000;width:100vw;height:100dvh;max-width:none;margin:0;padding:0;overflow:hidden;background:#101827}
+#developmentInner{position:relative;width:100%;height:100%;overflow:hidden;background:#101827;direction:rtl;display:flex;align-items:center;justify-content:center}
+#developmentField{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#developmentScene{position:relative;width:min(100vw,66.6667dvh);height:min(150vw,100dvh);aspect-ratio:2/3;overflow:hidden;background:url('castle-background.jpg') center/100% 100% no-repeat;cursor:default;isolation:isolate}
+.developmentLayer{display:none}
+.developmentAttackTimer{position:absolute;z-index:8;left:31.5%;top:2.5%;width:58.5%;height:4.2%;display:none;align-items:center;justify-content:flex-start;padding:0 2%;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.2vw,12px);font-weight:900;text-align:right;direction:ltr;white-space:nowrap;pointer-events:none}
+.developmentAttackTimerInfo{position:absolute;z-index:8;left:31.5%;top:6.3%;max-width:58%;padding:2px 5px;background:#101827cc;color:#fff;font-size:8px;display:none;pointer-events:none}
+.developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:0;padding:0;background:transparent;color:#fff;font-size:clamp(8px,2.3vw,13px);font-weight:800;line-height:1.1;text-align:center;pointer-events:none;text-shadow:0 1px 3px #000}
+.developmentTimerOverlay{position:absolute;z-index:6;transform:translateX(-50%);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827d9;color:#fff;font-size:8px;text-align:center;pointer-events:none}
+.developmentTopCompact{position:absolute;inset:0;z-index:3;pointer-events:none}
+.developmentCastleName,.developmentStatCompact{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;pointer-events:none}
+.developmentCastleName{left:calc(13.8% - 1.5mm);top:calc(4.1% - 1mm);width:9.5%;height:3.1%;font-size:clamp(8px,2.3vw,13px)}
+#developmentGoldCompact{left:21.5%;top:11.5%;width:18.5%;height:2.7%;font-size:clamp(6px,1.45vw,8px)}
+#developmentProductionCompact{display:none}
+#developmentArcherCompact{left:50.8%;top:11.6%;width:7.6%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
+#developmentCavalryCompact{left:68.4%;top:11.6%;width:7.6%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
+#developmentSwordsmanCompact{left:86.3%;top:11.6%;width:7.3%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
+#developmentLevel-castle{left:49.5%;top:calc(23.7% - 1mm);width:10.5%;height:2.7%}
+#developmentLevel-barracks1{left:20.5%;top:calc(38% - .5mm);width:6.3%;height:2.1%}
+#developmentLevel-barracks2{left:calc(80.8% + .5mm);top:calc(38% - .5mm);width:5.4%;height:2.1%}
+#developmentLevel-wall{left:77.6%;top:54.6%;width:5.2%;height:2%}
+#developmentLevel-goldMine{left:22.5%;top:58.7%;width:5.1%;height:2%}
+.dev-hit{position:absolute;z-index:7;display:block;padding:0;border:0;background:transparent;cursor:pointer;outline:none}.dev-hit:focus-visible{outline:2px dashed #ffe08a;background:#ffffff18}
+.developmentBottomBar{position:absolute;inset:0;z-index:10;pointer-events:none;background:transparent;display:block!important;padding:0;box-shadow:none;backdrop-filter:none;min-height:0}
+.developmentBottomBar button{position:absolute;display:block!important;pointer-events:auto!important;opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;padding:0!important;margin:0!important;min-height:0!important;min-width:0!important;border-radius:0!important;z-index:12;cursor:pointer}
+#castleBack{left:2.3%;top:85.3%;width:19%;height:10.8%}
+#attackBtn{left:21.3%;top:85.3%;width:17.7%;height:10.8%}
+#battleBtn{left:38.8%;top:84.8%;width:24%;height:11.5%}
+#defenseBtn{left:63%;top:85.3%;width:18.5%;height:10.8%}
+#developmentExitButton{left:81.5%;top:85.3%;width:17%;height:10.8%}
+#resetGameBtn{left:2%;top:78%;width:96%;height:5%;font-size:10px!important;color:#fff!important;background:#8a2525d9!important;border:1px solid #fff!important;border-radius:5px!important;opacity:1!important;pointer-events:auto!important}
+#developmentMessage{position:absolute;z-index:20;left:8%;right:8%;top:40%;padding:4px;background:#101827dd;color:#fff;text-align:center;font-size:10px;display:none;pointer-events:none}
+#developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:#233b2aeb;color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid #ffffff59}
 #buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.72);overflow:auto;pointer-events:auto}
 #buildingActionPanel.open,#trainingPanel.open{display:flex;z-index:10000}
-.developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.45);text-align:center}
-.developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}
-.developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
-.trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:6px 0}
-.trainingChoiceCompact{padding:5px 3px;border:1px solid #566270;border-radius:7px;background:#202a33;color:#fff;cursor:pointer}
-.trainingChoiceCompact.selected{border-color:#ffd54a;box-shadow:inset 0 0 0 1px #ffd54a}
-.trainingChoiceCompact img{width:44px;height:44px;object-fit:contain;display:block;margin:auto}.trainingChoiceCompact span{font-size:9px;font-weight:700;display:block;margin-top:2px}
-.trainingInputCompact{width:85px;padding:5px;border-radius:6px;border:1px solid #59636f;background:#111820;color:#fff;text-align:center;font-size:10px}
-@media(max-width:650px){
-  #developmentField{inset:52px 0 50px 0}
-  #developmentScene{width:min(100vw,calc(100vh - 102px));height:min(100vw,calc(100vh - 102px))}
-  .developmentTopCompact{gap:3px;padding:3px 4px}.developmentCastleName{font-size:10px}.developmentStatCompact{font-size:8px;padding:4px 3px}
-  .developmentBottomBar{gap:3px;padding:3px}.developmentBottomBar button{padding:4px 3px;font-size:8px}.developmentLevelOverlay{min-width:20px;padding:2px 5px;font-size:10px}
-  #developmentDefenseButton{font-size:8px;padding:4px 6px}
-  .developmentBottomBar{left:4px;right:4px;bottom:max(4px,env(safe-area-inset-bottom));gap:3px;padding:4px;min-height:46px}
-  .developmentBottomBar button{min-height:38px;padding:5px 2px;font-size:9px;white-space:normal;line-height:1.15;flex:1 1 0}
-}
-
-
+.developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px #0007;text-align:center}
+.developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}.developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
+.trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:6px 0}.trainingChoiceCompact{padding:5px 3px;border:1px solid #566270;border-radius:7px;background:#202a33;color:#fff;cursor:pointer}.trainingChoiceCompact.selected{border-color:#ffd54a;box-shadow:inset 0 0 0 1px #ffd54a}.trainingChoiceCompact img{width:44px;height:44px;object-fit:contain;display:block;margin:auto}.trainingChoiceCompact span{font-size:9px;font-weight:700;display:block;margin-top:2px}.trainingInputCompact{width:85px;padding:5px;border-radius:6px;border:1px solid #59636f;background:#111820;color:#fff;text-align:center;font-size:10px}
 /* حساب کاربری و نقشه بازیکنان */
 #authOverlay{position:fixed;inset:0;z-index:50000;background:rgba(5,10,15,.94);display:flex;align-items:center;justify-content:center;padding:16px}
 #authCard{width:min(420px,96vw);background:#202d37;border:1px solid #657686;border-radius:14px;padding:22px;box-shadow:0 20px 70px #000;text-align:center}
@@ -196,56 +194,38 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   </div>
 </div>
 
-
-<section id="select" class="screen" style="display:none" aria-hidden="true"><div id="castleGrid" class="grid"></div><button id="randomDefenseBtn" type="button"></button><button id="battleReportsBtn" type="button"></button></section>
+<section id="select" class="screen"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
 <section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 <section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><label>نقش نیروها <select id="mapAttackSide" class="side-select"><option value="مهاجم">مهاجم</option><option value="مدافع">مدافع / کمک به دفاع</option></select></label><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
 
 
 <section id="developmentPanel" class="screen">
-  <div id="developmentInner">
+  <div id="developmentInner"><div id="developmentField"><div id="developmentScene" aria-label="صفحه توسعه قلعه">
+    <img id="developmentBackground" class="developmentLayer" src="castle-background.jpg" alt="زمینه توسعه قلعه" draggable="false">
+    <img id="developmentWall" class="developmentLayer developmentBuildingImage" data-building="wall" src="castle-background.jpg" alt="دیوار" draggable="false">
+    <img id="developmentCastleImage" class="developmentLayer developmentBuildingImage" data-building="castle" src="castle-background.jpg" alt="قلعه اصلی" draggable="false">
+    <img id="developmentBarracks1" class="developmentLayer developmentBuildingImage" data-building="barracks1" src="castle-background.jpg" alt="پادگان اول" draggable="false">
+    <img id="developmentBarracks2" class="developmentLayer developmentBuildingImage" data-building="barracks2" src="castle-background.jpg" alt="پادگان دوم" draggable="false">
+    <img id="developmentGoldMine" class="developmentLayer developmentBuildingImage" data-building="goldMine" src="castle-background.jpg" alt="معدن طلا" draggable="false">
     <div class="developmentTopCompact">
       <div id="developmentCastleName" class="developmentCastleName">قلعه</div>
-      <div id="developmentGoldCompact" class="developmentStatCompact">🪙 طلا: 0</div>
-      <div id="developmentProductionCompact" class="developmentStatCompact">📈 تولید: 0/دقیقه</div>
-      <div id="developmentArcherCompact" class="developmentStatCompact">🏹 0</div>
-      <div id="developmentCavalryCompact" class="developmentStatCompact">🐎 0</div>
-      <div id="developmentSwordsmanCompact" class="developmentStatCompact">⚔️ 0</div>
-      <div id="castleTimer" class="developmentAttackTimer" style="display:none">00:10</div>
-      <div id="castleTimerInfo" class="developmentAttackTimerInfo" style="display:none"></div>
+      <div id="developmentGoldCompact" class="developmentStatCompact">۰</div><div id="developmentProductionCompact" class="developmentStatCompact">۰</div>
+      <div id="developmentArcherCompact" class="developmentStatCompact">۰</div><div id="developmentCavalryCompact" class="developmentStatCompact">۰</div><div id="developmentSwordsmanCompact" class="developmentStatCompact">۰</div>
+      <div id="castleTimer" class="developmentAttackTimer" style="display:none">۰۰:۱۰</div><div id="castleTimerInfo" class="developmentAttackTimerInfo" style="display:none"></div>
     </div>
-
-    <div id="developmentField">
-      <div id="developmentScene">
-        <img id="developmentBackground" class="developmentLayer" src="images/development-background.jpg" alt="زمینه توسعه قلعه" draggable="false">
-        <img id="developmentWall" class="developmentLayer developmentBuildingImage" data-building="wall" src="images/development-wall.png" alt="دیوار" draggable="false">
-        <img id="developmentCastleImage" class="developmentLayer developmentBuildingImage" data-building="castle" src="images/development-castle.png" alt="قلعه" draggable="false">
-        <img id="developmentBarracks1" class="developmentLayer developmentBuildingImage" data-building="barracks1" src="images/development-barracks1.png" alt="سربازخانه ۱" draggable="false">
-        <img id="developmentBarracks2" class="developmentLayer developmentBuildingImage" data-building="barracks2" src="images/development-barracks2.png" alt="سربازخانه ۲" draggable="false">
-        <img id="developmentGoldMine" class="developmentLayer developmentBuildingImage" data-building="goldMine" src="images/development-goldMine.png" alt="معدن طلا" draggable="false">
-        <span id="developmentLevel-castle" class="developmentLevelOverlay" style="left:50%;top:33%;">1</span>
-        <span id="developmentLevel-wall" class="developmentLevelOverlay" style="left:50%;top:12%;">1</span>
-        <span id="developmentLevel-barracks1" class="developmentLevelOverlay" style="left:22%;top:53%;">1</span>
-        <span id="developmentLevel-barracks2" class="developmentLevelOverlay" style="left:78%;top:53%;">1</span>
-        <span id="developmentLevel-goldMine" class="developmentLevelOverlay" style="left:50%;top:68%;">1</span>
-        <span id="developmentTimer-castle" class="developmentTimerOverlay" style="left:50%;top:48%;"></span>
-        <span id="developmentTimer-wall" class="developmentTimerOverlay" style="left:50%;top:17%;"></span>
-        <span id="developmentTimer-barracks1" class="developmentTimerOverlay" style="left:22%;top:67%;"></span>
-        <span id="developmentTimer-barracks2" class="developmentTimerOverlay" style="left:78%;top:67%;"></span>
-        <span id="developmentTimer-goldMine" class="developmentTimerOverlay" style="left:50%;top:82%;"></span>
-      </div>
-    </div>
-
+    <span id="developmentLevel-castle" class="developmentLevelOverlay">1</span><span id="developmentLevel-wall" class="developmentLevelOverlay">1</span><span id="developmentLevel-barracks1" class="developmentLevelOverlay">1</span><span id="developmentLevel-barracks2" class="developmentLevelOverlay">1</span><span id="developmentLevel-goldMine" class="developmentLevelOverlay">1</span>
+    <span id="developmentTimer-castle" class="developmentTimerOverlay"></span><span id="developmentTimer-wall" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks1" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks2" class="developmentTimerOverlay"></span><span id="developmentTimer-goldMine" class="developmentTimerOverlay"></span>
+    <button type="button" class="dev-hit" style="left:34.6%;top:28.3%;width:27.8%;height:18.7%" aria-label="قلعه اصلی" onclick="openDevelopmentBuilding('castle')"></button>
+    <button type="button" class="dev-hit" style="left:9%;top:40.1%;width:19.2%;height:8.9%" aria-label="پادگان اول" onclick="openDevelopmentBuilding('barracks1')"></button>
+    <button type="button" class="dev-hit" style="left:74.4%;top:40%;width:19%;height:10.5%" aria-label="پادگان دوم" onclick="openDevelopmentBuilding('barracks2')"></button>
+    <button type="button" class="dev-hit" style="left:37.2%;top:54.7%;width:53.6%;height:10%" aria-label="دیوار" onclick="openDevelopmentBuilding('wall')"></button>
+    <button type="button" class="dev-hit" style="left:5.4%;top:61.2%;width:26%;height:16%" aria-label="معدن طلا" onclick="openDevelopmentBuilding('goldMine')"></button>
     <div id="developmentMessage"></div>
     <div class="developmentBottomBar">
-      <button type="button" id="attackBtn">⚔️ حمله</button>
-      <button type="button" id="battleBtn">⚔️ ورود به نبرد</button>
-      <button type="button" id="defenseBtn">🛡️ چینش دفاعی</button>
-      <button type="button" id="castleBack" class="back" onclick="openPlayerMap()">🗺️ نقشه بازیکنان</button><button type="button" id="resetGameBtn" class="exit" style="display:none">بازنشانی کامل بازی (فقط jahan1)</button>
-      <button type="button" id="developmentExitButton" class="exit">خروج</button>
+      <button type="button" id="castleBack" class="back" aria-label="نقشه بازیکنان" onclick="openPlayerMap()"></button><button type="button" id="attackBtn" aria-label="حمله"></button><button type="button" id="battleBtn" aria-label="ورود به صحنه نبرد"></button><button type="button" id="defenseBtn" aria-label="چیدمان دفاعی"></button><button type="button" id="developmentExitButton" aria-label="خروج"></button><button type="button" id="resetGameBtn" style="display:none">بازنشانی</button>
     </div>
-  </div>
+  </div></div></div>
 </section>
 
 <div id="buildingActionPanel">
@@ -358,8 +338,7 @@ function exitGame(){
   remainingSeconds=10;
   document.getElementById("castleTimer").style.display="none";
   document.getElementById("castleTimerInfo").style.display="none";
-  document.getElementById("authOverlay").style.display="flex";
-  authReset();
+  show("select");
 }
 
 function openCastle(id){
@@ -1573,12 +1552,12 @@ function developmentProgress(){
 function developmentUpdateTop(){
   if(!developmentState||selectedCastleId===null)return;
   const c=castles[selectedCastleId];
-  document.getElementById('developmentCastleName').textContent=c.name;
-  document.getElementById('developmentGoldCompact').textContent='🪙 طلا: '+Math.floor(developmentState.gold||0);
-  document.getElementById('developmentProductionCompact').textContent='📈 تولید: '+developmentProductionPerMinute().toFixed(0)+'/دقیقه';
-  document.getElementById('developmentArcherCompact').textContent='🏹 '+Number(c.army.archer||0);
-  document.getElementById('developmentCavalryCompact').textContent='🐎 '+Number(c.army.cavalry||0);
-  document.getElementById('developmentSwordsmanCompact').textContent='⚔️ '+Number(c.army.swordsman||0);
+  document.getElementById('developmentCastleName').textContent='قلعه '+(c.id||selectedCastleId);
+  document.getElementById('developmentGoldCompact').textContent=Math.floor(developmentState.gold||0).toLocaleString('fa-IR');
+  document.getElementById('developmentProductionCompact').textContent='';
+  document.getElementById('developmentArcherCompact').textContent=Number(c.army.archer||0).toLocaleString('fa-IR');
+  document.getElementById('developmentCavalryCompact').textContent=Number(c.army.cavalry||0).toLocaleString('fa-IR');
+  document.getElementById('developmentSwordsmanCompact').textContent=Number(c.army.swordsman||0).toLocaleString('fa-IR');
   for(const type of ['castle','wall','barracks1','barracks2','goldMine']){
     const el=document.getElementById('developmentLevel-'+type);if(el)el.textContent=String(developmentState.buildings[type]?.level||1);
   }
@@ -1610,7 +1589,7 @@ function openDevelopment(){
 function closeDevelopment(){
   document.getElementById('buildingActionPanel').classList.remove('open');
   document.getElementById('trainingPanel').classList.remove('open');
-  openPlayerMap();
+  show('select');
 }
 function openDevelopmentBuilding(type){
   if(!developmentState)developmentLoad();
@@ -1748,6 +1727,7 @@ document.getElementById('trainingCloseButton').onclick=()=>document.getElementBy
 document.getElementById('startTrainingButton').onclick=startDevelopmentTraining;
 document.querySelectorAll('[data-development-train]').forEach(btn=>btn.onclick=()=>{developmentTrainType=btn.dataset.developmentTrain;document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.toggle('selected',x===btn));});
 document.getElementById('developmentScene').addEventListener('click',e=>{
+  if(e.target.closest('.dev-hit')) return;
   const img=developmentBuildingFromPoint(e);
   if(img)openDevelopmentBuilding(img.dataset.building);
 });
@@ -1777,7 +1757,7 @@ document.getElementById('authRegister').onclick=()=>authShowFields('register');d
 // صفحهٔ انتخاب قلعهٔ آزمایشی را پشت پنجرهٔ ورود نگه می‌داریم؛ ورود همیشه انتخاب حساب را تعیین می‌کند.
 document.getElementById('castleBack').onclick=()=>openPlayerMap();
 document.getElementById('resetGameBtn').onclick=resetGameData;
-const _oldDevelopmentUpdateTop=developmentUpdateTop;developmentUpdateTop=function(){_oldDevelopmentUpdateTop();const b=document.getElementById('resetGameBtn');if(b)b.style.display=(Number(selectedCastleId)===1 && localStorage.getItem('strategyGameUsername')==='jahan1')?'inline-block':'none';};
+const _oldDevelopmentUpdateTop=developmentUpdateTop;developmentUpdateTop=function(){_oldDevelopmentUpdateTop();const b=document.getElementById('resetGameBtn');if(b)b.style.display=(selectedCastleId===1 && localStorage.getItem('strategyGameUsername')==='jahan1')?'inline-block':'none';};
 </script>
 
 </body></html>
