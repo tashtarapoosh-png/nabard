@@ -199,11 +199,11 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   box-shadow: inset 0 0 0 2px rgba(24,121,78,.85) !important;
 }
 
-/* دکمه‌های کنترل مستقیماً زیر «نمایش صحنه نبرد» و هم‌اندازهٔ آن هستند. */
-.battle-background #battle .battle-top-controls{position:fixed!important;top:18px!important;right:18px!important;left:auto!important;transform:none!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:10px!important;width:190px!important;margin:0!important;}
-.battle-background #battle .battle-top-controls button{width:100%!important;min-width:0!important;height:38px!important;padding:8px 10px!important;font-size:12px!important;white-space:nowrap!important;}
+/* چهار دکمهٔ صحنهٔ نبرد: باریک‌تر و کوتاه‌تر، در سمت راست صفحه. */
+.battle-background #battle .battle-top-controls{position:fixed!important;top:18px!important;right:18px!important;left:auto!important;transform:none!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important;width:38px!important;margin:0!important;}
+.battle-background #battle .battle-top-controls button{box-sizing:border-box!important;width:38px!important;min-width:0!important;height:19px!important;min-height:19px!important;padding:1px!important;font-size:6px!important;line-height:1!important;white-space:normal!important;overflow:hidden!important;border-radius:2px!important;}
 .battle-background .battle-grid{transition:none!important}
-@media(max-width:650px){.battle-background #battle .battle-top-controls{top:12px!important;right:12px!important;width:164px!important}.battle-background #battle .battle-top-controls button{height:36px!important}}
+@media(max-width:650px){.battle-background #battle .battle-top-controls{top:12px!important;right:12px!important;width:38px!important}.battle-background #battle .battle-top-controls button{width:38px!important;height:19px!important;min-height:19px!important;font-size:6px!important}}
 
 </style><style>
 </style>
@@ -790,9 +790,9 @@ function jang(){
   const attackDamagePerSoldier=unit=>100;
 
   const typeMultiplier=(attacker,target)=>{
-    if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 2;
-    if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 2;
-    if(attacker.rawType==="swordsman"&&target.rawType==="archer")return 2;
+    if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 3;
+    if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 3;
+    if(attacker.rawType==="swordsman"&&target.rawType==="archer")return 3;
     return 1;
   };
 
@@ -1017,46 +1017,64 @@ async function processDueRound(){
   const battle=getCurrentBattle();
   if(!battle || !battle.batId)return;
   randProcessing=true;
+  const waitUntil=async seconds=>{
+    const startAt=Date.now();
+    const target=startAt+seconds*1000;
+    while(Date.now()<target){
+      const active=getCurrentBattle();
+      if(!active || active.ended || String(active.batId)!==String(battle.batId))return false;
+      await new Promise(resolve=>setTimeout(resolve,Math.min(100,target-Date.now())));
+    }
+    const active=getCurrentBattle();
+    return !!active && !active.ended && String(active.batId)===String(battle.batId);
+  };
   try{
-    const claim=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/claim",{
-      method:"POST",body:"{}"
-    });
+    const claim=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/claim",{method:"POST",body:"{}"});
     if(!claim.claimed){
       currentRoundEndsAt=Number(claim.roundEndsAt||currentRoundEndsAt||0);
       randwar=Number(claim.roundNumber||randwar||0);
       return;
     }
-
     currentRoundToken=claim.token;
     randwar=Number(claim.roundNumber||0);
     currentRoundEndsAt=Number(claim.roundEndsAt||0);
-    randRemainingSeconds=0;
+    randRemainingSeconds=20;
 
-    // منطق نبرد راند دقیقاً همان قبلی است؛ فقط شروع/پایان راند از SQL هماهنگ می‌شود.
+    // ثانیهٔ ۰: تازه‌سازی وضعیت شروع راند
     await viobat();
-    jang();
-    await fotjang();
+    if(!await waitUntil(5))return;
+    jang(); // ثانیهٔ ۵
 
+    if(!await waitUntil(8))return;
+    await fotjang(); // ثانیهٔ ۸
+
+    if(!await waitUntil(11))return;
     const battleAfterCombat=getCurrentBattle();
-    if(battleAfterCombat){
-      const saved=await persistBattleCombat(battleAfterCombat);
-      if(!saved)return;
-    }
+    if(!battleAfterCombat)return;
+    const saved=await persistBattleCombat(battleAfterCombat); // ثانیهٔ ۱۱
+    if(!saved)throw new Error("ذخیرهٔ تعداد نیروها در SQL ناموفق بود");
 
-    const battleEnded=sidchek();
-    if(battleEnded)return;
+    if(!await waitUntil(13))return;
+    await viobat(); // ثانیهٔ ۱۳: نمایش تعداد جدید روی واحدها
+    const battleEnded=sidchek(); // بررسی بلافاصله بعد از به‌روزرسانی نمایش
+    if(battleEnded || !getCurrentBattle())return;
 
-    // حرکت نیروها فقط در ثانیهٔ پنجم راند اعمال می‌شود؛ در انتهای راند دوباره اجرا نمی‌شود.
+    if(!await waitUntil(15))return;
+    await refreshBattleFromSql(); // ثانیهٔ ۱۵: خواندن حرکت‌های ثبت‌شده در SQL
+
+    if(!await waitUntil(17))return;
+    const moved=await applyRoundMoves(); // ثانیهٔ ۱۷: شروع حرکت واقعی نیروها
+    if(moved===false)throw new Error("اعمال حرکت‌های راند ناموفق بود");
+
+    if(!await waitUntil(20))return;
     const committed=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/commit",{
-      method:"POST",
-      body:JSON.stringify({token:currentRoundToken})
+      method:"POST",body:JSON.stringify({token:currentRoundToken})
     });
     currentRoundToken=null;
     currentRoundEndsAt=Number(committed.roundEndsAt||0);
     randwar=Number(committed.roundNumber||0);
   }catch(err){
     console.error("پردازش راند ناموفق بود:",err);
-    // راند در SQL commit نشده؛ بعد از برگشت ارتباط دوباره قابل دریافت است.
   }finally{
     randProcessing=false;
   }
