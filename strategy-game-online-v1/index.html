@@ -1101,21 +1101,32 @@ function updateRoundTimerDisplay(){
   if(war)war.textContent="راند: "+randwar;
 }
 
-async function rand(roundClockAlreadyLoaded=false){
+async function rand(){
   const activeBattle=getCurrentBattle();
   if(!activeBattle || !activeBattle.batId)return;
   const nextBattleId=String(activeBattle.batId);
-  if(randStarted && roundClockBattleId===nextBattleId)return;
+  if(randStarted && roundClockBattleId===nextBattleId){
+    // ورود دوباره به صحنه: ساعت مرجع، شماره راند و پایان راند را دوباره از SQL بخوان.
+    const refreshed=await loadRoundClock();
+    if(refreshed){
+      updateRoundTimerDisplay();
+      if(randwar>processedRoundNumber || (currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt)){
+        processDueRound().finally(updateRoundTimerDisplay);
+      }
+    }
+    return;
+  }
   if(randTimerId)clearInterval(randTimerId);
   randTimerId=null;
   randStarted=true;
   roundClockBattleId=nextBattleId;
-  currentRoundEndsAt=null;
+  // زمان قبلی را پاک نمی‌کنیم؛ بلافاصله پایین، شماره راند و پایان راند از SQL خوانده می‌شود.
+  // پاک‌کردن زمان قبلی پیش از پاسخ SQL می‌توانست نمایشگر را موقتاً بی‌مرجع کند.
 
   const box=document.getElementById("randTimerBox");
   if(box)box.style.display="block";
 
-  if(!roundClockAlreadyLoaded)await loadRoundClock();
+  await loadRoundClock();
   updateRoundTimerDisplay();
 
   // تایمر نمایشی را قبل از اجرای مراحل طولانی راند راه می‌اندازیم؛
@@ -1818,14 +1829,10 @@ document.getElementById('battleBtn').onclick=async()=>{
     const battle=await loadBattleForSelectedCastle();
     if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
     u.castle=selectedCastleId;
-    // پیش از نمایش صحنه، شماره و زمان باقی‌ماندهٔ راند را از SQL بخوان.
-    const roundClockLoaded=await loadRoundClock();
-    if(!roundClockLoaded)throw new Error('خواندن شماره و زمان راند از SQL ناموفق بود.');
-    updateRoundTimerDisplay();
     show('battle');
     setBattlePerspective();
     viobat();
-    rand(true);
+    rand();
   }catch(e){alert(e.message);}
 };
 document.getElementById('developmentUpgradeButton').onclick=startDevelopmentUpgrade;
