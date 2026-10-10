@@ -1126,6 +1126,23 @@ async function rand(){
   await loadRoundClock();
   updateRoundTimerDisplay();
 
+  // تا رسیدن اولین مهاجم، نبرد فقط آماده است: تایمر مخفی/صفر می‌ماند و هیچ راندی اجرا نمی‌شود.
+  // هر 1 ثانیه SQL را دوباره می‌خوانیم تا شروع تایمر بعد از رسیدن مهاجم در کلاینت‌های باز دیده شود.
+  if(!currentRoundEndsAt){
+    const box=document.getElementById("randTimerBox");
+    if(box)box.style.display="none";
+    randTimerId=setInterval(async()=>{
+      await loadRoundClock();
+      if(currentRoundEndsAt){
+        const timerBox=document.getElementById("randTimerBox");
+        if(timerBox)timerBox.style.display="block";
+        updateRoundTimerDisplay();
+        processDueRound().finally(updateRoundTimerDisplay);
+      }
+    },1000);
+    return;
+  }
+
   // تایمر نمایشی را قبل از اجرای مراحل طولانی راند راه می‌اندازیم؛
   // در غیر این صورت هنگام اتصال مجدد یا عقب‌افتادن راند، صفحه تا ۲۰ ثانیه قفل به نظر می‌رسد.
   randTimerId=setInterval(()=>{

@@ -100,11 +100,20 @@ async function initDb(){
   await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_claim_expires_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS processed_round_number INTEGER NOT NULL DEFAULT 0`);
   // مقداردهی نبرد می‌تواند با رسیدن مدافع انجام شود؛ ساعت فقط با اولین مهاجم فعال می‌شود.
-  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS timer_started BOOLEAN NOT NULL DEFAULT TRUE`);
+  await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS timer_started BOOLEAN NOT NULL DEFAULT FALSE`);
+  // Existing battles are considered started only if an attacking army has actually arrived.
+  // This also repairs old rows that inherited the previous DEFAULT TRUE.
+  await pool.query(`ALTER TABLE battles ALTER COLUMN timer_started SET DEFAULT FALSE`);
+  await pool.query(`UPDATE battles b SET timer_started = EXISTS (
+    SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(b.armies)='array' THEN b.armies ELSE '[]'::jsonb END) a
+    WHERE a->>'side' = 'مهاجم'
+  ) WHERE b.ended=FALSE`);
   // ساعت نبرد با پایان راند جلو می‌رود و به ورود/خروج بازیکنان وابسته نیست.
   await pool.query(`UPDATE battles SET ends_at=NOW()+INTERVAL '100 years' WHERE ended=FALSE`);
   await pool.query(`UPDATE battles SET round_duration_seconds=20 WHERE ended=FALSE AND round_duration_seconds<>20`);
-  await pool.query(`UPDATE battles SET round_number=1, processed_round_number=0, round_started_at=NOW(), round_duration_seconds=20 WHERE ended=FALSE AND round_number=0`);
+  // Do not auto-start round 1 during migration: defender-only battles must keep round_number=0.
+  await pool.query(`UPDATE battles SET round_number=0, processed_round_number=0 WHERE ended=FALSE AND timer_started=FALSE`);
+  await pool.query(`UPDATE battles SET round_number=1, processed_round_number=0, round_started_at=NOW(), round_duration_seconds=20 WHERE ended=FALSE AND timer_started=TRUE AND round_number=0`);
   await pool.query(`UPDATE battles SET processed_round_number=round_number WHERE ended=FALSE AND processed_round_number=0 AND round_number>1`);
 
   await pool.query(`
@@ -273,7 +282,7 @@ async function getBattleByTarget(targetId, client=pool){
     roundNumber:Number(b.round_number||0),
     roundStartedAt:new Date(b.round_started_at||b.created_at).getTime(),
     roundDurationSeconds:Number(b.round_duration_seconds||20),
-    roundSecondsRemaining:Math.max(0,Math.ceil((new Date(b.round_started_at||b.created_at).getTime()+Number(b.round_duration_seconds||20)*1000-Date.now())/1000)),
+    roundSecondsRemaining:b.timer_started===true?Math.max(0,Math.ceil((new Date(b.round_started_at||b.created_at).getTime()+Number(b.round_duration_seconds||20)*1000-Date.now())/1000)):0,
     ended:b.ended,
     winnerSide:b.winner_side,
     reportArmies:b.report_armies
@@ -293,7 +302,7 @@ function battleJson(row){
     roundNumber:Number(row.round_number||0),
     roundStartedAt:new Date(row.round_started_at||row.created_at).getTime(),
     roundDurationSeconds:Number(row.round_duration_seconds||20),
-    roundSecondsRemaining:Math.max(0,Math.ceil((new Date(row.round_started_at||row.created_at).getTime()+Number(row.round_duration_seconds||20)*1000-Date.now())/1000)),
+    roundSecondsRemaining:row.timer_started===true?Math.max(0,Math.ceil((new Date(row.round_started_at||row.created_at).getTime()+Number(row.round_duration_seconds||20)*1000-Date.now())/1000)):0,
     ended:row.ended,
     winnerSide:row.winner_side,
     reportArmies:row.report_armies
