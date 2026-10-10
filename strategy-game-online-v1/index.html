@@ -1093,7 +1093,6 @@ function updateRoundTimerDisplay(){
   if(currentRoundEndsAt){
     randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
   }
-  if(randRemainingSeconds===0&&!updateRoundTimerDisplay._loading){updateRoundTimerDisplay._loading=true;loadRoundClock().then(updateRoundTimerDisplay).finally(()=>updateRoundTimerDisplay._loading=false);}
   if(timer){
     const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
     const ss=String(randRemainingSeconds%60).padStart(2,"0");
@@ -1114,7 +1113,7 @@ async function rand(){
   currentRoundEndsAt=null;
 
   const box=document.getElementById("randTimerBox");
-  if(box)box.style.display="block";
+  if(box)box.style.display=document.getElementById("battle").classList.contains("active")?"block":"none";
 
   await loadRoundClock();
   updateRoundTimerDisplay();
@@ -1124,8 +1123,15 @@ async function rand(){
   randTimerId=setInterval(()=>{
     updateRoundTimerDisplay();
     if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
-      // بدون منتظر ماندن در حلقهٔ تایمر؛ randProcessing از اجرای موازی جلوگیری می‌کند.
-      processDueRound().finally(updateRoundTimerDisplay);
+      // تنها رویداد صفرشدن تایمر صحنهٔ نبرد: دریافت تایم/راند از SQL و سپس ادامهٔ راند.
+      if(!randTimerId._zeroRefresh){
+        randTimerId._zeroRefresh=true;
+        loadRoundClock().finally(()=>{
+          randTimerId && (randTimerId._zeroRefresh=false);
+          updateRoundTimerDisplay();
+          processDueRound().finally(updateRoundTimerDisplay);
+        });
+      }
     }
   },250);
 
@@ -1141,10 +1147,6 @@ async function syncRoundClockAfterReconnect(){
   }
 }
 
-window.addEventListener("online",syncRoundClockAfterReconnect);
-document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible")syncRoundClockAfterReconnect();
-});
 
 function localBatman(){
   if(!attackData)return;
@@ -1815,7 +1817,6 @@ document.getElementById('defenseBtn').onclick=()=>{
 document.getElementById('castleBack').onclick=()=>openPlayerMap();
 document.getElementById('developmentExitButton').onclick=exitGame;
 document.getElementById('battleBtn').onclick=async()=>{
-  if(randRemainingSeconds===0&&!updateRoundTimerDisplay._loading){updateRoundTimerDisplay._loading=true;loadRoundClock().then(updateRoundTimerDisplay).finally(()=>updateRoundTimerDisplay._loading=false);}
   try{
     const battle=await loadBattleForSelectedCastle();
     if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
