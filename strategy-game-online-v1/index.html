@@ -143,6 +143,8 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #defenseBtn{left:63%;top:85.3%;width:18.5%;height:10.8%}
 #developmentExitButton{left:81.5%;top:85.3%;width:17%;height:10.8%}
 #developmentBattleReportsBtn{position:absolute;z-index:40;left:2%;top:86%;width:29%;height:7%;font-size:clamp(10px,1.8vh,15px);padding:2px 4px;border:1px solid #e6c36a;border-radius:8px;background:#263b56;color:#fff;box-shadow:0 2px 5px #0008;}
+/* دکمهٔ گزارش باید برخلاف دکمه‌های تصویریِ نامرئی نوار پایین، واقعاً دیده شود. */
+.developmentBottomBar #developmentBattleReportsBtn{left:30%!important;top:76%!important;width:40%!important;height:7%!important;min-width:0!important;min-height:0!important;opacity:1!important;color:#fff!important;background:#263b56!important;border:1px solid #e6c36a!important;border-radius:8px!important;padding:2px 4px!important;font-size:clamp(10px,1.8vh,15px)!important;box-shadow:0 2px 5px #0008!important;z-index:50!important;pointer-events:auto!important;white-space:nowrap!important;}
 #resetGameBtn{left:78%;top:78%;width:20%;height:5%;font-size:10px!important;color:#fff!important;background:#8a2525d9!important;border:1px solid #fff!important;border-radius:5px!important;opacity:1!important;pointer-events:auto!important}
 #developmentMessage{position:absolute;z-index:20;left:8%;right:8%;top:40%;padding:4px;background:#101827dd;color:#fff;text-align:center;font-size:10px;display:none;pointer-events:none}
 #developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:#233b2aeb;color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid #ffffff59}
@@ -784,12 +786,14 @@ function jang(){
   const battle=getCurrentBattle();
   if(!battle)return;
 
-  const units=battle.armies.flatMap(army=>army.units||[]);
-  const aliveUnits=units.filter(unit=>Number(unit.count)>0);
-
+  // تمام حمله‌ها بر اساس وضعیت ابتدای ثانیهٔ ۵ محاسبه می‌شوند؛
+  // آسیب تا پایان محاسبه جمع می‌شود تا ترتیب حلقه روی تلفات اثر نگذارد.
+  const units=(battle.armies||[]).flatMap(army=>army.units||[])
+    .filter(unit=>Number(unit.count)>0 && Number(unit.health)>0);
+  const startHealth=new Map(units.map(unit=>[unit,Math.max(0,Number(unit.health)||0)]));
+  const damageByTarget=new Map(units.map(unit=>[unit,0]));
   const attackRange=unit=>unit.rawType==="archer"?2:1;
-  const attackDamagePerSoldier=unit=>100;
-
+  const attackDamagePerSoldier=()=>100;
   const typeMultiplier=(attacker,target)=>{
     if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 3;
     if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 3;
@@ -797,35 +801,27 @@ function jang(){
     return 1;
   };
 
-  aliveUnits.forEach(unit=>{
-    const range=attackRange(unit);
-
-    // تمام واحدهای دشمنِ داخل برد این مهاجم را پیدا می‌کنیم.
-    const targets=aliveUnits.filter(target=>{
-      if(target===unit)return false;
-      if(target.side===unit.side)return false;
-
-      const dx=Math.abs(Number(target.x)-Number(unit.x));
-      const dy=Math.abs(Number(target.y)-Number(unit.y));
-      return dx<=range&&dy<=range;
+  for(const attacker of units){
+    const range=attackRange(attacker);
+    const targets=units.filter(target=>{
+      if(target===attacker || target.side===attacker.side)return false;
+      const dx=Math.abs(Number(target.x)-Number(attacker.x));
+      const dy=Math.abs(Number(target.y)-Number(attacker.y));
+      return dx<=range && dy<=range && startHealth.get(target)>0;
     });
+    if(!targets.length)continue;
+    const totalTargetCount=targets.reduce((sum,target)=>sum+Math.max(0,Number(target.count)||0),0);
+    if(totalTargetCount<=0)continue;
+    const totalDamage=Math.max(0,Number(attacker.count)||0)*attackDamagePerSoldier(attacker);
+    for(const target of targets){
+      const share=Math.max(0,Number(target.count)||0)/totalTargetCount;
+      damageByTarget.set(target,damageByTarget.get(target)+totalDamage*share*typeMultiplier(attacker,target));
+    }
+  }
 
-    if(!targets.length)return;
-
-    // کل ضربه مهاجم بین اهداف، متناسب با تعداد نیروهای هر هدف تقسیم می‌شود.
-    const totalTargetCount=targets.reduce((sum,target)=>sum+Number(target.count),0);
-    if(totalTargetCount<=0)return;
-
-    const totalDamage=Number(unit.count)*attackDamagePerSoldier(unit);
-
-    targets.forEach(target=>{
-      const targetCount=Number(target.count);
-      const share=targetCount/totalTargetCount;
-      const damage=totalDamage*share*typeMultiplier(unit,target);
-      const targetHealth=Number(target.health);
-      target.health=Math.max(0,targetHealth-damage);
-    });
-  });
+  for(const unit of units){
+    unit.health=Math.max(0,startHealth.get(unit)-damageByTarget.get(unit));
+  }
 }
 
 async function fotjang(){
@@ -851,8 +847,7 @@ async function fotjang(){
 
   // ارتش‌های بدون هیچ واحد زنده نیز از نبرد حذف می‌شوند.
   battle.armies=battle.armies.filter(army=>(army.units||[]).length>0);
-  // بلافاصله پس از محاسبهٔ تلفات، تعداد زندهٔ نیروها در SQL ذخیره می‌شود.
-  await persistBattleCombat(battle);
+  // ذخیرهٔ SQL عمداً اینجا انجام نمی‌شود؛ processDueRound آن را دقیقاً در ثانیهٔ ۱۱ انجام می‌دهد.
 }
 
 function sidchek(){
@@ -1021,13 +1016,15 @@ async function processDueRound(){
   const battle=getCurrentBattle();
   if(!battle || !battle.batId)return;
   randProcessing=true;
+  // همهٔ رویدادهای راند باید نسبت به یک مبدأ مشترک زمان‌بندی شوند؛
+  // شروع هر انتظار از زمان فعلی باعث جمع‌شدن ۵+۸+۱۱+... و به‌هم‌ریختن راند می‌شد.
+  let roundStartAt=0;
   const waitUntil=async seconds=>{
-    const startAt=Date.now();
-    const target=startAt+seconds*1000;
-    while(Date.now()<target){
+    const target=roundStartAt+seconds*1000;
+    while(Date.now()+serverClockOffset<target){
       const active=getCurrentBattle();
       if(!active || active.ended || String(active.batId)!==String(battle.batId))return false;
-      await new Promise(resolve=>setTimeout(resolve,Math.min(100,target-Date.now())));
+      await new Promise(resolve=>setTimeout(resolve,Math.min(100,Math.max(10,target-(Date.now()+serverClockOffset)))));
     }
     const active=getCurrentBattle();
     return !!active && !active.ended && String(active.batId)===String(battle.batId);
@@ -1042,7 +1039,9 @@ async function processDueRound(){
     currentRoundToken=claim.token;
     randwar=Number(claim.roundNumber||0);
     currentRoundEndsAt=Number(claim.roundEndsAt||0);
-    randRemainingSeconds=20;
+    // roundEndsAt از SQL انتهای همین بازه است؛ مبدأ مشترک، ۲۰ ثانیه قبل از آن است.
+    roundStartAt=currentRoundEndsAt-20000;
+    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
 
     // ثانیهٔ ۰: تازه‌سازی وضعیت شروع راند
     await viobat();
@@ -1075,8 +1074,12 @@ async function processDueRound(){
       method:"POST",body:JSON.stringify({token:currentRoundToken})
     });
     currentRoundToken=null;
+    // راندی که همین الان تمام شد ثبت‌شده است؛ SQL زمان شروع و شمارهٔ راند بعدی را برمی‌گرداند.
+    processedRoundNumber=Number(committed.processedRoundNumber|| (randwar));
     currentRoundEndsAt=Number(committed.roundEndsAt||0);
     randwar=Number(committed.roundNumber||0);
+    // شروع زمان‌بندی راند بعدی بلافاصله در ثانیهٔ ۲۰؛ منتظر صفر شدن تایمر بعدی نمی‌مانیم.
+    setTimeout(()=>{ if(randStarted && roundClockBattleId===String(battle.batId)) processDueRound().finally(updateRoundTimerDisplay); },0);
   }catch(err){
     console.error("پردازش راند ناموفق بود:",err);
   }finally{
@@ -1114,16 +1117,18 @@ async function rand(){
 
   await loadRoundClock();
   updateRoundTimerDisplay();
-  if(randwar>processedRoundNumber)await processDueRound();
 
-  randTimerId=setInterval(async ()=>{
+  // تایمر نمایشی را قبل از اجرای مراحل طولانی راند راه می‌اندازیم؛
+  // در غیر این صورت هنگام اتصال مجدد یا عقب‌افتادن راند، صفحه تا ۲۰ ثانیه قفل به نظر می‌رسد.
+  randTimerId=setInterval(()=>{
     updateRoundTimerDisplay();
-    // حرکت فقط توسط processDueRound و در ثانیهٔ ۱۷ اجرا می‌شود؛ اجرای موازی حذف شد.
     if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
-      await processDueRound();
-      updateRoundTimerDisplay();
+      // بدون منتظر ماندن در حلقهٔ تایمر؛ randProcessing از اجرای موازی جلوگیری می‌کند.
+      processDueRound().finally(updateRoundTimerDisplay);
     }
-  },500);
+  },250);
+
+  if(randwar>processedRoundNumber)processDueRound().finally(updateRoundTimerDisplay);
 }
 
 async function syncRoundClockAfterReconnect(){

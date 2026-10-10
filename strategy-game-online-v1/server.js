@@ -102,7 +102,8 @@ async function initDb(){
   // ساعت نبرد با پایان راند جلو می‌رود و به ورود/خروج بازیکنان وابسته نیست.
   await pool.query(`UPDATE battles SET ends_at=NOW()+INTERVAL '100 years' WHERE ended=FALSE`);
   await pool.query(`UPDATE battles SET round_duration_seconds=20 WHERE ended=FALSE AND round_duration_seconds<>20`);
-  await pool.query(`UPDATE battles SET processed_round_number=round_number WHERE ended=FALSE AND processed_round_number=0 AND round_number>0`);
+  await pool.query(`UPDATE battles SET round_number=1, processed_round_number=0, round_started_at=NOW(), round_duration_seconds=20 WHERE ended=FALSE AND round_number=0`);
+  await pool.query(`UPDATE battles SET processed_round_number=round_number WHERE ended=FALSE AND processed_round_number=0 AND round_number>1`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS battle_reports (
@@ -488,7 +489,6 @@ app.get("/api/battle/:id/round", async(req,res)=>{
   const id=Number(req.params.id);
   if(!Number.isInteger(id))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
   try{
-    await advanceBattleRoundClocks();
     const r=await pool.query(
       `SELECT round_number, round_started_at, round_duration_seconds,
               round_claim_token, round_claim_expires_at, processed_round_number,
@@ -513,13 +513,6 @@ app.post("/api/battle/:id/round/claim", async(req,res)=>{
   const client=await pool.connect();
   try{
     await client.query("BEGIN");
-    await client.query(`
-      UPDATE battles
-      SET round_number = round_number + FLOOR(EXTRACT(EPOCH FROM (NOW()-round_started_at)) / round_duration_seconds)::int,
-          round_started_at = round_started_at + (FLOOR(EXTRACT(EPOCH FROM (NOW()-round_started_at)) / round_duration_seconds)::int * round_duration_seconds) * INTERVAL '1 second'
-      WHERE id=$1 AND ended=FALSE AND round_duration_seconds=20
-        AND round_started_at + round_duration_seconds * INTERVAL '1 second' <= NOW()
-    `,[id]);
     const q=await client.query(`SELECT * FROM battles WHERE id=$1 AND ended=FALSE FOR UPDATE`,[id]);
     if(!q.rows[0]){
       await client.query("ROLLBACK");
@@ -575,13 +568,15 @@ app.post("/api/battle/:id/round/commit", async(req,res)=>{
     const updated=await client.query(
       `UPDATE battles
        SET processed_round_number=GREATEST(processed_round_number,round_number),
+           round_number=round_number+1,
+           round_started_at=round_started_at + round_duration_seconds * INTERVAL '1 second',
            round_claim_token=NULL, round_claim_expires_at=NULL
        WHERE id=$1 AND ended=FALSE
-       RETURNING round_number, round_started_at, round_duration_seconds`,[id]
+       RETURNING round_number, processed_round_number, round_started_at, round_duration_seconds`,[id]
     );
     const saved=updated.rows[0];
     await client.query("COMMIT");
-    res.json({ok:true,roundNumber:Number(saved.round_number||0),roundEndsAt:new Date(saved.round_started_at).getTime()+Number(saved.round_duration_seconds)*1000});
+    res.json({ok:true,roundNumber:Number(saved.round_number||0),processedRoundNumber:Number(saved.processed_round_number||0),roundEndsAt:new Date(saved.round_started_at).getTime()+Number(saved.round_duration_seconds)*1000});
   }catch(e){
     try{await client.query("ROLLBACK");}catch(rollbackError){console.error("rollback round commit",rollbackError);}
     console.error("round-commit",e);
@@ -933,8 +928,8 @@ async function resolveAttack(attackId){
       if(!defenderSlots.length)throw new Error("برای قلعه هدف چینش دفاعی ثبت نشده است.");
 
       const battleRow=await client.query(`
-        INSERT INTO battles(target_id,defender_slots,armies,ends_at)
-        VALUES($1,$2::jsonb,'[]'::jsonb,NOW()+INTERVAL '100 years')
+        INSERT INTO battles(target_id,defender_slots,armies,ends_at,round_number,round_started_at,round_duration_seconds,processed_round_number)
+        VALUES($1,$2::jsonb,'[]'::jsonb,NOW()+INTERVAL '100 years',1,NOW(),20,0)
         RETURNING *
       `,[attack.target_id,JSON.stringify(defenderSlots)]);
 
@@ -1303,8 +1298,7 @@ app.use(express.static(__dirname, {
 
 initDb()
   .then(()=>{
-    // تایمر راند سمت سرور اجرا می‌شود و به حضور هیچ بازیکنی وابسته نیست.
-    setInterval(()=>advanceBattleRoundClocks().catch(e=>console.error("advance battle round clocks",e)),1000);
+    // شماره و مبدأ راند فقط در round/commit جلو می‌روند؛ هیچ تایمر موازی SQL آن‌ها را تغییر نمی‌دهد.
     app.listen(PORT,()=>console.log(`Game server listening on ${PORT}`));
   })
   .catch(err=>{
