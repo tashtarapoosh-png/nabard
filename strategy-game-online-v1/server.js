@@ -1067,6 +1067,14 @@ function mergeReportArmies(existing, current){
   const saved=Array.isArray(existing)?existing.map(a=>JSON.parse(JSON.stringify(a))):[];
   const live=Array.isArray(current)?current:[];
   const byId=new Map(saved.map(a=>[String(a.armyId),a]));
+  const liveArmyIds=new Set(live.map(a=>String(a?.armyId||'')).filter(Boolean));
+  // اگر ارتشی در وضعیت زنده دیگر وجود ندارد، یعنی تمام ارتشش حذف شده؛
+  // snapshot گزارش نباید تعداد قدیمی آن را به‌عنوان نیروی باقی‌مانده نگه دارد.
+  for(const savedArmy of saved){
+    if(!liveArmyIds.has(String(savedArmy?.armyId||''))){
+      savedArmy.units=(Array.isArray(savedArmy.units)?savedArmy.units:[]).map(unit=>({...unit,count:0,health:0}));
+    }
+  }
   for(const army of live){
     const key=String(army?.armyId||'');
     if(!key)continue;
