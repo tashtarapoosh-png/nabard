@@ -999,8 +999,16 @@ async function loadRoundClock(){
   if(!battle || !battle.batId)return false;
   try{
     const data=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round",{method:"GET"});
-    currentRoundEndsAt=Number(data.roundEndsAt||0);
     if(Number.isFinite(Number(data.serverNow)))serverClockOffset=Number(data.serverNow)-Date.now();
+    if(data.timerStarted===false){
+      currentRoundEndsAt=null;
+      randwar=0;
+      processedRoundNumber=0;
+      randRemainingSeconds=0;
+      updateRoundTimerDisplay();
+      return true;
+    }
+    currentRoundEndsAt=Number(data.roundEndsAt||0);
     randwar=Number(data.roundNumber||0);
     processedRoundNumber=Number(data.processedRoundNumber||0);
     randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
@@ -1113,7 +1121,7 @@ async function rand(){
   currentRoundEndsAt=null;
 
   const box=document.getElementById("randTimerBox");
-  if(box)box.style.display=document.getElementById("battle").classList.contains("active")?"block":"none";
+  if(box)box.style.display="block";
 
   await loadRoundClock();
   updateRoundTimerDisplay();
@@ -1123,15 +1131,8 @@ async function rand(){
   randTimerId=setInterval(()=>{
     updateRoundTimerDisplay();
     if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
-      // تنها رویداد صفرشدن تایمر صحنهٔ نبرد: دریافت تایم/راند از SQL و سپس ادامهٔ راند.
-      if(!randTimerId._zeroRefresh){
-        randTimerId._zeroRefresh=true;
-        loadRoundClock().finally(()=>{
-          randTimerId && (randTimerId._zeroRefresh=false);
-          updateRoundTimerDisplay();
-          processDueRound().finally(updateRoundTimerDisplay);
-        });
-      }
+      // بدون منتظر ماندن در حلقهٔ تایمر؛ randProcessing از اجرای موازی جلوگیری می‌کند.
+      processDueRound().finally(updateRoundTimerDisplay);
     }
   },250);
 
@@ -1147,6 +1148,10 @@ async function syncRoundClockAfterReconnect(){
   }
 }
 
+window.addEventListener("online",syncRoundClockAfterReconnect);
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible")syncRoundClockAfterReconnect();
+});
 
 function localBatman(){
   if(!attackData)return;
