@@ -142,6 +142,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #battleBtn{left:38.8%;top:84.8%;width:24%;height:11.5%}
 #defenseBtn{left:63%;top:85.3%;width:18.5%;height:10.8%}
 #developmentExitButton{left:81.5%;top:85.3%;width:17%;height:10.8%}
+#developmentBattleReportsBtn{position:absolute;z-index:40;left:2%;top:86%;width:29%;height:7%;font-size:clamp(10px,1.8vh,15px);padding:2px 4px;border:1px solid #e6c36a;border-radius:8px;background:#263b56;color:#fff;box-shadow:0 2px 5px #0008;}
 #resetGameBtn{left:78%;top:78%;width:20%;height:5%;font-size:10px!important;color:#fff!important;background:#8a2525d9!important;border:1px solid #fff!important;border-radius:5px!important;opacity:1!important;pointer-events:auto!important}
 #developmentMessage{position:absolute;z-index:20;left:8%;right:8%;top:40%;padding:4px;background:#101827dd;color:#fff;text-align:center;font-size:10px;display:none;pointer-events:none}
 #developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:#233b2aeb;color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid #ffffff59}
@@ -266,7 +267,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
     <button type="button" class="dev-hit" style="left:5.4%;top:61.2%;width:26%;height:16%" aria-label="معدن طلا" onclick="openDevelopmentBuilding('goldMine')"></button>
     <div id="developmentMessage"></div>
     <div class="developmentBottomBar">
-      <button type="button" id="castleBack" class="back" aria-label="نقشه بازیکنان" onclick="openPlayerMap()"></button><button type="button" id="attackBtn" aria-label="حمله"></button><button type="button" id="battleBtn" aria-label="ورود به صحنه نبرد"></button><button type="button" id="defenseBtn" aria-label="چیدمان دفاعی"></button><button type="button" id="developmentExitButton" aria-label="خروج"></button><button type="button" id="resetGameBtn" style="display:none">بازنشانی</button>
+      <button type="button" id="castleBack" class="back" aria-label="نقشه بازیکنان" onclick="openPlayerMap()"></button><button type="button" id="attackBtn" aria-label="حمله"></button><button type="button" id="battleBtn" aria-label="ورود به صحنه نبرد"></button><button type="button" id="defenseBtn" aria-label="چیدمان دفاعی"></button><button type="button" id="developmentExitButton" aria-label="خروج"></button><button type="button" id="developmentBattleReportsBtn" class="development-reports-button">گزارش نبردها</button><button type="button" id="resetGameBtn" style="display:none">بازنشانی</button>
     </div>
   </div></div></div>
 </section>
@@ -859,7 +860,10 @@ function sidchek(){
   if(!battle)return false;
 
   const units=battle.armies.flatMap(army=>army.units||[]).filter(unit=>Number(unit.count)>0);
-  if(!units.length)return false;
+  if(!units.length){
+    endbat(null);
+    return true;
+  }
 
   const firstSide=units[0].side;
   const oneSide=units.every(unit=>unit.side===firstSide);
@@ -1114,14 +1118,7 @@ async function rand(){
 
   randTimerId=setInterval(async ()=>{
     updateRoundTimerDisplay();
-    // حرکت فقط در ثانیهٔ پنجم از شروع راند اجرا می‌شود؛ در ثانیهٔ پانزدهم تکرار نمی‌شود.
-    const movementKey=String(roundClockBattleId)+":"+String(randwar);
-    if(currentRoundEndsAt && movementAppliedForRoundKey!==movementKey &&
-       Date.now()+serverClockOffset>=currentRoundEndsAt-15000 &&
-       Date.now()+serverClockOffset<currentRoundEndsAt){
-      movementAppliedForRoundKey=movementKey;
-      await applyRoundMoves();
-    }
+    // حرکت فقط توسط processDueRound و در ثانیهٔ ۱۷ اجرا می‌شود؛ اجرای موازی حذف شد.
     if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
       await processDueRound();
       updateRoundTimerDisplay();
@@ -1501,9 +1498,17 @@ async function openBattleReports(){
   overlay.style.display='flex';
   try{
     const data=await api('/api/battle-reports?_='+Date.now());
-    const reports=Array.isArray(data.reports)?data.reports:[];
+    const allReports=Array.isArray(data.reports)?data.reports:[];
+    const castleId=Number(selectedCastleId);
+    const reports=[];
+    for(const item of allReports){
+      try{
+        const detail=await api('/api/battle-reports/'+encodeURIComponent(item.battleId)+'?_='+Date.now());
+        if((detail.report||[]).some(row=>Number(row.castleId)===castleId))reports.push(item);
+      }catch(err){console.warn('بررسی گزارش قلعه ناموفق بود',item.battleId,err);}
+    }
     if(!reports.length){
-      select.innerHTML='<option value="">هنوز هیچ گزارش نبردی ذخیره نشده است.</option>';
+      select.innerHTML='<option value="">برای این قلعه گزارشی ثبت نشده است.</option>';
       return;
     }
     select.innerHTML='<option value="">انتخاب شماره نبرد...</option>'+reports.map(item=>
@@ -1539,6 +1544,7 @@ document.getElementById('battleReportSelectClose').onclick=closeBattleReportSele
 document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
 document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
 document.getElementById('battleReportsBtn').onclick=openBattleReports;
+document.getElementById('developmentBattleReportsBtn').onclick=openBattleReports;
 
 const originalEndbat=endbat;
 endbat=async function(winningSide){
