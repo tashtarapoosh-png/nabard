@@ -1093,6 +1093,7 @@ function updateRoundTimerDisplay(){
   if(currentRoundEndsAt){
     randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
   }
+  if(randRemainingSeconds===0&&!updateRoundTimerDisplay._loading){updateRoundTimerDisplay._loading=true;loadRoundClock().then(updateRoundTimerDisplay).finally(()=>updateRoundTimerDisplay._loading=false);}
   if(timer){
     const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
     const ss=String(randRemainingSeconds%60).padStart(2,"0");
@@ -1105,17 +1106,7 @@ async function rand(){
   const activeBattle=getCurrentBattle();
   if(!activeBattle || !activeBattle.batId)return;
   const nextBattleId=String(activeBattle.batId);
-  if(randStarted && roundClockBattleId===nextBattleId){
-    // با هر ورود دوباره، شماره راند و پایان تایمر را از UTC دیتابیس تازه بخوان.
-    const refreshed=await loadRoundClock();
-    if(refreshed){
-      updateRoundTimerDisplay();
-      if(randwar>processedRoundNumber || (currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt)){
-        processDueRound().finally(updateRoundTimerDisplay);
-      }
-    }
-    return;
-  }
+  if(randStarted && roundClockBattleId===nextBattleId)return;
   if(randTimerId)clearInterval(randTimerId);
   randTimerId=null;
   randStarted=true;
@@ -1824,6 +1815,7 @@ document.getElementById('defenseBtn').onclick=()=>{
 document.getElementById('castleBack').onclick=()=>openPlayerMap();
 document.getElementById('developmentExitButton').onclick=exitGame;
 document.getElementById('battleBtn').onclick=async()=>{
+  if(randRemainingSeconds===0&&!updateRoundTimerDisplay._loading){updateRoundTimerDisplay._loading=true;loadRoundClock().then(updateRoundTimerDisplay).finally(()=>updateRoundTimerDisplay._loading=false);}
   try{
     const battle=await loadBattleForSelectedCastle();
     if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
