@@ -476,11 +476,10 @@ app.get("/api/battle/:id/state", async (req,res)=>{
 async function advanceBattleRoundClocks(){
   await pool.query(`
     UPDATE battles
-    SET round_number = round_number + FLOOR(EXTRACT(EPOCH FROM (NOW()-round_started_at)) / round_duration_seconds)::int,
-        round_started_at = round_started_at + (FLOOR(EXTRACT(EPOCH FROM (NOW()-round_started_at)) / round_duration_seconds)::int * round_duration_seconds) * INTERVAL '1 second'
+    SET round_number = 1 + FLOOR(GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-created_at)) / round_duration_seconds))::int,
+        round_started_at = created_at + (FLOOR(GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-created_at)) / round_duration_seconds)) * round_duration_seconds) * INTERVAL '1 second'
     WHERE ended=FALSE
       AND round_duration_seconds=20
-      AND round_started_at + round_duration_seconds * INTERVAL '1 second' <= NOW()
   `);
 }
 
@@ -490,16 +489,18 @@ app.get("/api/battle/:id/round", async(req,res)=>{
   if(!Number.isInteger(id))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
   try{
     const r=await pool.query(
-      `SELECT round_number, round_started_at, round_duration_seconds,
+      `SELECT round_number, created_at, round_duration_seconds,
               round_claim_token, round_claim_expires_at, processed_round_number,
-              (EXTRACT(EPOCH FROM (round_started_at + round_duration_seconds * INTERVAL '1 second'))*1000)::bigint AS round_ends_at_ms,
-              (EXTRACT(EPOCH FROM NOW())*1000)::bigint AS server_now_ms
+              (EXTRACT(EPOCH FROM clock_timestamp())*1000)::bigint AS server_now_ms,
+              (1 + FLOOR(GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-created_at)) / round_duration_seconds)))::int AS calculated_round,
+              (EXTRACT(EPOCH FROM (created_at + (FLOOR(GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-created_at)) / round_duration_seconds))+1) * round_duration_seconds * INTERVAL '1 second'))*1000)::bigint AS round_ends_at_ms
        FROM battles WHERE id=$1 AND ended=FALSE`,
       [id]
     );
     if(!r.rows[0])return res.status(404).json({error:"نبرد فعال پیدا نشد."});
     const row=r.rows[0];
-    res.json({ok:true,roundNumber:Number(row.round_number||0),processedRoundNumber:Number(row.processed_round_number||0),roundEndsAt:Number(row.round_ends_at_ms),serverNow:Number(row.server_now_ms)});
+    // زمان شروع ثابت است: created_at؛ شماره و پایان راند از ساعت واقعی PostgreSQL محاسبه می‌شوند.
+    res.json({ok:true,roundNumber:Number(row.calculated_round||1),processedRoundNumber:Number(row.processed_round_number||0),roundEndsAt:Number(row.round_ends_at_ms),serverNow:Number(row.server_now_ms)});
   }catch(e){
     console.error("read round clock",e);
     res.status(500).json({error:"خواندن زمان راند از SQL ناموفق بود."});
@@ -568,15 +569,17 @@ app.post("/api/battle/:id/round/commit", async(req,res)=>{
     const updated=await client.query(
       `UPDATE battles
        SET processed_round_number=GREATEST(processed_round_number,round_number),
-           round_number=round_number+1,
-           round_started_at=round_started_at + round_duration_seconds * INTERVAL '1 second',
+           round_number=1 + FLOOR(GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-created_at)) / round_duration_seconds))::int,
+           round_started_at=created_at + FLOOR(GREATEST(0, EXTRACT(EPOCH FROM (clock_timestamp()-created_at)) / round_duration_seconds)) * round_duration_seconds * INTERVAL '1 second',
            round_claim_token=NULL, round_claim_expires_at=NULL
        WHERE id=$1 AND ended=FALSE
-       RETURNING round_number, processed_round_number, round_started_at, round_duration_seconds`,[id]
+       RETURNING round_number, processed_round_number, created_at, round_duration_seconds`,[id]
     );
     const saved=updated.rows[0];
+    const elapsedMs=Math.max(0,Date.now()-new Date(saved.created_at).getTime());
+    const nextEnd=new Date(saved.created_at).getTime()+(Math.floor(elapsedMs/(Number(saved.round_duration_seconds)*1000))+1)*Number(saved.round_duration_seconds)*1000;
     await client.query("COMMIT");
-    res.json({ok:true,roundNumber:Number(saved.round_number||0),processedRoundNumber:Number(saved.processed_round_number||0),roundEndsAt:new Date(saved.round_started_at).getTime()+Number(saved.round_duration_seconds)*1000});
+    res.json({ok:true,roundNumber:Number(saved.round_number||1),processedRoundNumber:Number(saved.processed_round_number||0),roundEndsAt:nextEnd});
   }catch(e){
     try{await client.query("ROLLBACK");}catch(rollbackError){console.error("rollback round commit",rollbackError);}
     console.error("round-commit",e);
@@ -1130,23 +1133,14 @@ function gozbat(battleRow){
     for(const rawType of Object.keys(initialByType)){
       const initial=initialByType[rawType];
       const remaining=remainingByType[rawType]||0;
-      const key=String(castleId)+'|'+rawType;
-      const previous=reportMap.get(key);
-      if(previous){
-        // یک قلعه ممکن است در یک نبرد چند ارتش/نیروی کمکی داشته باشد؛ جمع همهٔ آن‌ها را نگه می‌داریم.
-        previous.initial+=initial;
-        previous.remaining+=remaining;
-        previous.losses=Math.max(0,previous.initial-previous.remaining);
-      }else{
-        reportMap.set(key,{
-          castleId,
-          castleName,
-          type:names[rawType]||rawType,
-          initial,
-          losses:Math.max(0,initial-remaining),
-          remaining
-        });
-      }
+      reportMap.set(String(castleId)+'|'+rawType,{
+        castleId,
+        castleName,
+        type:names[rawType]||rawType,
+        initial,
+        losses:Math.max(0,initial-remaining),
+        remaining
+      });
     }
   }
 

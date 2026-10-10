@@ -1106,7 +1106,7 @@ async function rand(){
   if(!activeBattle || !activeBattle.batId)return;
   const nextBattleId=String(activeBattle.batId);
   if(randStarted && roundClockBattleId===nextBattleId){
-    // ورود دوباره به صحنه: ساعت مرجع، شماره راند و پایان راند را دوباره از SQL بخوان.
+    // با هر ورود دوباره، شماره راند و پایان تایمر را از UTC دیتابیس تازه بخوان.
     const refreshed=await loadRoundClock();
     if(refreshed){
       updateRoundTimerDisplay();
@@ -1120,8 +1120,7 @@ async function rand(){
   randTimerId=null;
   randStarted=true;
   roundClockBattleId=nextBattleId;
-  // زمان قبلی را پاک نمی‌کنیم؛ بلافاصله پایین، شماره راند و پایان راند از SQL خوانده می‌شود.
-  // پاک‌کردن زمان قبلی پیش از پاسخ SQL می‌توانست نمایشگر را موقتاً بی‌مرجع کند.
+  currentRoundEndsAt=null;
 
   const box=document.getElementById("randTimerBox");
   if(box)box.style.display="block";
