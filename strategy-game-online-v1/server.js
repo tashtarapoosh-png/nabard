@@ -1130,14 +1130,23 @@ function gozbat(battleRow){
     for(const rawType of Object.keys(initialByType)){
       const initial=initialByType[rawType];
       const remaining=remainingByType[rawType]||0;
-      reportMap.set(String(castleId)+'|'+rawType,{
-        castleId,
-        castleName,
-        type:names[rawType]||rawType,
-        initial,
-        losses:Math.max(0,initial-remaining),
-        remaining
-      });
+      const key=String(castleId)+'|'+rawType;
+      const previous=reportMap.get(key);
+      if(previous){
+        // یک قلعه ممکن است در یک نبرد چند ارتش/نیروی کمکی داشته باشد؛ جمع همهٔ آن‌ها را نگه می‌داریم.
+        previous.initial+=initial;
+        previous.remaining+=remaining;
+        previous.losses=Math.max(0,previous.initial-previous.remaining);
+      }else{
+        reportMap.set(key,{
+          castleId,
+          castleName,
+          type:names[rawType]||rawType,
+          initial,
+          losses:Math.max(0,initial-remaining),
+          remaining
+        });
+      }
     }
   }
 
