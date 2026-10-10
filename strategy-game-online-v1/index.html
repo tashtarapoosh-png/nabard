@@ -369,9 +369,6 @@ let currentRoundToken=null;
 let currentRoundEndsAt=null;
 let processedRoundNumber=0;
 let serverClockOffset=0;
-// فقط برای نمایش تایمر؛ در منطق و زمان‌بندی واقعی راند دخالت نمی‌کند.
-let timerDisplayRoundNumber=null;
-let timerDisplayRoundStartedAt=null;
 let currentBattleForScene=null;
 
 function show(id){
@@ -1093,15 +1090,8 @@ async function processDueRound(){
 function updateRoundTimerDisplay(){
   const timer=document.getElementById("randTimerValue");
   const war=document.getElementById("randWarValue");
-  // نمایشگر مستقل: با تشخیص شمارهٔ راند جدید، شمارش نمایشی از ۲۰ شروع می‌شود.
-  // این محاسبه هیچ درخواست، اجرای راند یا زمان‌بندی نبرد را تغییر نمی‌دهد.
-  if(timerDisplayRoundNumber===null || Number(timerDisplayRoundNumber)!==Number(randwar)){
-    timerDisplayRoundNumber=Number(randwar);
-    timerDisplayRoundStartedAt=Date.now();
-    randRemainingSeconds=20;
-  }
-  if(timerDisplayRoundStartedAt!==null){
-    randRemainingSeconds=Math.max(0,20-Math.floor((Date.now()-timerDisplayRoundStartedAt)/1000));
+  if(currentRoundEndsAt){
+    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
   }
   if(timer){
     const mm=String(Math.floor(randRemainingSeconds/60)).padStart(2,"0");
@@ -1111,7 +1101,7 @@ function updateRoundTimerDisplay(){
   if(war)war.textContent="راند: "+randwar;
 }
 
-async function rand(){
+async function rand(roundClockAlreadyLoaded=false){
   const activeBattle=getCurrentBattle();
   if(!activeBattle || !activeBattle.batId)return;
   const nextBattleId=String(activeBattle.batId);
@@ -1125,7 +1115,7 @@ async function rand(){
   const box=document.getElementById("randTimerBox");
   if(box)box.style.display="block";
 
-  await loadRoundClock();
+  if(!roundClockAlreadyLoaded)await loadRoundClock();
   updateRoundTimerDisplay();
 
   // تایمر نمایشی را قبل از اجرای مراحل طولانی راند راه می‌اندازیم؛
@@ -1828,10 +1818,14 @@ document.getElementById('battleBtn').onclick=async()=>{
     const battle=await loadBattleForSelectedCastle();
     if(!battle)return alert('این قلعه در حال حاضر در نبردی نیست.');
     u.castle=selectedCastleId;
+    // پیش از نمایش صحنه، شماره و زمان باقی‌ماندهٔ راند را از SQL بخوان.
+    const roundClockLoaded=await loadRoundClock();
+    if(!roundClockLoaded)throw new Error('خواندن شماره و زمان راند از SQL ناموفق بود.');
+    updateRoundTimerDisplay();
     show('battle');
     setBattlePerspective();
     viobat();
-    rand();
+    rand(true);
   }catch(e){alert(e.message);}
 };
 document.getElementById('developmentUpgradeButton').onclick=startDevelopmentUpgrade;
