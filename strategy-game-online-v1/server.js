@@ -324,11 +324,12 @@ async function expireBattles(){
   }finally{client.release();}
 }
 
-async function currentBattleForCastle(castleId){
+async function getActiveBattlesForCastle(castleId){
+  // هر قلعه ممکن است هم‌زمان در چند نبرد مستقل شرکت داشته باشد؛ همهٔ آن‌ها را برمی‌گردانیم.
   const r=await pool.query(`
     SELECT b.*
     FROM battles b
-    WHERE b.ended=FALSE
+    WHERE b.ended=FALSE AND b.ends_at>NOW()
       AND (
         b.target_id=$1
         OR EXISTS (
@@ -338,9 +339,13 @@ async function currentBattleForCastle(castleId){
         )
       )
     ORDER BY b.id DESC
-    LIMIT 1
   `,[castleId]);
-  return battleJson(r.rows[0]);
+  return r.rows.map(battleJson);
+}
+
+async function currentBattleForCastle(castleId){
+  const battles=await getActiveBattlesForCastle(castleId);
+  return battles[0]||null;
 }
 
 // ذخیره مقصد انتخاب‌شده برای یک واحد. حرکت واقعی فقط در پایان راند انجام می‌شود.
@@ -1286,6 +1291,11 @@ app.get("/api/battle/current",async(req,res)=>{
   try{
     await resolveDueAttacks();
     await expireBattles();
+    if(String(req.query.all||'')==='1'){
+      const battles=await getActiveBattlesForCastle(castleId);
+      return res.json({battles});
+    }
+    // سازگاری با کلاینت‌های قدیمی حفظ می‌شود.
     res.json({battle:await currentBattleForCastle(castleId)});
   }catch(e){
     console.error(e);
@@ -1296,7 +1306,7 @@ app.get("/api/battle/current",async(req,res)=>{
 
 // پردازش قطعی راندها روی سرور؛ هیچ مرورگری برای ادامه نبرد لازم نیست.
 async function processDueBattleRounds(){
-  const due=await pool.query(`SELECT id FROM battles WHERE ended=FALSE AND processed_round_number<round_number ORDER BY id LIMIT 30`);
+  const due=await pool.query(`SELECT id FROM battles WHERE ended=FALSE AND processed_round_number<round_number ORDER BY id`);
   for(const item of due.rows){
     const client=await pool.connect();
     try{
