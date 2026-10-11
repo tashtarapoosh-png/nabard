@@ -122,6 +122,9 @@ async function initDb(){
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS gold BIGINT NOT NULL DEFAULT 3000`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS buildings JSONB NOT NULL DEFAULT '{"castle":{"level":1},"wall":{"level":1},"barracks1":{"level":1},"barracks2":{"level":1},"goldMine":{"level":1}}'::jsonb`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS battle_history JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS training_jobs JSONB NOT NULL DEFAULT '{"barracks1":null,"barracks2":null}'::jsonb`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS active_upgrade JSONB`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS development_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
 
   // تبدیل یک‌بارهٔ قلعه‌های آزمایشی قدیمی به چهار حساب پیش‌فرض موردنیاز.
   const legacy=await pool.query("SELECT COUNT(*)::int AS n FROM castles WHERE username IS NOT NULL");
@@ -243,7 +246,9 @@ function publicCastle(row){
     mapX:row.map_x,
     mapY:row.map_y,
     gold:Number(row.gold||0),
-    buildings:row.buildings||defaultBuildings()
+    buildings:row.buildings||defaultBuildings(),
+    trainingJobs:row.training_jobs||{barracks1:null,barracks2:null},
+    activeUpgrade:row.active_upgrade||null
   };
 }
 
@@ -725,12 +730,17 @@ app.post('/api/auth/register',async(req,res)=>{
 app.put('/api/castle/:id/development',async(req,res)=>{
   const id=Number(req.params.id);const gold=Math.max(0,Math.floor(Number(req.body.gold)||0));
   const buildings=req.body.buildings&&typeof req.body.buildings==='object'?req.body.buildings:defaultBuildings();
+  const trainingJobs=req.body.trainingJobs&&typeof req.body.trainingJobs==='object'?req.body.trainingJobs:{barracks1:null,barracks2:null};
+  const activeUpgrade=req.body.activeUpgrade&&typeof req.body.activeUpgrade==='object'?req.body.activeUpgrade:null;
   if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
-  try{const q=await pool.query('UPDATE castles SET gold=$1,buildings=$2::jsonb WHERE id=$3 RETURNING id,gold,buildings',[gold,JSON.stringify(buildings),id]);if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});res.json({ok:true,castle:q.rows[0]});}
-  catch(e){console.error('save development',e);res.status(500).json({error:'ذخیره اطلاعات توسعه قلعه ناموفق بود.'});}
+  try{
+    const q=await pool.query(`UPDATE castles SET gold=$1,buildings=$2::jsonb,training_jobs=$3::jsonb,active_upgrade=$4::jsonb,development_updated_at=NOW() WHERE id=$5 RETURNING id,gold,buildings,training_jobs,active_upgrade`,[gold,JSON.stringify(buildings),JSON.stringify(trainingJobs),JSON.stringify(activeUpgrade),id]);
+    if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});
+    res.json({ok:true,castle:q.rows[0]});
+  }catch(e){console.error('save development',e);res.status(500).json({error:'ذخیره اطلاعات توسعه قلعه ناموفق بود.'});}
 });
 app.get('/api/map',async(req,res)=>{
-  try{const q=await pool.query('SELECT id,name,username,map_x,map_y,army,defense_slots,gold,buildings FROM castles ORDER BY id');res.json({castles:q.rows.map(r=>({id:r.id,name:r.name,username:r.username,x:r.map_x,y:r.map_y,army:r.army,defenseSlots:r.defense_slots,gold:Number(r.gold||0),buildings:r.buildings}))});}
+  try{const q=await pool.query('SELECT id,name,username,map_x,map_y,army,defense_slots,gold,buildings,training_jobs,active_upgrade FROM castles ORDER BY id');res.json({castles:q.rows.map(r=>({id:r.id,name:r.name,username:r.username,x:r.map_x,y:r.map_y,army:r.army,defenseSlots:r.defense_slots,gold:Number(r.gold||0),buildings:r.buildings,trainingJobs:r.training_jobs,activeUpgrade:r.active_upgrade}))});}
   catch(e){console.error('map',e);res.status(500).json({error:'خواندن نقشه ناموفق بود.'});}
 });
 
@@ -1283,6 +1293,116 @@ app.get("/api/battle/current",async(req,res)=>{
   }
 });
 
+
+// پردازش قطعی راندها روی سرور؛ هیچ مرورگری برای ادامه نبرد لازم نیست.
+async function processDueBattleRounds(){
+  const due=await pool.query(`SELECT id FROM battles WHERE ended=FALSE AND processed_round_number<round_number ORDER BY id LIMIT 30`);
+  for(const item of due.rows){
+    const client=await pool.connect();
+    try{
+      await client.query('BEGIN');
+      const q=await client.query('SELECT * FROM battles WHERE id=$1 AND ended=FALSE FOR UPDATE',[item.id]);
+      if(!q.rows[0]){await client.query('COMMIT');continue;}
+      const row=q.rows[0];
+      const roundNo=Number(row.processed_round_number||0)+1;
+      if(roundNo>Number(row.round_number||0)){await client.query('COMMIT');continue;}
+      const claimExpires=row.round_claim_expires_at?new Date(row.round_claim_expires_at).getTime():0;
+      if(row.round_claim_token&&claimExpires>Date.now()){await client.query('COMMIT');continue;}
+      const armies=Array.isArray(row.armies)?row.armies:[];
+      const units=armies.flatMap(a=>(Array.isArray(a.units)?a.units:[]));
+      const alive=units.filter(u=>Number(u.count)>0);
+      const range=u=>u.rawType==='archer'?2:1;
+      const multiplier=(a,t)=>a.rawType==='archer'&&t.rawType==='cavalry'?2:a.rawType==='cavalry'&&t.rawType==='swordsman'?2:a.rawType==='swordsman'&&t.rawType==='archer'?2:1;
+      // خسارت‌ها مطابق الگوریتم قبلی محاسبه می‌شوند.
+      for(const unit of alive){
+        const targets=alive.filter(t=>t!==unit&&t.side!==unit.side&&Math.abs(Number(t.x)-Number(unit.x))<=range(unit)&&Math.abs(Number(t.y)-Number(unit.y))<=range(unit));
+        const total=targets.reduce((sum,t)=>sum+Number(t.count||0),0);
+        if(total<=0)continue;
+        const damage=Number(unit.count)*100;
+        for(const target of targets){target.health=Math.max(0,Number(target.health)-damage*(Number(target.count)/total)*multiplier(unit,target));}
+      }
+      const healthEach={archer:500,cavalry:1000,swordsman:1000};
+      for(const army of armies){
+        army.units=(army.units||[]).filter(u=>{
+          const hp=healthEach[u.rawType]||0;
+          if(!hp)return Number(u.count)>0;
+          u.count=Math.max(0,Math.floor(Math.max(0,Number(u.health)||0)/hp));
+          return u.count>0;
+        });
+      }
+      let liveUnits=armies.flatMap(a=>a.units||[]).filter(u=>Number(u.count)>0);
+      let sides=[...new Set(liveUnits.map(u=>u.side))];
+      // مطابق رفتار قبلی، اگر نبرد همین راند تمام شده باشد دیگر حرکت انجام نمی‌شود.
+      if(sides.length>1){
+        for(const army of armies)for(const unit of (army.units||[])){
+          const dest=String(unit.moveTarget||'').toUpperCase();
+          const m=/^([A-T])(1[0-2]|[1-9])$/.exec(dest);
+          if(!m)continue;
+          const x=Number(m[2])-1,y='ABCDEFGHIJKLMNOPQRST'.indexOf(m[1]);
+          if(x<0||x>11||y<0||y>19)continue;
+          unit.cell=dest;unit.x=x;unit.y=y;delete unit.moveTarget;
+        }
+      }
+      liveUnits=armies.flatMap(a=>a.units||[]).filter(u=>Number(u.count)>0);
+      sides=[...new Set(liveUnits.map(u=>u.side))];
+      const ended=sides.length<=1;
+      const winnerSide=sides.length===1?sides[0]:null;
+      const reportArmies=mergeReportArmies(row.report_armies,armies);
+      if(ended){
+        const report=gozbat({...row,armies,report_armies:reportArmies});
+        await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side) VALUES($1,$2::jsonb,$3) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,created_at=NOW()`,[row.id,JSON.stringify(report),winnerSide]);
+        await client.query('DELETE FROM battles WHERE id=$1',[row.id]);
+        await client.query("DELETE FROM attacks WHERE target_id=$1 AND status IN ('resolved','rejected')",[row.target_id]);
+        await client.query('UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',[row.target_id,row.id]);
+      }else{
+        await client.query(`UPDATE battles SET armies=$1::jsonb,report_armies=$2::jsonb,processed_round_number=$3,round_claim_token=NULL,round_claim_expires_at=NULL WHERE id=$4`,[JSON.stringify(armies),JSON.stringify(reportArmies),roundNo,row.id]);
+      }
+      await client.query('COMMIT');
+    }catch(e){try{await client.query('ROLLBACK');}catch{}console.error('server battle round',item.id,e);}
+    finally{client.release();}
+  }
+}
+
+// تولید طلا، آموزش نیرو و ارتقای ساختمان‌ها بر اساس ساعت سرور و داده‌های SQL.
+async function processCastleDevelopment(){
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const q=await client.query('SELECT id,army,gold,buildings,training_jobs,active_upgrade,development_updated_at FROM castles ORDER BY id FOR UPDATE');
+    const now=Date.now();
+    for(const row of q.rows){
+      const buildings=row.buildings||defaultBuildings();
+      const training=row.training_jobs||{barracks1:null,barracks2:null};
+      const army={...(row.army||emptyArmy())};
+      let gold=Number(row.gold||0);
+      const last=new Date(row.development_updated_at||now).getTime();
+      const wholeMinutes=Math.max(0,Math.floor((now-last)/60000));
+      if(wholeMinutes>0){gold+=wholeMinutes*(100+Math.max(0,Number(buildings.goldMine?.level||1)-1)*50);}
+      let changed=wholeMinutes>0;
+      for(const key of ['barracks1','barracks2']){
+        const job=training[key];
+        if(job&&Number(job.endsAt)>0&&Number(job.endsAt)<=now){
+          const type=String(job.type||'');const count=Math.max(0,Math.floor(Number(job.count)||0));
+          if(names[type]&&count>0)army[type]=Number(army[type]||0)+count;
+          training[key]=null;changed=true;
+        }
+      }
+      let upgrade=row.active_upgrade||null;
+      if(upgrade&&Number(upgrade.endsAt)>0&&Number(upgrade.endsAt)<=now){
+        const type=String(upgrade.type||'');
+        if(buildings[type])buildings[type].level=Math.max(Number(buildings[type].level||1),Math.floor(Number(upgrade.targetLevel)||1));
+        upgrade=null;changed=true;
+      }
+      if(changed||wholeMinutes>0){
+        const updatedAt=wholeMinutes>0?new Date(last+wholeMinutes*60000):new Date(last);
+        await client.query(`UPDATE castles SET army=$1::jsonb,gold=$2,buildings=$3::jsonb,training_jobs=$4::jsonb,active_upgrade=$5::jsonb,development_updated_at=$6 WHERE id=$7`,[JSON.stringify(army),Math.floor(gold),JSON.stringify(buildings),JSON.stringify(training),JSON.stringify(upgrade),updatedAt,row.id]);
+      }
+    }
+    await client.query('COMMIT');
+  }catch(e){try{await client.query('ROLLBACK');}catch{}console.error('server development tick',e);}
+  finally{client.release();}
+}
+
 app.get("/health",async(req,res)=>{
   try{
     await pool.query("SELECT 1");
@@ -1299,8 +1419,16 @@ app.use(express.static(__dirname, {
 
 initDb()
   .then(()=>{
-    // تایمر راند سمت سرور اجرا می‌شود و به حضور هیچ بازیکنی وابسته نیست.
-    setInterval(()=>advanceBattleRoundClocks().catch(e=>console.error("advance battle round clocks",e)),1000);
+    // تمام وظایف زمان‌محور در سرور اجرا می‌شوند؛ خروج بازیکن روی منطق بازی اثر ندارد.
+    const backgroundTick=async()=>{
+      try{await resolveDueAttacks();}catch(e){console.error('resolve due attacks',e);}
+      try{await expireBattles();}catch(e){console.error('expire battles',e);}
+      try{await advanceBattleRoundClocks();}catch(e){console.error('advance battle round clocks',e);}
+      try{await processDueBattleRounds();}catch(e){console.error('process due battle rounds',e);}
+      try{await processCastleDevelopment();}catch(e){console.error('castle development tick',e);}
+    };
+    setInterval(backgroundTick,1000);
+    backgroundTick().catch(e=>console.error('initial background tick',e));
     app.listen(PORT,()=>console.log(`Game server listening on ${PORT}`));
   })
   .catch(err=>{

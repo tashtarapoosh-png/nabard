@@ -974,55 +974,22 @@ async function loadRoundClock(){
 }
 
 async function processDueRound(){
+  // محاسبه خسارت، حذف واحدها، حرکت و پایان نبرد در سرور انجام می‌شود.
+  // مرورگر فقط snapshot ذخیره‌شده را می‌خواند و صحنه را به‌روز می‌کند.
   if(randProcessing)return;
   const battle=getCurrentBattle();
-  if(!battle || !battle.batId)return;
+  if(!battle||!battle.batId)return;
   randProcessing=true;
   try{
-    const claim=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/claim",{
-      method:"POST",body:"{}"
-    });
-    if(!claim.claimed){
-      currentRoundEndsAt=Number(claim.roundEndsAt||currentRoundEndsAt||0);
-      randwar=Number(claim.roundNumber||randwar||0);
-      return;
+    const saved=await api('/api/battle/'+encodeURIComponent(battle.batId)+'/state',{method:'GET'});
+    if(saved.battle){
+      battleRegistry[String(saved.battle.targetId)]=saved.battle;
+      currentBattleForScene=saved.battle;
+      if(document.getElementById('battle')?.classList.contains('active'))viobat();
     }
-
-    currentRoundToken=claim.token;
-    randwar=Number(claim.roundNumber||0);
-    currentRoundEndsAt=Number(claim.roundEndsAt||0);
-    randRemainingSeconds=0;
-
-    // منطق نبرد راند دقیقاً همان قبلی است؛ فقط شروع/پایان راند از SQL هماهنگ می‌شود.
-    await viobat();
-    jang();
-    fotjang();
-
-    const battleAfterCombat=getCurrentBattle();
-    if(battleAfterCombat){
-      const saved=await persistBattleCombat(battleAfterCombat);
-      if(!saved)return;
-    }
-
-    const battleEnded=sidchek();
-    if(battleEnded)return;
-
-    const moved=await applyRoundMoves();
-    if(!moved)return;
-
-    const committed=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/commit",{
-      method:"POST",
-      body:JSON.stringify({token:currentRoundToken})
-    });
-    currentRoundToken=null;
-    currentRoundEndsAt=Number(committed.roundEndsAt||0);
-    randwar=Number(committed.roundNumber||0);
-  }catch(err){
-    console.error("پردازش راند ناموفق بود:",err);
-    // راند در SQL commit نشده؛ بعد از برگشت ارتباط دوباره قابل دریافت است.
-  }finally{
-    randProcessing=false;
-  }
+    await loadRoundClock();
+  }catch(err){console.error('دریافت وضعیت راند ناموفق بود:',err);}
+  finally{randProcessing=false;}
 }
 
 function updateRoundTimerDisplay(){
@@ -1344,7 +1311,8 @@ function applyServerCastles(list){
     castles[c.id].defenseSlots=Array.isArray(c.defenseSlots)?c.defenseSlots:castles[c.id].defenseSlots;
     castles[c.id].underAttack=!!c.underAttack;
     castles[c.id].battleId=c.battleId||null;
-    castles[c.id].username=c.username||null;castles[c.id].mapX=c.mapX;castles[c.id].mapY=c.mapY;castles[c.id].gold=c.gold;castles[c.id].buildings=c.buildings;
+    castles[c.id].username=c.username||null;castles[c.id].mapX=c.mapX;castles[c.id].mapY=c.mapY;castles[c.id].gold=c.gold;castles[c.id].buildings=c.buildings;castles[c.id].trainingJobs=c.trainingJobs||{barracks1:null,barracks2:null};castles[c.id].activeUpgrade=c.activeUpgrade||null;
+    if(typeof developmentState!=='undefined'&&Number(c.id)===Number(selectedCastleId)&&developmentState){developmentState.gold=Number(c.gold||0);developmentState.buildings=developmentClone(c.buildings||developmentDefaults.buildings);developmentState.training=developmentClone(c.trainingJobs||{barracks1:null,barracks2:null});developmentState.activeUpgrade=c.activeUpgrade||null;}
   });
 }
 async function syncState(){
@@ -1514,6 +1482,7 @@ document.getElementById('randomDefenseBtn').onclick=async()=>{
   catch(e){alert(e.message);}
 };
 syncState().catch(e=>console.error('state',e));
+setInterval(()=>{if(navigator.onLine)syncState().catch(e=>console.error('state refresh',e));},5000);
 (async function restorePending(){
   try{
     if(selectedCastleId===null)return;
@@ -1548,12 +1517,13 @@ function developmentLoad(){
     if(serverCastle.buildings)s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),serverCastle.buildings);
   }
   // فقط وضعیت آموزش‌های در حال انجام در مرورگر نگهداری می‌شود.
-  s.training=Object.assign(developmentClone(developmentDefaults.training),saved.training||{});
+  s.training=developmentClone(serverCastle?.trainingJobs||saved.training||developmentDefaults.training);
+  s.activeUpgrade=serverCastle?.activeUpgrade||saved.activeUpgrade||null;
   developmentState=s;
   developmentProgress();
   localStorage.setItem(developmentKey(),JSON.stringify(developmentState));
 }
-function developmentSave(){if(developmentState){localStorage.setItem(developmentKey(),JSON.stringify(developmentState));if(selectedCastleId!==null){if(castles[selectedCastleId]){castles[selectedCastleId].gold=Math.floor(Number(developmentState.gold)||0);castles[selectedCastleId].buildings=developmentClone(developmentState.buildings);}fetch('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gold:Math.floor(Number(developmentState.gold)||0),buildings:developmentState.buildings})}).catch(()=>{});}}}
+function developmentSave(persistServer=false){if(developmentState){localStorage.setItem(developmentKey(),JSON.stringify(developmentState));if(persistServer&&selectedCastleId!==null){fetch('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gold:Math.floor(Number(developmentState.gold)||0),buildings:developmentState.buildings,trainingJobs:developmentState.training,activeUpgrade:developmentState.activeUpgrade||null})}).then(r=>{if(!r.ok)throw new Error('ذخیره توسعه در سرور ناموفق بود');return r.json();}).then(data=>{if(data.castle&&castles[selectedCastleId]){castles[selectedCastleId].gold=Number(data.castle.gold||0);castles[selectedCastleId].buildings=data.castle.buildings;castles[selectedCastleId].trainingJobs=data.castle.training_jobs;castles[selectedCastleId].activeUpgrade=data.castle.active_upgrade;}}).catch(e=>console.error(e));}}}
 function developmentProductionPerMinute(){return 100+Math.max(0,(developmentState?.buildings?.goldMine?.level||1)-1)*50;}
 function developmentUpgradeCost(type,target){return (type==='castle'?500:250)*target;}
 function developmentUpgradeTime(type,target){return (type==='castle'?30:20)*target;}
@@ -1652,7 +1622,7 @@ function startDevelopmentUpgrade(){
   if(Number(developmentState.gold)<cost)return developmentMessage('طلای کافی نیست.');
   developmentState.gold-=cost;
   developmentState.activeUpgrade={type:developmentBuilding,targetLevel:target,endsAt:Date.now()+developmentUpgradeTime(developmentBuilding,target)*1000};
-  developmentSave();closeDevelopmentBuilding();developmentMessage('ارتقای '+developmentBuilding+' شروع شد.');developmentUpdateTop();
+  developmentSave(true);closeDevelopmentBuilding();developmentMessage('ارتقای '+developmentBuilding+' شروع شد.');developmentUpdateTop();
 }
 function openDevelopmentTraining(){
   const key=developmentBuilding;
@@ -1674,7 +1644,7 @@ function startDevelopmentTraining(){
   if(developmentState.gold<totalCost)return developmentMessage('طلای کافی نیست.');
   developmentState.gold-=totalCost;
   developmentState.training[key]={type:developmentTrainType,count,endsAt:Date.now()+count*developmentTrainingTime()*1000};
-  developmentSave();document.getElementById('trainingPanel').classList.remove('open');developmentMessage('نیرو سازی شروع شد.');developmentUpdateTop();
+  developmentSave(true);document.getElementById('trainingPanel').classList.remove('open');developmentMessage('نیرو سازی شروع شد.');developmentUpdateTop();
 }
 const developmentAlphaCache=new WeakMap();
 function developmentBuildingHit(img,event){
