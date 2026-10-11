@@ -113,15 +113,6 @@ async function initDb(){
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  // مخفی‌سازی گزارش فقط برای همان قلعه؛ خود گزارش و گزارش سایر بازیکنان حفظ می‌شود.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS battle_report_hidden (
-      castle_id INTEGER NOT NULL,
-      battle_id BIGINT NOT NULL,
-      hidden_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (castle_id, battle_id)
-    )
-  `);
 
   // حساب کاربری، مختصات ثابت نقشه و داده‌های توسعه قلعه در همان رکورد قلعه نگهداری می‌شوند.
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS username TEXT`);
@@ -655,10 +646,6 @@ app.get("/api/battle-reports", async(req,res)=>{
         SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
         WHERE rr->>'castleId'=$1::text
       )
-      AND NOT EXISTS (
-        SELECT 1 FROM battle_report_hidden h
-        WHERE h.castle_id=$1 AND h.battle_id=br.battle_id
-      )
       ORDER BY br.battle_id DESC
     `,[castleId]);
     res.json({ok:true,reports:r.rows.map(x=>({
@@ -687,10 +674,6 @@ app.get("/api/battle-reports/:id", async(req,res)=>{
          AND EXISTS (
            SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
            WHERE rr->>'castleId'=$2::text
-         )
-         AND NOT EXISTS (
-           SELECT 1 FROM battle_report_hidden h
-           WHERE h.castle_id=$2 AND h.battle_id=br.battle_id
          )`,
       [battleId,castleId]
     );
@@ -705,34 +688,6 @@ app.get("/api/battle-reports/:id", async(req,res)=>{
   }catch(e){
     console.error(e);
     res.status(500).json({error:"خواندن گزارش نبرد ناموفق بود."});
-  }
-});
-
-app.delete("/api/battle-reports/:id", async(req,res)=>{
-  const battleId=Number(req.params.id);
-  const castleId=Number(req.query.castleId ?? req.body?.castleId);
-  if(!Number.isInteger(battleId)||battleId<1)
-    return res.status(400).json({error:"شماره نبرد نامعتبر است."});
-  if(!Number.isInteger(castleId)||castleId<1)
-    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
-  try{
-    const report=await pool.query(`
-      SELECT battle_id FROM battle_reports br
-      WHERE br.battle_id=$1
-        AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
-          WHERE rr->>'castleId'=$2::text
-        )`,[battleId,castleId]);
-    if(!report.rows.length)
-      return res.status(404).json({error:"این گزارش برای قلعه شما پیدا نشد."});
-    await pool.query(`
-      INSERT INTO battle_report_hidden(castle_id,battle_id)
-      VALUES($1,$2) ON CONFLICT(castle_id,battle_id) DO NOTHING
-    `,[castleId,battleId]);
-    res.json({ok:true,hidden:true,battleId});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({error:"حذف گزارش از فهرست شخصی ناموفق بود."});
   }
 });
 

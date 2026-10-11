@@ -194,8 +194,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
     <div class="battle-report-body">
       <div class="battle-reports-list"><select id="battleReportNumberSelect" class="battle-report-select" size="8"><option value="">انتخاب شماره نبرد...</option></select></div>
       <div class="actions" style="margin-top:16px;justify-content:center">
-        <button id="viewSelectedBattleReport" type="button">نمایش گزارش انتخاب‌شده</button>
-        <button id="deleteSelectedBattleReport" class="report-delete-all" type="button">حذف گزارش انتخاب‌شده از فهرست من</button>
+        <button id="deleteAllBattleReports" class="report-delete-all" type="button">پاک کردن تمام گزارش‌های نبرد</button>
       </div>
     </div>
     <div class="battle-report-foot"><button id="battleReportSelectCloseBottom" class="back" type="button">بستن</button></div>
@@ -1480,25 +1479,22 @@ async function openBattleReports(){
   }
 }
 
-async function viewSelectedBattleReport(){
-  const battleId=Number(document.getElementById('battleReportNumberSelect')?.value);
-  if(!Number.isInteger(battleId)||battleId<1){alert('اول یک گزارش را انتخاب کن.');return;}
+document.getElementById('battleReportNumberSelect').onchange=async function(){
+  const battleId=Number(this.value);
+  if(!Number.isInteger(battleId)||battleId<1)return;
   try{
     const report=await api('/api/battle-reports/'+encodeURIComponent(battleId)+'?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
     closeBattleReportSelect();
     showBattleReport(report);
   }catch(e){alert(e.message);}
-}
+};
 
-async function deleteSelectedBattleReport(){
-  const select=document.getElementById('battleReportNumberSelect');
-  const battleId=Number(select?.value);
-  if(!Number.isInteger(battleId)||battleId<1){alert('اول یک گزارش را انتخاب کن.');return;}
-  if(!confirm('این گزارش فقط از فهرست قلعه شما حذف شود؟ گزارش برای سایر قلعه‌ها باقی می‌ماند.'))return;
+async function deleteAllBattleReports(){
+  if(!confirm('تمام گزارش‌های نبرد حذف شوند؟'))return;
   try{
-    await api('/api/battle-reports/'+encodeURIComponent(battleId)+'?castleId='+encodeURIComponent(selectedCastleId),{method:'DELETE'});
+    await api('/api/battle-reports?castleId='+encodeURIComponent(selectedCastleId),{method:'DELETE'});
     await openBattleReports();
-    alert('گزارش از فهرست شخصی شما حذف شد؛ گزارش دیگر بازیکنان دست‌نخورده است.');
+    alert('تمام گزارش‌های نبرد پاک شدند.');
   }catch(e){alert(e.message);}
 }
 
@@ -1506,8 +1502,7 @@ document.getElementById('battleReportClose').onclick=closeBattleReport;
 document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
 document.getElementById('battleReportSelectClose').onclick=closeBattleReportSelect;
 document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
-document.getElementById('deleteSelectedBattleReport').onclick=deleteSelectedBattleReport;
-document.getElementById('viewSelectedBattleReport').onclick=viewSelectedBattleReport;
+document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
 document.getElementById('battleReportsBtn').onclick=openBattleReports;
 
 const originalEndbat=endbat;
@@ -1518,7 +1513,7 @@ endbat=async function(winningSide){
     try{
       await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
       // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
-      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?_='+Date.now());
     }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
@@ -1763,14 +1758,16 @@ async function openActiveBattles(){
   overlay.classList.add('open');
   list.innerHTML='<div class="empty">در حال دریافت فهرست نبردها…</div>';
   try{
-    // فقط نبردهای مرتبط با قلعه‌ای را نشان بده که کاربر وارد آن شده است.
-    if(selectedCastleId===null || !Number.isInteger(Number(selectedCastleId))) {
-      throw new Error('ابتدا وارد قلعه خودتان شوید.');
-    }
-    const data=await api('/api/battle/current?castleId='+encodeURIComponent(selectedCastleId)+'&all=1');
-    const battles=Array.isArray(data.battles)?data.battles:[];
+    // برای هر قلعه تمام نبردهای مرتبط را می‌گیریم، نه فقط جدیدترین نبرد را.
+    const ids=Object.keys(castles).map(Number);
+    const results=await Promise.all(ids.map(async castleId=>{
+      try{
+        const data=await api('/api/battle/current?castleId='+encodeURIComponent(castleId)+'&all=1');
+        return Array.isArray(data.battles)?data.battles:[];
+      }catch(_){return [];}
+    }));
     const unique=new Map();
-    battles.forEach(battle=>{
+    results.flat().forEach(battle=>{
       if(!battle?.batId)return;
       unique.set(String(battle.batId),battle);
       battleRegistry[String(battle.targetId)]=battle;
