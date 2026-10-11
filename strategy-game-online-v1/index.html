@@ -194,8 +194,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
     <div class="battle-report-body">
       <div class="battle-reports-list"><select id="battleReportNumberSelect" class="battle-report-select" size="8"><option value="">انتخاب شماره نبرد...</option></select></div>
       <div class="actions" style="margin-top:16px;justify-content:center">
-        <button id="hideSelectedBattleReport" type="button">مخفی کردن گزارش انتخاب‌شده برای من</button>
-        <button id="deleteAllBattleReports" class="report-delete-all" type="button">مخفی کردن همه گزارش‌ها برای من</button>
+        <button id="deleteAllBattleReports" class="report-delete-all" type="button">پاک کردن تمام گزارش‌های نبرد</button>
       </div>
     </div>
     <div class="battle-report-foot"><button id="battleReportSelectCloseBottom" class="back" type="button">بستن</button></div>
@@ -1490,21 +1489,12 @@ document.getElementById('battleReportNumberSelect').onchange=async function(){
   }catch(e){alert(e.message);}
 };
 
-async function hideSelectedBattleReport(){
-  const battleId=Number(document.getElementById('battleReportNumberSelect').value);
-  if(!Number.isInteger(battleId)||battleId<1){alert('اول گزارش موردنظر را انتخاب کن.');return;}
-  if(!confirm('این گزارش فقط برای قلعه شما مخفی شود؟'))return;
-  try{
-    await api('/api/battle-reports/'+encodeURIComponent(battleId)+'/hide?castleId='+encodeURIComponent(selectedCastleId),{method:'POST'});
-    await openBattleReports();
-  }catch(e){alert(e.message);}
-}
 async function deleteAllBattleReports(){
-  if(!confirm('همه گزارش‌ها فقط برای قلعه شما مخفی شوند؟ گزارش‌ها برای دیگران باقی می‌مانند.'))return;
+  if(!confirm('تمام گزارش‌های نبرد حذف شوند؟'))return;
   try{
-    await api('/api/battle-reports/hide-all?castleId='+encodeURIComponent(selectedCastleId),{method:'POST'});
+    await api('/api/battle-reports?castleId='+encodeURIComponent(selectedCastleId),{method:'DELETE'});
     await openBattleReports();
-    alert('گزارش‌ها فقط برای شما مخفی شدند.');
+    alert('تمام گزارش‌های نبرد پاک شدند.');
   }catch(e){alert(e.message);}
 }
 
@@ -1513,7 +1503,6 @@ document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
 document.getElementById('battleReportSelectClose').onclick=closeBattleReportSelect;
 document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
 document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
-document.getElementById('hideSelectedBattleReport').onclick=hideSelectedBattleReport;
 document.getElementById('battleReportsBtn').onclick=openBattleReports;
 
 const originalEndbat=endbat;
@@ -1524,7 +1513,7 @@ endbat=async function(winningSide){
     try{
       await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
       // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
-      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?_='+Date.now());
     }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
@@ -1769,13 +1758,21 @@ async function openActiveBattles(){
   overlay.classList.add('open');
   list.innerHTML='<div class="empty">در حال دریافت فهرست نبردها…</div>';
   try{
-    // فقط نبردهایی را دریافت می‌کنیم که قلعه فعلی در آن‌ها شرکت دارد.
-    if(selectedCastleId===null)throw new Error('ابتدا وارد قلعه خودتان شوید.');
-    const data=await api('/api/battle/current?castleId='+encodeURIComponent(selectedCastleId)+'&all=1');
-    activeBattleChoices=(Array.isArray(data.battles)?data.battles:[])
-      .filter(battle=>battle?.batId)
-      .sort((a,b)=>Number(a.batId)-Number(b.batId));
-    activeBattleChoices.forEach(battle=>{battleRegistry[String(battle.targetId)]=battle;});
+    // برای هر قلعه تمام نبردهای مرتبط را می‌گیریم، نه فقط جدیدترین نبرد را.
+    const ids=Object.keys(castles).map(Number);
+    const results=await Promise.all(ids.map(async castleId=>{
+      try{
+        const data=await api('/api/battle/current?castleId='+encodeURIComponent(castleId)+'&all=1');
+        return Array.isArray(data.battles)?data.battles:[];
+      }catch(_){return [];}
+    }));
+    const unique=new Map();
+    results.flat().forEach(battle=>{
+      if(!battle?.batId)return;
+      unique.set(String(battle.batId),battle);
+      battleRegistry[String(battle.targetId)]=battle;
+    });
+    activeBattleChoices=[...unique.values()].sort((a,b)=>Number(a.batId)-Number(b.batId));
     if(!activeBattleChoices.length){
       list.innerHTML='<div class="empty">در حال حاضر نبرد فعالی پیدا نشد.</div>';
       return;
