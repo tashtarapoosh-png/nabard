@@ -634,12 +634,20 @@ app.put("/api/battle/:id/state", async (req,res)=>{
 });
 
 app.get("/api/battle-reports", async(req,res)=>{
+  const castleId=Number(req.query.castleId);
+  if(!Number.isInteger(castleId)||castleId<1)
+    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
     const r=await pool.query(`
-      SELECT id,battle_id,winner_side,created_at
-      FROM battle_reports
-      ORDER BY battle_id DESC
-    `);
+      SELECT br.id,br.battle_id,br.winner_side,br.created_at
+      FROM battle_reports br
+      LEFT JOIN battles b ON b.id=br.battle_id
+      WHERE EXISTS (
+        SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+        WHERE rr->>'castleId'=$1::text
+      )
+      ORDER BY br.battle_id DESC
+    `,[castleId]);
     res.json({ok:true,reports:r.rows.map(x=>({
       id:Number(x.id),
       battleId:Number(x.battle_id),
@@ -654,13 +662,22 @@ app.get("/api/battle-reports", async(req,res)=>{
 
 app.get("/api/battle-reports/:id", async(req,res)=>{
   const battleId=Number(req.params.id);
-  if(!Number.isInteger(battleId))return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  const castleId=Number(req.query.castleId);
+  if(!Number.isInteger(battleId)||battleId<1)return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  if(!Number.isInteger(castleId)||castleId<1)return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
     const r=await pool.query(
-      `SELECT battle_id,report,winner_side,created_at FROM battle_reports WHERE battle_id=$1`,
-      [battleId]
+      `SELECT br.battle_id,br.report,br.winner_side,br.created_at
+       FROM battle_reports br
+       LEFT JOIN battles b ON b.id=br.battle_id
+       WHERE br.battle_id=$1
+         AND EXISTS (
+           SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+           WHERE rr->>'castleId'=$2::text
+         )`,
+      [battleId,castleId]
     );
-    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد پیدا نشد."});
+    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد برای قلعه شما پیدا نشد."});
     res.json({
       ok:true,
       battleId:Number(r.rows[0].battle_id),
@@ -675,8 +692,21 @@ app.get("/api/battle-reports/:id", async(req,res)=>{
 });
 
 app.delete("/api/battle-reports", async(req,res)=>{
+  const castleId=Number(req.query.castleId ?? req.body?.castleId);
+  if(!Number.isInteger(castleId)||castleId<1)
+    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
-    const r=await pool.query("DELETE FROM battle_reports");
+    const r=await pool.query(`
+      DELETE FROM battle_reports br
+      WHERE br.battle_id IN (
+        SELECT br2.battle_id
+        FROM battle_reports br2
+        LEFT JOIN battles b ON b.id=br2.battle_id
+        WHERE EXISTS (
+          SELECT 1 FROM jsonb_array_elements(COALESCE(br2.report,'[]'::jsonb)) rr
+          WHERE rr->>'castleId'=$1::text
+        )
+      )`,[castleId]);
     res.json({ok:true,deleted:Number(r.rowCount||0)});
   }catch(e){
     console.error(e);

@@ -1464,7 +1464,8 @@ async function openBattleReports(){
   select.innerHTML='<option value="">در حال خواندن گزارش‌ها...</option>';
   overlay.style.display='flex';
   try{
-    const data=await api('/api/battle-reports?_='+Date.now());
+    if(selectedCastleId===null)throw new Error('ابتدا وارد قلعه خودتان شوید.');
+    const data=await api('/api/battle-reports?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
     const reports=Array.isArray(data.reports)?data.reports:[];
     if(!reports.length){
       select.innerHTML='<option value="">هنوز هیچ گزارش نبردی ذخیره نشده است.</option>';
@@ -1482,7 +1483,7 @@ document.getElementById('battleReportNumberSelect').onchange=async function(){
   const battleId=Number(this.value);
   if(!Number.isInteger(battleId)||battleId<1)return;
   try{
-    const report=await api('/api/battle-reports/'+encodeURIComponent(battleId)+'?_='+Date.now());
+    const report=await api('/api/battle-reports/'+encodeURIComponent(battleId)+'?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
     closeBattleReportSelect();
     showBattleReport(report);
   }catch(e){alert(e.message);}
@@ -1491,7 +1492,7 @@ document.getElementById('battleReportNumberSelect').onchange=async function(){
 async function deleteAllBattleReports(){
   if(!confirm('تمام گزارش‌های نبرد حذف شوند؟'))return;
   try{
-    await api('/api/battle-reports',{method:'DELETE'});
+    await api('/api/battle-reports?castleId='+encodeURIComponent(selectedCastleId),{method:'DELETE'});
     await openBattleReports();
     alert('تمام گزارش‌های نبرد پاک شدند.');
   }catch(e){alert(e.message);}
