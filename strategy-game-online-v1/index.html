@@ -117,8 +117,8 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #developmentField{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #developmentScene{position:relative;width:min(100vw,66.6667dvh);height:min(150vw,100dvh);aspect-ratio:2/3;overflow:hidden;background:url('castle-background.jpg') center/100% 100% no-repeat;cursor:default;isolation:isolate}
 .developmentLayer{display:none}
-.developmentAttackTimer{position:absolute;z-index:8;left:31.5%;top:2.5%;width:58.5%;height:4.2%;display:none;align-items:center;justify-content:flex-start;padding:0 2%;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.2vw,12px);font-weight:900;text-align:right;direction:ltr;white-space:nowrap;pointer-events:none}
-.developmentAttackTimerInfo{position:absolute;z-index:8;left:31.5%;top:6.3%;max-width:58%;padding:2px 5px;background:#101827cc;color:#fff;font-size:8px;display:none;pointer-events:none}
+.developmentAttackTimer{position:absolute;z-index:8;left:31.5%;top:6.7%;width:58.5%;height:4.2%;display:none;align-items:center;justify-content:flex-start;padding:0 2%;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.2vw,12px);font-weight:900;text-align:right;direction:ltr;white-space:nowrap;pointer-events:none}
+.developmentAttackTimerInfo{position:absolute;z-index:8;left:31.5%;top:6.3%;transform:translateY(-100%);max-width:58%;padding:2px 5px;background:#101827cc;color:#fff;font-size:8px;display:none;pointer-events:none}
 .developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:22px;padding:3px 7px;border:1px solid rgba(255,255,255,.22);border-radius:5px;background:rgba(0,0,0,.88);color:#fff;font-size:clamp(9px,2.2vw,12px);font-weight:800;line-height:1.15;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000;box-sizing:border-box}
 .developmentTimerOverlay{position:absolute;z-index:6;transform:translateX(-50%);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827d9;color:#fff;font-size:8px;text-align:center;pointer-events:none}
 .developmentTopCompact{position:absolute;inset:0;z-index:3;pointer-events:none}
@@ -225,11 +225,11 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
     </div>
     <span id="developmentLevel-castle" class="developmentLevelOverlay">1</span><span id="developmentLevel-wall" class="developmentLevelOverlay">1</span><span id="developmentLevel-barracks1" class="developmentLevelOverlay">1</span><span id="developmentLevel-barracks2" class="developmentLevelOverlay">1</span><span id="developmentLevel-goldMine" class="developmentLevelOverlay">1</span>
     <span id="developmentTimer-castle" class="developmentTimerOverlay"></span><span id="developmentTimer-wall" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks1" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks2" class="developmentTimerOverlay"></span><span id="developmentTimer-goldMine" class="developmentTimerOverlay"></span>
-    <button type="button" class="dev-hit" style="left:34.6%;top:28.3%;width:27.8%;height:18.7%" aria-label="قلعه اصلی" onclick="openDevelopmentBuilding('castle')"></button>
-    <button type="button" class="dev-hit" style="left:9%;top:40.1%;width:19.2%;height:8.9%" aria-label="پادگان اول" onclick="openDevelopmentBuilding('barracks1')"></button>
-    <button type="button" class="dev-hit" style="left:74.4%;top:40%;width:19%;height:10.5%" aria-label="پادگان دوم" onclick="openDevelopmentBuilding('barracks2')"></button>
-    <button type="button" class="dev-hit" style="left:37.2%;top:54.7%;width:53.6%;height:10%" aria-label="دیوار" onclick="openDevelopmentBuilding('wall')"></button>
-    <button type="button" class="dev-hit" style="left:5.4%;top:61.2%;width:26%;height:16%" aria-label="معدن طلا" onclick="openDevelopmentBuilding('goldMine')"></button>
+    <button type="button" class="dev-hit" style="left:40.5%;top:31.9%;width:24%;height:11.5%" aria-label="قلعه اصلی" onclick="openDevelopmentBuilding('castle')"></button>
+    <button type="button" class="dev-hit" style="left:15.5%;top:39.7%;width:17%;height:10.8%" aria-label="پادگان اول" onclick="openDevelopmentBuilding('barracks1')"></button>
+    <button type="button" class="dev-hit" style="left:74.5%;top:39.7%;width:17%;height:10.8%" aria-label="پادگان دوم" onclick="openDevelopmentBuilding('barracks2')"></button>
+    <button type="button" class="dev-hit" style="left:38%;top:55.75%;width:41%;height:11.5%" aria-label="دیوار" onclick="openDevelopmentBuilding('wall')"></button>
+    <button type="button" class="dev-hit" style="left:10.2%;top:66.5%;width:24%;height:11.5%" aria-label="معدن طلا" onclick="openDevelopmentBuilding('goldMine')"></button>
     <div id="developmentMessage"></div>
     <div class="developmentBottomBar">
       <button type="button" id="castleBack" class="back" aria-label="گزارش‌های نبرد" onclick="openBattleReports()"></button><button type="button" id="attackBtn" aria-label="حمله"></button><button type="button" id="battleBtn" aria-label="ورود به صحنه نبرد"></button><button type="button" id="defenseBtn" aria-label="چیدمان دفاعی"></button><button type="button" id="developmentExitButton" aria-label="خروج"></button><button type="button" id="resetGameBtn" style="display:none">بازنشانی</button>
