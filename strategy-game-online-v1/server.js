@@ -113,13 +113,13 @@ async function initDb(){
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  // حذف گزارش برای هر قلعه شخصی است؛ گزارش مشترک نبرد برای دیگر شرکت‌کنندگان باقی می‌ماند.
+  // مخفی‌سازی گزارش فقط برای همان قلعه؛ خود گزارش و گزارش سایر بازیکنان حفظ می‌شود.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS battle_report_hidden (
-      battle_id BIGINT NOT NULL,
       castle_id INTEGER NOT NULL,
+      battle_id BIGINT NOT NULL,
       hidden_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (battle_id, castle_id)
+      PRIMARY KEY (castle_id, battle_id)
     )
   `);
 
@@ -333,11 +333,12 @@ async function expireBattles(){
   }finally{client.release();}
 }
 
-async function currentBattleForCastle(castleId){
+async function getActiveBattlesForCastle(castleId){
+  // هر قلعه ممکن است هم‌زمان در چند نبرد مستقل شرکت داشته باشد؛ همهٔ آن‌ها را برمی‌گردانیم.
   const r=await pool.query(`
     SELECT b.*
     FROM battles b
-    WHERE b.ended=FALSE
+    WHERE b.ended=FALSE AND b.ends_at>NOW()
       AND (
         b.target_id=$1
         OR EXISTS (
@@ -347,9 +348,13 @@ async function currentBattleForCastle(castleId){
         )
       )
     ORDER BY b.id DESC
-    LIMIT 1
   `,[castleId]);
-  return battleJson(r.rows[0]);
+  return r.rows.map(battleJson);
+}
+
+async function currentBattleForCastle(castleId){
+  const battles=await getActiveBattlesForCastle(castleId);
+  return battles[0]||null;
 }
 
 // ذخیره مقصد انتخاب‌شده برای یک واحد. حرکت واقعی فقط در پایان راند انجام می‌شود.
@@ -639,82 +644,119 @@ app.put("/api/battle/:id/state", async (req,res)=>{
 
 app.get("/api/battle-reports", async(req,res)=>{
   const castleId=Number(req.query.castleId);
-  if(!Number.isInteger(castleId)||castleId<1)return res.status(400).json({error:"شناسه قلعه نامعتبر است."});
+  if(!Number.isInteger(castleId)||castleId<1)
+    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
     const r=await pool.query(`
       SELECT br.id,br.battle_id,br.winner_side,br.created_at
       FROM battle_reports br
+      LEFT JOIN battles b ON b.id=br.battle_id
       WHERE EXISTS (
-        SELECT 1 FROM jsonb_array_elements(br.report) item
-        WHERE item->>'castleId'=$1
+        SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+        WHERE rr->>'castleId'=$1::text
       )
-      AND NOT EXISTS (SELECT 1 FROM battle_report_hidden h WHERE h.battle_id=br.battle_id AND h.castle_id=$2)
+      AND NOT EXISTS (
+        SELECT 1 FROM battle_report_hidden h
+        WHERE h.castle_id=$1 AND h.battle_id=br.battle_id
+      )
       ORDER BY br.battle_id DESC
-    `,[String(castleId),castleId]);
-    res.json({ok:true,reports:r.rows.map(x=>({id:Number(x.id),battleId:Number(x.battle_id),winnerSide:x.winner_side,createdAt:new Date(x.created_at).getTime()}))});
-  }catch(e){console.error(e);res.status(500).json({error:"خواندن گزارش‌های نبرد ناموفق بود."});}
+    `,[castleId]);
+    res.json({ok:true,reports:r.rows.map(x=>({
+      id:Number(x.id),
+      battleId:Number(x.battle_id),
+      winnerSide:x.winner_side,
+      createdAt:new Date(x.created_at).getTime()
+    }))});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"خواندن گزارش‌های نبرد ناموفق بود."});
+  }
 });
 
 app.get("/api/battle-reports/:id", async(req,res)=>{
-  const battleId=Number(req.params.id), castleId=Number(req.query.castleId);
-  if(!Number.isInteger(battleId)||!Number.isInteger(castleId)||castleId<1)return res.status(400).json({error:"شماره نبرد یا قلعه نامعتبر است."});
+  const battleId=Number(req.params.id);
+  const castleId=Number(req.query.castleId);
+  if(!Number.isInteger(battleId)||battleId<1)return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  if(!Number.isInteger(castleId)||castleId<1)return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
-    const r=await pool.query(`
-      SELECT battle_id,report,winner_side,created_at FROM battle_reports br
-      WHERE battle_id=$1
-        AND EXISTS (SELECT 1 FROM jsonb_array_elements(br.report) item WHERE item->>'castleId'=$2)
-        AND NOT EXISTS (SELECT 1 FROM battle_report_hidden h WHERE h.battle_id=br.battle_id AND h.castle_id=$3)
-    `,[battleId,String(castleId),castleId]);
-    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد برای این قلعه موجود نیست."});
-    res.json({ok:true,battleId:Number(r.rows[0].battle_id),report:Array.isArray(r.rows[0].report)?r.rows[0].report:[],winnerSide:r.rows[0].winner_side,createdAt:new Date(r.rows[0].created_at).getTime()});
-  }catch(e){console.error(e);res.status(500).json({error:"خواندن گزارش نبرد ناموفق بود."});}
+    const r=await pool.query(
+      `SELECT br.battle_id,br.report,br.winner_side,br.created_at
+       FROM battle_reports br
+       LEFT JOIN battles b ON b.id=br.battle_id
+       WHERE br.battle_id=$1
+         AND EXISTS (
+           SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+           WHERE rr->>'castleId'=$2::text
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM battle_report_hidden h
+           WHERE h.castle_id=$2 AND h.battle_id=br.battle_id
+         )`,
+      [battleId,castleId]
+    );
+    if(!r.rows[0])return res.status(404).json({error:"گزارش این نبرد برای قلعه شما پیدا نشد."});
+    res.json({
+      ok:true,
+      battleId:Number(r.rows[0].battle_id),
+      report:Array.isArray(r.rows[0].report)?r.rows[0].report:[],
+      winnerSide:r.rows[0].winner_side,
+      createdAt:new Date(r.rows[0].created_at).getTime()
+    });
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"خواندن گزارش نبرد ناموفق بود."});
+  }
 });
 
 app.delete("/api/battle-reports/:id", async(req,res)=>{
   const battleId=Number(req.params.id);
-  const castleId=Number(req.query.castleId||req.body?.castleId);
-  if(!Number.isInteger(battleId)||battleId<1||!Number.isInteger(castleId)||castleId<1)
-    return res.status(400).json({error:"شماره نبرد یا شناسه قلعه نامعتبر است."});
+  const castleId=Number(req.query.castleId ?? req.body?.castleId);
+  if(!Number.isInteger(battleId)||battleId<1)
+    return res.status(400).json({error:"شماره نبرد نامعتبر است."});
+  if(!Number.isInteger(castleId)||castleId<1)
+    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
-    // حذف گزارش انتخاب‌شده فقط از فهرست همان قلعه؛ خود گزارش مشترک دست‌نخورده می‌ماند.
-    if(castleId===1){
-      const r=await pool.query("DELETE FROM battle_reports WHERE battle_id=$1",[battleId]);
-      await pool.query("DELETE FROM battle_report_hidden WHERE battle_id=$1",[battleId]);
-      if(!r.rowCount)return res.status(404).json({error:"گزارش نبرد پیدا نشد."});
-      return res.json({ok:true,deleted:1,global:true});
-    }
     const report=await pool.query(`
-      SELECT 1 FROM battle_reports br
+      SELECT battle_id FROM battle_reports br
       WHERE br.battle_id=$1
-        AND EXISTS (SELECT 1 FROM jsonb_array_elements(br.report) item WHERE item->>'castleId'=$2)
-    `,[battleId,String(castleId)]);
-    if(!report.rowCount)return res.status(404).json({error:"این قلعه در نبرد شرکت نداشته یا گزارش موجود نیست."});
+        AND EXISTS (
+          SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+          WHERE rr->>'castleId'=$2::text
+        )`,[battleId,castleId]);
+    if(!report.rows.length)
+      return res.status(404).json({error:"این گزارش برای قلعه شما پیدا نشد."});
     await pool.query(`
-      INSERT INTO battle_report_hidden(battle_id,castle_id) VALUES($1,$2)
-      ON CONFLICT(battle_id,castle_id) DO NOTHING
-    `,[battleId,castleId]);
-    res.json({ok:true,deleted:1,global:false,battleId});
-  }catch(e){console.error(e);res.status(500).json({error:"حذف گزارش نبرد ناموفق بود."});}
+      INSERT INTO battle_report_hidden(castle_id,battle_id)
+      VALUES($1,$2) ON CONFLICT(castle_id,battle_id) DO NOTHING
+    `,[castleId,battleId]);
+    res.json({ok:true,hidden:true,battleId});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"حذف گزارش از فهرست شخصی ناموفق بود."});
+  }
 });
 
 app.delete("/api/battle-reports", async(req,res)=>{
-  const castleId=Number(req.query.castleId||req.body?.castleId);
-  if(!Number.isInteger(castleId)||castleId<1)return res.status(400).json({error:"شناسه قلعه نامعتبر است."});
+  const castleId=Number(req.query.castleId ?? req.body?.castleId);
+  if(!Number.isInteger(castleId)||castleId<1)
+    return res.status(400).json({error:"شماره قلعه نامعتبر است."});
   try{
-    // قلعهٔ اول نقش مدیر را دارد و می‌تواند همهٔ گزارش‌ها را پاک کند.
-    if(castleId===1){
-      const r=await pool.query("DELETE FROM battle_reports");
-      await pool.query("DELETE FROM battle_report_hidden");
-      return res.json({ok:true,deleted:Number(r.rowCount||0),global:true});
-    }
     const r=await pool.query(`
-      INSERT INTO battle_report_hidden(battle_id,castle_id)
-      SELECT br.battle_id,$1 FROM battle_reports br
-      WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(br.report) item WHERE item->>'castleId'=$2)
-      ON CONFLICT(battle_id,castle_id) DO NOTHING
-    `,[castleId,String(castleId)]);
-    res.json({ok:true,deleted:Number(r.rowCount||0),global:false});
-  }catch(e){console.error(e);res.status(500).json({error:"پاک کردن گزارش‌های نبرد ناموفق بود."});}
+      DELETE FROM battle_reports br
+      WHERE br.battle_id IN (
+        SELECT br2.battle_id
+        FROM battle_reports br2
+        LEFT JOIN battles b ON b.id=br2.battle_id
+        WHERE EXISTS (
+          SELECT 1 FROM jsonb_array_elements(COALESCE(br2.report,'[]'::jsonb)) rr
+          WHERE rr->>'castleId'=$1::text
+        )
+      )`,[castleId]);
+    res.json({ok:true,deleted:Number(r.rowCount||0)});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({error:"پاک کردن گزارش‌های نبرد ناموفق بود."});
+  }
 });
 
 // پاک‌سازی کامل اطلاعات قبلی بازی و ساخت دوباره قلعه‌ها از صفر.
@@ -1324,6 +1366,11 @@ app.get("/api/battle/current",async(req,res)=>{
   try{
     await resolveDueAttacks();
     await expireBattles();
+    if(String(req.query.all||'')==='1'){
+      const battles=await getActiveBattlesForCastle(castleId);
+      return res.json({battles});
+    }
+    // سازگاری با کلاینت‌های قدیمی حفظ می‌شود.
     res.json({battle:await currentBattleForCastle(castleId)});
   }catch(e){
     console.error(e);
@@ -1334,7 +1381,7 @@ app.get("/api/battle/current",async(req,res)=>{
 
 // پردازش قطعی راندها روی سرور؛ هیچ مرورگری برای ادامه نبرد لازم نیست.
 async function processDueBattleRounds(){
-  const due=await pool.query(`SELECT id FROM battles WHERE ended=FALSE AND processed_round_number<round_number ORDER BY id LIMIT 30`);
+  const due=await pool.query(`SELECT id FROM battles WHERE ended=FALSE AND processed_round_number<round_number ORDER BY id`);
   for(const item of due.rows){
     const client=await pool.connect();
     try{
