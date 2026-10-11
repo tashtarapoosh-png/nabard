@@ -653,7 +653,7 @@ app.get("/api/battle-reports", async(req,res)=>{
       FROM battle_reports br
       LEFT JOIN battles b ON b.id=br.battle_id
       WHERE EXISTS (
-        SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+        SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(br.report)='array' THEN br.report ELSE '[]'::jsonb END) rr
         WHERE rr->>'castleId'=$1::text
       )
       AND NOT EXISTS (
@@ -686,7 +686,7 @@ app.get("/api/battle-reports/:id", async(req,res)=>{
        LEFT JOIN battles b ON b.id=br.battle_id
        WHERE br.battle_id=$1
          AND EXISTS (
-           SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+           SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(br.report)='array' THEN br.report ELSE '[]'::jsonb END) rr
            WHERE rr->>'castleId'=$2::text
          )
          AND NOT EXISTS (
@@ -718,7 +718,7 @@ app.post("/api/battle-reports/:id/hide", async(req,res)=>{
     const owned=await pool.query(`
       SELECT 1 FROM battle_reports br
       WHERE br.battle_id=$1 AND EXISTS (
-        SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+        SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(br.report)='array' THEN br.report ELSE '[]'::jsonb END) rr
         WHERE rr->>'castleId'=$2::text
       )`,[battleId,castleId]);
     if(!owned.rowCount)return res.status(404).json({error:"گزارش این نبرد برای قلعه شما پیدا نشد."});
@@ -736,7 +736,7 @@ app.post("/api/battle-reports/hide-all", async(req,res)=>{
       INSERT INTO battle_report_hidden(castle_id,battle_id)
       SELECT $1,br.battle_id FROM battle_reports br
       WHERE EXISTS (
-        SELECT 1 FROM jsonb_array_elements(COALESCE(br.report,'[]'::jsonb)) rr
+        SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(br.report)='array' THEN br.report ELSE '[]'::jsonb END) rr
         WHERE rr->>'castleId'=$1::text
       )
       ON CONFLICT(castle_id,battle_id) DO NOTHING`,[castleId]);
