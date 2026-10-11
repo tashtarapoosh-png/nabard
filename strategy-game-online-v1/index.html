@@ -129,11 +129,11 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #developmentArcherCompact{left:50.8%;top:11.6%;width:7.6%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
 #developmentCavalryCompact{left:68.4%;top:11.6%;width:7.6%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
 #developmentSwordsmanCompact{left:86.3%;top:11.6%;width:7.3%;height:2.5%;font-size:clamp(6px,1.45vw,8px)}
-#developmentLevel-castle{left:52.5%;top:34.9%;transform:translate(-50%,-50%);}
-#developmentLevel-barracks1{left:24%;top:48.1%;transform:translate(-50%,-50%);}
-#developmentLevel-barracks2{left:83%;top:48.1%;transform:translate(-50%,-50%);}
-#developmentLevel-wall{left:79%;top:64.5%;}
-#developmentLevel-goldMine{left:22.2%;top:69.5%;transform:translate(-50%,-50%);}
+#developmentLevel-castle{left:52.5%;top:24.9%;transform:translate(-50%,-50%);}
+#developmentLevel-barracks1{left:24%;top:38.1%;transform:translate(-50%,-50%);}
+#developmentLevel-barracks2{left:83%;top:38.1%;transform:translate(-50%,-50%);}
+#developmentLevel-wall{left:79%;top:54.5%;}
+#developmentLevel-goldMine{left:22.2%;top:59.5%;transform:translate(-50%,-50%);}
 .dev-hit{position:absolute;z-index:7;display:block;padding:0;border:0;background:transparent;cursor:pointer;outline:none}.dev-hit:focus-visible{outline:2px dashed #ffe08a;background:#ffffff18}
 .developmentBottomBar{position:absolute;inset:0;z-index:10;pointer-events:none;background:transparent;display:block!important;padding:0;box-shadow:none;backdrop-filter:none;min-height:0}
 .developmentBottomBar button{position:absolute;display:block!important;pointer-events:auto!important;opacity:0!important;color:transparent!important;background:transparent!important;border:0!important;padding:0!important;margin:0!important;min-height:0!important;min-width:0!important;border-radius:0!important;z-index:12;cursor:pointer}
@@ -142,10 +142,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #battleBtn{left:38.8%;top:84.8%;width:24%;height:11.5%}
 #defenseBtn{left:63%;top:85.3%;width:18.5%;height:10.8%}
 #developmentExitButton{left:81.5%;top:85.3%;width:17%;height:10.8%}
-#developmentBattleReportsBtn{position:absolute;z-index:40;left:2%;top:86%;width:29%;height:7%;font-size:clamp(10px,1.8vh,15px);padding:2px 4px;border:1px solid #e6c36a;border-radius:8px;background:#263b56;color:#fff;box-shadow:0 2px 5px #0008;}
-/* دکمهٔ گزارش باید برخلاف دکمه‌های تصویریِ نامرئی نوار پایین، واقعاً دیده شود. */
-.developmentBottomBar #developmentBattleReportsBtn{left:30%!important;top:76%!important;width:40%!important;height:7%!important;min-width:0!important;min-height:0!important;opacity:1!important;color:#fff!important;background:#263b56!important;border:1px solid #e6c36a!important;border-radius:8px!important;padding:2px 4px!important;font-size:clamp(10px,1.8vh,15px)!important;box-shadow:0 2px 5px #0008!important;z-index:50!important;pointer-events:auto!important;white-space:nowrap!important;}
-#resetGameBtn{left:78%;top:78%;width:20%;height:5%;font-size:10px!important;color:#fff!important;background:#8a2525d9!important;border:1px solid #fff!important;border-radius:5px!important;opacity:1!important;pointer-events:auto!important}
+#resetGameBtn{left:2%;top:78%;width:96%;height:5%;font-size:10px!important;color:#fff!important;background:#8a2525d9!important;border:1px solid #fff!important;border-radius:5px!important;opacity:1!important;pointer-events:auto!important}
 #developmentMessage{position:absolute;z-index:20;left:8%;right:8%;top:40%;padding:4px;background:#101827dd;color:#fff;text-align:center;font-size:10px;display:none;pointer-events:none}
 #developmentDefenseButton{position:absolute;left:50%;bottom:4%;z-index:9;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:#233b2aeb;color:#fff;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap;border:1px solid #ffffff59}
 #buildingActionPanel,#trainingPanel{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,.72);overflow:auto;pointer-events:auto}
@@ -164,7 +161,6 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #playerMapScreen .map-toolbar h2{font-size:15px;margin:0}
 #playerMapScreen .map-toolbar .actions{gap:6px}
 #playerMapScreen .map-toolbar button{padding:7px 10px;font-size:12px}
-#playerMapScreen #mapZoomOut,#playerMapScreen #mapZoomIn,#playerMapScreen #mapZoomReset{min-width:42px;font-weight:800}
 #playerMapViewport{direction:ltr;position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;background:#6d9635;scrollbar-color:#b5a05b #263d1c}
 #playerMapWorld{position:relative;width:2400px;height:1800px;background-image:url('terrain.jpg');background-repeat:repeat;background-size:650px 651px}
 #playerMapWorld:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 48%,rgba(17,39,11,.14) 100%)}
@@ -177,40 +173,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #castleProfile .profile-card{width:min(440px,96vw);max-height:85vh;overflow:auto;background:#202d37;border:1px solid #657686;border-radius:12px;padding:18px}
 #castleProfile .profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:600px){#playerMapScreen .map-toolbar{top:6px;left:6px;right:6px;padding:8px}#playerMapScreen .map-toolbar h2{font-size:13px}.map-castle{width:88px}.map-castle img{height:76px}.map-castle .map-castle-name{font-size:11px;padding:3px 6px}#playerMapWorld{background-size:520px 521px}}
-
-/* Hide battle-cell grid lines while preserving cell interactions. */
- .battle-background .battle-grid,
-.battle-background .battle-row,
-.battle-background .battle-cell,
-.battle-background .battle-cell.attacker,
-.battle-background .battle-cell.defender {
-  outline: none !important;
-  box-shadow: none;
-}
-.battle-background .battle-cell,
-.battle-background .battle-cell.attacker,
-.battle-background .battle-cell.defender {
-  background: transparent !important;
-  border-color: transparent !important;
-}
-.battle-background .battle-cell.move-option {
-  background: rgba(255,210,63,.38) !important;
-  box-shadow: inset 0 0 0 1px rgba(211,155,0,.7) !important;
-}
-.battle-background .battle-cell.move-target {
-  background: rgba(72,187,120,.48) !important;
-  box-shadow: inset 0 0 0 2px rgba(24,121,78,.85) !important;
-}
-
-/* چهار دکمهٔ صحنهٔ نبرد: باریک‌تر و کوتاه‌تر، در سمت راست صفحه. */
-.battle-background #battle .battle-top-controls{position:fixed!important;top:18px!important;right:18px!important;left:auto!important;transform:none!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important;width:38px!important;margin:0!important;}
-.battle-background #battle .battle-top-controls button{box-sizing:border-box!important;width:38px!important;min-width:0!important;height:19px!important;min-height:19px!important;padding:1px!important;font-size:6px!important;line-height:1!important;white-space:normal!important;overflow:hidden!important;border-radius:2px!important;}
-.battle-background .battle-grid{transition:none!important}
-@media(max-width:650px){.battle-background #battle .battle-top-controls{top:12px!important;right:12px!important;width:38px!important}.battle-background #battle .battle-top-controls button{width:38px!important;height:19px!important;min-height:19px!important;font-size:6px!important}}
-
-</style><style>
-</style>
-</head>
+</style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
   <div class="battle-report-modal">
@@ -269,7 +232,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
     <button type="button" class="dev-hit" style="left:5.4%;top:61.2%;width:26%;height:16%" aria-label="معدن طلا" onclick="openDevelopmentBuilding('goldMine')"></button>
     <div id="developmentMessage"></div>
     <div class="developmentBottomBar">
-      <button type="button" id="castleBack" class="back" aria-label="نقشه بازیکنان" onclick="openPlayerMap()"></button><button type="button" id="attackBtn" aria-label="حمله"></button><button type="button" id="battleBtn" aria-label="ورود به صحنه نبرد"></button><button type="button" id="defenseBtn" aria-label="چیدمان دفاعی"></button><button type="button" id="developmentExitButton" aria-label="خروج"></button><button type="button" id="developmentBattleReportsBtn" class="development-reports-button">گزارش نبردها</button><button type="button" id="resetGameBtn" style="display:none">بازنشانی</button>
+      <button type="button" id="castleBack" class="back" aria-label="نقشه بازیکنان" onclick="openPlayerMap()"></button><button type="button" id="attackBtn" aria-label="حمله"></button><button type="button" id="battleBtn" aria-label="ورود به صحنه نبرد"></button><button type="button" id="defenseBtn" aria-label="چیدمان دفاعی"></button><button type="button" id="developmentExitButton" aria-label="خروج"></button><button type="button" id="resetGameBtn" style="display:none">بازنشانی</button>
     </div>
   </div></div></div>
 </section>
@@ -303,14 +266,11 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 </div>
 
 <section id="timerScreen" class="screen"><div class="card"><h2>نیرو در حال حرکت است</h2><div id="timer" class="timer">00:10</div><div id="timerInfo" class="notice"></div></div></section>
-<section id="battle" class="screen"><div class="card battle-card"><img class="battle-castle-image" src="images/castle.png" alt="قلعه"><img class="battle-tent-image" src="images/tent.png" alt="چادر"><div id="randTimerBox" class="rand-timer-box"><div id="randTimerValue" class="rand-timer-value">00:20</div><div id="randWarValue" class="rand-war-value">راند: 0</div></div><h2>نتیجه نبرد</h2><p id="battleText">آماده نبرد</p><div class="actions battle-top-controls" style="margin:14px 0">
+<section id="battle" class="screen"><div class="card battle-card"><img class="battle-castle-image" src="images/castle.png" alt="قلعه"><img class="battle-tent-image" src="images/tent.png" alt="چادر"><div id="randTimerBox" class="rand-timer-box"><div id="randTimerValue" class="rand-timer-value">00:20</div><div id="randWarValue" class="rand-war-value">راند: 0</div></div><h2>نتیجه نبرد</h2><p id="battleText">آماده نبرد</p><div class="actions" style="margin:14px 0">
   <button id="battleSceneBtn">نمایش صحنه نبرد</button>
-  <button id="battleEnterCastleBtn">ورود به قلعه</button>
-  <button id="battleBack" class="back">بازگشت</button>
-  <button id="battleRetreatBtn" class="exit">عقب‌نشینی</button>
 </div>
 <div id="battleTables"></div>
-<div id="battleScene" style="display:none"></div></div></section>
+<div id="battleScene" style="display:none"></div><div class="actions" style="margin-top:14px"><button id="battleBack" class="back">توسعه قلعه</button><button id="battleRetreatBtn" class="exit">عقب‌نشینی</button></div></div></section>
 <div id="authOverlay">
  <div id="authCard"><h2>ورود به بازی</h2><p>یکی از گزینه‌ها را انتخاب کنید.</p>
   <div id="authFields" style="display:none"><input id="authUsername" autocomplete="username" placeholder="نام کاربری"><input id="authPassword" type="password" autocomplete="current-password" placeholder="رمز عبور"></div>
@@ -318,7 +278,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   <div id="authActions"><button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button></div>
  </div>
 </div>
-<section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="map-toolbar"><h2>نقشهٔ قلمروها</h2><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapZoomOut" type="button" aria-label="کوچک‌نمایی نقشه بازیکنان">−</button><button id="mapZoomReset" type="button" aria-label="اندازه اصلی نقشه">100٪</button><button id="mapZoomIn" type="button" aria-label="بزرگ‌نمایی نقشه بازیکنان">+</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div></div><div id="playerMapViewport"><div id="playerMapWorld"></div></div><div id="mapInfo">در حال بارگذاری نقشه…</div></section>
+<section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="map-toolbar"><h2>نقشهٔ قلمروها</h2><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div></div><div id="playerMapViewport"><div id="playerMapWorld"></div></div><div id="mapInfo">در حال بارگذاری نقشه…</div></section>
 <div id="castleProfile"><div class="profile-card"><button id="profileClose" class="back" style="float:left">×</button><h2 id="profileTitle">پروفایل قلعه</h2><div id="profileBody"></div><div class="profile-actions"><button id="profileAttack">⚔️ حمله</button><button id="profileDefense">🛡️ دفاع</button><button id="profileMessage">✉️ پیام</button></div></div></div>
 
 <script>
@@ -786,45 +746,51 @@ function jang(){
   const battle=getCurrentBattle();
   if(!battle)return;
 
-  // تمام حمله‌ها بر اساس وضعیت ابتدای ثانیهٔ ۵ محاسبه می‌شوند؛
-  // آسیب تا پایان محاسبه جمع می‌شود تا ترتیب حلقه روی تلفات اثر نگذارد.
-  const units=(battle.armies||[]).flatMap(army=>army.units||[])
-    .filter(unit=>Number(unit.count)>0 && Number(unit.health)>0);
-  const startHealth=new Map(units.map(unit=>[unit,Math.max(0,Number(unit.health)||0)]));
-  const damageByTarget=new Map(units.map(unit=>[unit,0]));
+  const units=battle.armies.flatMap(army=>army.units||[]);
+  const aliveUnits=units.filter(unit=>Number(unit.count)>0);
+
   const attackRange=unit=>unit.rawType==="archer"?2:1;
-  const attackDamagePerSoldier=()=>100;
+  const attackDamagePerSoldier=unit=>100;
+
   const typeMultiplier=(attacker,target)=>{
-    if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 3;
-    if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 3;
-    if(attacker.rawType==="swordsman"&&target.rawType==="archer")return 3;
+    if(attacker.rawType==="archer"&&target.rawType==="cavalry")return 2;
+    if(attacker.rawType==="cavalry"&&target.rawType==="swordsman")return 2;
+    if(attacker.rawType==="swordsman"&&target.rawType==="archer")return 2;
     return 1;
   };
 
-  for(const attacker of units){
-    const range=attackRange(attacker);
-    const targets=units.filter(target=>{
-      if(target===attacker || target.side===attacker.side)return false;
-      const dx=Math.abs(Number(target.x)-Number(attacker.x));
-      const dy=Math.abs(Number(target.y)-Number(attacker.y));
-      return dx<=range && dy<=range && startHealth.get(target)>0;
-    });
-    if(!targets.length)continue;
-    const totalTargetCount=targets.reduce((sum,target)=>sum+Math.max(0,Number(target.count)||0),0);
-    if(totalTargetCount<=0)continue;
-    const totalDamage=Math.max(0,Number(attacker.count)||0)*attackDamagePerSoldier(attacker);
-    for(const target of targets){
-      const share=Math.max(0,Number(target.count)||0)/totalTargetCount;
-      damageByTarget.set(target,damageByTarget.get(target)+totalDamage*share*typeMultiplier(attacker,target));
-    }
-  }
+  aliveUnits.forEach(unit=>{
+    const range=attackRange(unit);
 
-  for(const unit of units){
-    unit.health=Math.max(0,startHealth.get(unit)-damageByTarget.get(unit));
-  }
+    // تمام واحدهای دشمنِ داخل برد این مهاجم را پیدا می‌کنیم.
+    const targets=aliveUnits.filter(target=>{
+      if(target===unit)return false;
+      if(target.side===unit.side)return false;
+
+      const dx=Math.abs(Number(target.x)-Number(unit.x));
+      const dy=Math.abs(Number(target.y)-Number(unit.y));
+      return dx<=range&&dy<=range;
+    });
+
+    if(!targets.length)return;
+
+    // کل ضربه مهاجم بین اهداف، متناسب با تعداد نیروهای هر هدف تقسیم می‌شود.
+    const totalTargetCount=targets.reduce((sum,target)=>sum+Number(target.count),0);
+    if(totalTargetCount<=0)return;
+
+    const totalDamage=Number(unit.count)*attackDamagePerSoldier(unit);
+
+    targets.forEach(target=>{
+      const targetCount=Number(target.count);
+      const share=targetCount/totalTargetCount;
+      const damage=totalDamage*share*typeMultiplier(unit,target);
+      const targetHealth=Number(target.health);
+      target.health=Math.max(0,targetHealth-damage);
+    });
+  });
 }
 
-async function fotjang(){
+function fotjang(){
   const battle=getCurrentBattle();
   if(!battle)return;
 
@@ -847,7 +813,6 @@ async function fotjang(){
 
   // ارتش‌های بدون هیچ واحد زنده نیز از نبرد حذف می‌شوند.
   battle.armies=battle.armies.filter(army=>(army.units||[]).length>0);
-  // ذخیرهٔ SQL عمداً اینجا انجام نمی‌شود؛ processDueRound آن را دقیقاً در ثانیهٔ ۱۱ انجام می‌دهد.
 }
 
 function sidchek(){
@@ -855,10 +820,7 @@ function sidchek(){
   if(!battle)return false;
 
   const units=battle.armies.flatMap(army=>army.units||[]).filter(unit=>Number(unit.count)>0);
-  if(!units.length){
-    endbat(null);
-    return true;
-  }
+  if(!units.length)return false;
 
   const firstSide=units[0].side;
   const oneSide=units.every(unit=>unit.side===firstSide);
@@ -999,16 +961,8 @@ async function loadRoundClock(){
   if(!battle || !battle.batId)return false;
   try{
     const data=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round",{method:"GET"});
-    if(Number.isFinite(Number(data.serverNow)))serverClockOffset=Number(data.serverNow)-Date.now();
-    if(data.timerStarted===false){
-      currentRoundEndsAt=null;
-      randwar=0;
-      processedRoundNumber=0;
-      randRemainingSeconds=0;
-      updateRoundTimerDisplay();
-      return true;
-    }
     currentRoundEndsAt=Number(data.roundEndsAt||0);
+    if(Number.isFinite(Number(data.serverNow)))serverClockOffset=Number(data.serverNow)-Date.now();
     randwar=Number(data.roundNumber||0);
     processedRoundNumber=Number(data.processedRoundNumber||0);
     randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
@@ -1024,72 +978,48 @@ async function processDueRound(){
   const battle=getCurrentBattle();
   if(!battle || !battle.batId)return;
   randProcessing=true;
-  // همهٔ رویدادهای راند باید نسبت به یک مبدأ مشترک زمان‌بندی شوند؛
-  // شروع هر انتظار از زمان فعلی باعث جمع‌شدن ۵+۸+۱۱+... و به‌هم‌ریختن راند می‌شد.
-  let roundStartAt=0;
-  const waitUntil=async seconds=>{
-    const target=roundStartAt+seconds*1000;
-    while(Date.now()+serverClockOffset<target){
-      const active=getCurrentBattle();
-      if(!active || active.ended || String(active.batId)!==String(battle.batId))return false;
-      await new Promise(resolve=>setTimeout(resolve,Math.min(100,Math.max(10,target-(Date.now()+serverClockOffset)))));
-    }
-    const active=getCurrentBattle();
-    return !!active && !active.ended && String(active.batId)===String(battle.batId);
-  };
   try{
-    const claim=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/claim",{method:"POST",body:"{}"});
+    const claim=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/claim",{
+      method:"POST",body:"{}"
+    });
     if(!claim.claimed){
       currentRoundEndsAt=Number(claim.roundEndsAt||currentRoundEndsAt||0);
       randwar=Number(claim.roundNumber||randwar||0);
       return;
     }
+
     currentRoundToken=claim.token;
     randwar=Number(claim.roundNumber||0);
     currentRoundEndsAt=Number(claim.roundEndsAt||0);
-    // roundEndsAt از SQL انتهای همین بازه است؛ مبدأ مشترک، ۲۰ ثانیه قبل از آن است.
-    roundStartAt=currentRoundEndsAt-20000;
-    randRemainingSeconds=Math.max(0,Math.ceil((currentRoundEndsAt-(Date.now()+serverClockOffset))/1000));
+    randRemainingSeconds=0;
 
-    // ثانیهٔ ۰: تازه‌سازی وضعیت شروع راند
+    // منطق نبرد راند دقیقاً همان قبلی است؛ فقط شروع/پایان راند از SQL هماهنگ می‌شود.
     await viobat();
-    if(!await waitUntil(5))return;
-    jang(); // ثانیهٔ ۵
+    jang();
+    fotjang();
 
-    if(!await waitUntil(8))return;
-    await fotjang(); // ثانیهٔ ۸
-
-    if(!await waitUntil(11))return;
     const battleAfterCombat=getCurrentBattle();
-    if(!battleAfterCombat)return;
-    const saved=await persistBattleCombat(battleAfterCombat); // ثانیهٔ ۱۱
-    if(!saved)throw new Error("ذخیرهٔ تعداد نیروها در SQL ناموفق بود");
+    if(battleAfterCombat){
+      const saved=await persistBattleCombat(battleAfterCombat);
+      if(!saved)return;
+    }
 
-    if(!await waitUntil(13))return;
-    await viobat(); // ثانیهٔ ۱۳: نمایش تعداد جدید روی واحدها
-    const battleEnded=sidchek(); // بررسی بلافاصله بعد از به‌روزرسانی نمایش
-    if(battleEnded || !getCurrentBattle())return;
+    const battleEnded=sidchek();
+    if(battleEnded)return;
 
-    if(!await waitUntil(15))return;
-    await refreshBattleFromSql(); // ثانیهٔ ۱۵: خواندن حرکت‌های ثبت‌شده در SQL
+    const moved=await applyRoundMoves();
+    if(!moved)return;
 
-    if(!await waitUntil(17))return;
-    const moved=await applyRoundMoves(); // ثانیهٔ ۱۷: شروع حرکت واقعی نیروها
-    if(moved===false)throw new Error("اعمال حرکت‌های راند ناموفق بود");
-
-    if(!await waitUntil(20))return;
     const committed=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/round/commit",{
-      method:"POST",body:JSON.stringify({token:currentRoundToken})
+      method:"POST",
+      body:JSON.stringify({token:currentRoundToken})
     });
     currentRoundToken=null;
-    // راندی که همین الان تمام شد ثبت‌شده است؛ SQL زمان شروع و شمارهٔ راند بعدی را برمی‌گرداند.
-    processedRoundNumber=Number(committed.processedRoundNumber|| (randwar));
     currentRoundEndsAt=Number(committed.roundEndsAt||0);
     randwar=Number(committed.roundNumber||0);
-    // شروع زمان‌بندی راند بعدی بلافاصله در ثانیهٔ ۲۰؛ منتظر صفر شدن تایمر بعدی نمی‌مانیم.
-    setTimeout(()=>{ if(randStarted && roundClockBattleId===String(battle.batId)) processDueRound().finally(updateRoundTimerDisplay); },0);
   }catch(err){
     console.error("پردازش راند ناموفق بود:",err);
+    // راند در SQL commit نشده؛ بعد از برگشت ارتباط دوباره قابل دریافت است.
   }finally{
     randProcessing=false;
   }
@@ -1125,35 +1055,23 @@ async function rand(){
 
   await loadRoundClock();
   updateRoundTimerDisplay();
+  if(randwar>processedRoundNumber)await processDueRound();
 
-  // تا رسیدن اولین مهاجم، نبرد فقط آماده است: تایمر مخفی/صفر می‌ماند و هیچ راندی اجرا نمی‌شود.
-  // هر 1 ثانیه SQL را دوباره می‌خوانیم تا شروع تایمر بعد از رسیدن مهاجم در کلاینت‌های باز دیده شود.
-  if(!currentRoundEndsAt){
-    const box=document.getElementById("randTimerBox");
-    if(box)box.style.display="none";
-    randTimerId=setInterval(async()=>{
-      await loadRoundClock();
-      if(currentRoundEndsAt){
-        const timerBox=document.getElementById("randTimerBox");
-        if(timerBox)timerBox.style.display="block";
-        updateRoundTimerDisplay();
-        processDueRound().finally(updateRoundTimerDisplay);
-      }
-    },1000);
-    return;
-  }
-
-  // تایمر نمایشی را قبل از اجرای مراحل طولانی راند راه می‌اندازیم؛
-  // در غیر این صورت هنگام اتصال مجدد یا عقب‌افتادن راند، صفحه تا ۲۰ ثانیه قفل به نظر می‌رسد.
-  randTimerId=setInterval(()=>{
+  randTimerId=setInterval(async ()=>{
     updateRoundTimerDisplay();
-    if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
-      // بدون منتظر ماندن در حلقهٔ تایمر؛ randProcessing از اجرای موازی جلوگیری می‌کند.
-      processDueRound().finally(updateRoundTimerDisplay);
+    // حرکت ۵ ثانیه مانده به پایان راند شروع می‌شود و به‌صورت نرم نمایش داده می‌شود.
+    const movementKey=String(roundClockBattleId)+":"+String(randwar);
+    if(currentRoundEndsAt && movementAppliedForRoundKey!==movementKey &&
+       Date.now()+serverClockOffset>=currentRoundEndsAt-5000 &&
+       Date.now()+serverClockOffset<currentRoundEndsAt){
+      movementAppliedForRoundKey=movementKey;
+      await applyRoundMoves();
     }
-  },250);
-
-  if(randwar>processedRoundNumber)processDueRound().finally(updateRoundTimerDisplay);
+    if(currentRoundEndsAt && Date.now()+serverClockOffset>=currentRoundEndsAt){
+      await processDueRound();
+      updateRoundTimerDisplay();
+    }
+  },500);
 }
 
 async function syncRoundClockAfterReconnect(){
@@ -1386,7 +1304,6 @@ document.getElementById("battleSceneBtn").onclick=async()=>{
     alert(e.message);
   }
 };
-document.getElementById("battleEnterCastleBtn").onclick=()=>{document.body.classList.remove('battle-background');openDevelopment();};
 document.getElementById("battleBack").onclick=()=>{document.body.classList.remove('battle-background');openDevelopment();};
 document.getElementById('battleRetreatBtn').onclick=async()=>{
   const battle=getCurrentBattle();
@@ -1528,17 +1445,9 @@ async function openBattleReports(){
   overlay.style.display='flex';
   try{
     const data=await api('/api/battle-reports?_='+Date.now());
-    const allReports=Array.isArray(data.reports)?data.reports:[];
-    const castleId=Number(selectedCastleId);
-    const reports=[];
-    for(const item of allReports){
-      try{
-        const detail=await api('/api/battle-reports/'+encodeURIComponent(item.battleId)+'?_='+Date.now());
-        if((detail.report||[]).some(row=>Number(row.castleId)===castleId))reports.push(item);
-      }catch(err){console.warn('بررسی گزارش قلعه ناموفق بود',item.battleId,err);}
-    }
+    const reports=Array.isArray(data.reports)?data.reports:[];
     if(!reports.length){
-      select.innerHTML='<option value="">برای این قلعه گزارشی ثبت نشده است.</option>';
+      select.innerHTML='<option value="">هنوز هیچ گزارش نبردی ذخیره نشده است.</option>';
       return;
     }
     select.innerHTML='<option value="">انتخاب شماره نبرد...</option>'+reports.map(item=>
@@ -1574,7 +1483,6 @@ document.getElementById('battleReportSelectClose').onclick=closeBattleReportSele
 document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
 document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
 document.getElementById('battleReportsBtn').onclick=openBattleReports;
-document.getElementById('developmentBattleReportsBtn').onclick=openBattleReports;
 
 const originalEndbat=endbat;
 endbat=async function(winningSide){
@@ -1875,8 +1783,6 @@ async function authSubmit(){const username=document.getElementById('authUsername
 async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');requestAnimationFrame(()=>requestAnimationFrame(centerPlayerMapOwnCastle));}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
 function renderPlayerMap(){const world=document.getElementById('playerMapWorld');world.innerHTML='';if(!mapCastles.length){document.getElementById('mapInfo').textContent='هنوز قلعه‌ای برای نمایش وجود ندارد.';return;}const xs=mapCastles.map(c=>Number(c.x)||0),ys=mapCastles.map(c=>Number(c.y)||0);const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const cell=260,margin=520;const width=Math.max(2400,(maxX-minX)*cell+margin*2),height=Math.max(1800,(maxY-minY)*cell+margin*2);world.style.width=width+'px';world.style.height=height+'px';document.getElementById('mapInfo').textContent='قلعه‌ها از اطلاعات آنلاین بازی و مختصات ذخیره‌شده در پایگاه داده نمایش داده می‌شوند. برای حمله یا کمک دفاعی روی قلعهٔ دیگر کلیک کنید.';for(const castle of mapCastles){const x=margin+(Number(castle.x)-minX)*cell+cell/2,y=margin+(Number(castle.y)-minY)*cell+cell/2;const b=document.createElement('button');b.type='button';b.className='map-castle'+(Number(castle.id)===Number(selectedCastleId)?' own':'');b.dataset.castleId=String(castle.id);b.style.left=x+'px';b.style.top=y+'px';const img=document.createElement('img');img.src='castle.png';img.alt='قلعه';img.draggable=false;const label=document.createElement('span');label.className='map-castle-name';label.textContent=(castle.username||castle.name||('قلعه '+castle.id))+(Number(castle.id)===Number(selectedCastleId)?' • شما':'');b.append(img,label);b.title=(castle.name||'قلعه')+' — ('+castle.x+','+castle.y+')';b.onclick=()=>{world.querySelectorAll('.map-castle').forEach(c=>c.classList.remove('selected'));b.classList.add('selected');openCastleProfile(castle.id);};world.appendChild(b);}}
 function centerPlayerMapOwnCastle(){const viewport=document.getElementById('playerMapViewport'),own=document.querySelector('#playerMapWorld .map-castle.own');if(!viewport||!own)return;const x=parseFloat(own.style.left)||own.offsetLeft,y=parseFloat(own.style.top)||own.offsetTop;viewport.scrollTo({left:Math.max(0,Math.min(viewport.scrollWidth-viewport.clientWidth,x-viewport.clientWidth/2)),top:Math.max(0,Math.min(viewport.scrollHeight-viewport.clientHeight,y-viewport.clientHeight/2)),behavior:'auto'});}
-let playerMapZoom=1;function applyPlayerMapZoom(keepCenter=true){const viewport=document.getElementById('playerMapViewport'),world=document.getElementById('playerMapWorld');if(!viewport||!world)return;const cx=(viewport.scrollLeft+viewport.clientWidth/2)/(Number(world.style.zoom||1)),cy=(viewport.scrollTop+viewport.clientHeight/2)/(Number(world.style.zoom||1));world.style.zoom=String(playerMapZoom);document.getElementById('mapZoomReset').textContent=Math.round(playerMapZoom*100)+'٪';if(keepCenter){requestAnimationFrame(()=>viewport.scrollTo({left:Math.max(0,cx*playerMapZoom-viewport.clientWidth/2),top:Math.max(0,cy*playerMapZoom-viewport.clientHeight/2),behavior:'auto'}));}}
-document.getElementById('mapZoomIn').onclick=()=>{playerMapZoom=Math.min(2.5,Math.round((playerMapZoom+0.15)*100)/100);applyPlayerMapZoom();};document.getElementById('mapZoomOut').onclick=()=>{playerMapZoom=Math.max(0.4,Math.round((playerMapZoom-0.15)*100)/100);applyPlayerMapZoom();};document.getElementById('mapZoomReset').onclick=()=>{playerMapZoom=1;applyPlayerMapZoom();};
 window.addEventListener('resize',()=>{if(document.getElementById('playerMapScreen').classList.contains('active'))setTimeout(centerPlayerMapOwnCastle,80);});
 function escapeMapText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function openCastleProfile(id){const c=mapCastles.find(x=>Number(x.id)===Number(id));if(!c)return;profileCastleId=Number(id);document.getElementById('profileTitle').textContent=c.name+' — '+(c.username||'بازیکن');const army=c.army||{};document.getElementById('profileBody').innerHTML='<p>شماره قلعه: '+c.id+'</p><p>مختصات: ('+c.x+','+c.y+')</p><p>🏹 کماندار: '+Number(army.archer||0)+' | 🐎 سواره: '+Number(army.cavalry||0)+' | ⚔️ شمشیرزن: '+Number(army.swordsman||0)+'</p>';document.getElementById('profileAttack').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('profileDefense').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('castleProfile').style.display='flex';}
