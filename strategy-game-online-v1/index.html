@@ -886,11 +886,13 @@ async function sidchek(){
       const result=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/end",{
         method:"POST",body:JSON.stringify({})
       });
-      if(result && result.ok){
-        const completedBattleId=battle.batId;
-        endbat(firstSide);
-        // نمایش نتیجه فقط پس از تأیید پایان نبرد توسط سرور؛ پنل ثابت و مستقل از صحنه نبرد است.
-        showBattleVictoryNotice(completedBattleId,firstSide);
+      // فقط وقتی سرور همین درخواست را واقعاً به پایان نبرد تبدیل کرده باشد پیام نمایش داده شود.
+      // پاسخ ok با deleted:false به معنی پایان تأییدشده نیست.
+      if(result && result.ok && result.deleted === true && result.winnerSide){
+        const completedBattleId=result.battleId || battle.batId;
+        const confirmedWinnerSide=result.winnerSide;
+        endbat(confirmedWinnerSide);
+        showBattleVictoryNotice(completedBattleId,confirmedWinnerSide);
         return true;
       }
       return false;
