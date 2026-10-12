@@ -846,40 +846,54 @@ async function sidchek(){
 
   const firstSide=units[0].side;
   const oneSide=units.every(unit=>unit.side===firstSide);
+  if(!oneSide)return false;
 
-  if(oneSide){
-    // ابتدا نتیجه نبرد به بازیکن اعلام می‌شود؛ سپس پایان نبرد به سرور سپرده می‌شود.
-    alert('نبرد به پایان رسید! برنده: '+firstSide);
-    await endbat(firstSide);
-    return true;
+  // سرور نتیجه را با وضعیت ذخیره‌شده بررسی می‌کند، گزارش را ثبت می‌کند و پاداش را فقط یک‌بار می‌دهد.
+  if(battle.batId && typeof sqlConnected!=="undefined" && sqlConnected){
+    try{
+      const result=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/end",{
+        method:"POST",body:JSON.stringify({})
+      });
+      if(result && result.ok){
+        endbat(firstSide);
+        alert("نبرد به پایان رسید. نتیجه در گزارش نبرد ثبت شد و ۱۳ کماندار به قلعهٔ پیروز اضافه شد.");
+        return true;
+      }
+      return false;
+    }catch(err){
+      console.error("ثبت پایان نبرد در سرور ناموفق بود:",err);
+      return false;
+    }
   }
-
-  return false;
+  // حالت بدون SQL فقط برای اجرای محلی/آزمایشی حفظ شده است.
+  endbat(firstSide);
+  return true;
 }
 
-async function endbat(winningSide){
-  const battle=getCurrentBattle();
-  if(!battle || !battle.batId)return false;
-
-  // درخواست پایان به سرور فرستاده می‌شود؛ سرور خودش برنده را از ارتش‌های ذخیره‌شده تعیین می‌کند.
-  await api("/api/battle/"+encodeURIComponent(battle.batId)+"/end",{
-    method:"POST",
-    body:JSON.stringify({})
-  });
-
-  if(randTimerId){clearInterval(randTimerId);randTimerId=null;}
+function endbat(winningSide){
+  if(randTimerId){
+    clearInterval(randTimerId);
+    randTimerId=null;
+  }
   randStarted=false;
   roundClockBattleId=null;
   processedRoundNumber=0;
   currentRoundEndsAt=null;
   randRemainingSeconds=20;
+
+  const battle=getCurrentBattle();
+  if(battle){
+    battle.ended=true;
+    battle.winnerSide=winningSide||null;
+  }
+
   currentBattleForScene=null;
   const scene=document.getElementById("battleScene");
   if(scene)scene.style.display="none";
   const timerBox=document.getElementById("randTimerBox");
   if(timerBox)timerBox.style.display="none";
-  return true;
 }
+
 async function persistBattleMovement(battle){
   if(!battle || !battle.batId)return false;
   if(typeof sqlConnected==="undefined" || !sqlConnected)return;
