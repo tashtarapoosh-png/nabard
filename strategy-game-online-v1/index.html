@@ -1513,7 +1513,7 @@ endbat=async function(winningSide){
     try{
       await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
       // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
-      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?_='+Date.now());
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
     }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
