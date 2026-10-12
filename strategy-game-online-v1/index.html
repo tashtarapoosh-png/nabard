@@ -1548,7 +1548,7 @@ const DEVELOPMENT_KEY_PREFIX='castle_development_v1_';
 const developmentDefaults={
   gold:3000,
   buildings:{castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}},
-  training:{barracks1:null,barracks2:null}
+  training:{barracks1:null,barracks2:null},activeUpgrade:null,goldCapacity:72000
 };
 let developmentState=null;
 let developmentBuilding=null;
@@ -1558,55 +1558,21 @@ let developmentTickId=null;
 function developmentClone(v){return JSON.parse(JSON.stringify(v));}
 function developmentKey(){return DEVELOPMENT_KEY_PREFIX+String(selectedCastleId||0);}
 function developmentLoad(){
-  const raw=localStorage.getItem(developmentKey());
-  let saved={};
-  try{if(raw)saved=JSON.parse(raw)||{};}catch(e){}
-  const s=developmentClone(developmentDefaults);
-  // طلا و سطوح ساختمان‌ها از دادهٔ قلعه‌ای می‌آیند که سرور از SQL بارگذاری کرده؛ localStorage مرجع آن‌ها نیست.
-  const serverCastle=selectedCastleId!==null?castles[selectedCastleId]:null;
-  if(serverCastle){
-    if(Number.isFinite(Number(serverCastle.gold)))s.gold=Number(serverCastle.gold);
-    if(serverCastle.buildings)s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),serverCastle.buildings);
-  }
-  // فقط وضعیت آموزش‌های در حال انجام در مرورگر نگهداری می‌شود.
-  s.training=Object.assign(developmentClone(developmentDefaults.training),saved.training||{});
-  developmentState=s;
-  developmentProgress();
-  localStorage.setItem(developmentKey(),JSON.stringify(developmentState));
+  const s=developmentClone(developmentDefaults);const serverCastle=selectedCastleId!==null?castles[selectedCastleId]:null;
+  if(serverCastle){if(Number.isFinite(Number(serverCastle.gold)))s.gold=Number(serverCastle.gold);if(serverCastle.buildings)s.buildings=Object.assign(developmentClone(developmentDefaults.buildings),serverCastle.buildings);s.training=Object.assign(developmentClone(developmentDefaults.training),serverCastle.trainingJobs||{});s.activeUpgrade=serverCastle.activeUpgrade||null;s.army=serverCastle.army||null;}
+  developmentState=s;developmentRefreshFromServer().catch(()=>{});developmentUpdateTop();localStorage.setItem(developmentKey(),JSON.stringify(developmentState));
 }
-function developmentSave(){if(developmentState){localStorage.setItem(developmentKey(),JSON.stringify(developmentState));if(selectedCastleId!==null){if(castles[selectedCastleId]){castles[selectedCastleId].gold=Math.floor(Number(developmentState.gold)||0);castles[selectedCastleId].buildings=developmentClone(developmentState.buildings);}fetch('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gold:Math.floor(Number(developmentState.gold)||0),buildings:developmentState.buildings})}).catch(()=>{});}}}
-function developmentProductionPerMinute(){return 100+Math.max(0,(developmentState?.buildings?.goldMine?.level||1)-1)*50;}
-function developmentUpgradeCost(type,target){return (type==='castle'?500:250)*target;}
-function developmentUpgradeTime(type,target){return (type==='castle'?30:20)*target;}
-function developmentTrainingCost(){return 20;}
-function developmentTrainingTime(){return 5;}
+async function developmentRefreshFromServer(){if(selectedCastleId===null)return;try{const data=await api('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development');const c=data.castle;if(!developmentState||Number(selectedCastleId)!==Number(c.id))return;developmentState.gold=Number(c.gold||0);developmentState.buildings=c.buildings||developmentDefaults.buildings;developmentState.training=c.trainingJobs||developmentClone(developmentDefaults.training);developmentState.activeUpgrade=c.activeUpgrade||null;developmentState.goldCapacity=Number(c.goldCapacity)||0;if(c.army&&castles[c.id])castles[c.id].army=c.army;developmentState.lastServerSync=Date.now();developmentUpdateTop();localStorage.setItem(developmentKey(),JSON.stringify(developmentState));}catch(e){}}
+function developmentSave(){if(developmentState)localStorage.setItem(developmentKey(),JSON.stringify(developmentState));}
+function developmentProductionPerMinute(){return 60*Math.pow(1.1,Math.max(0,(developmentState?.buildings?.goldMine?.level||1)-1));}
+function developmentUpgradeCost(type,target){const level=Math.max(1,Number(developmentState?.buildings?.castle?.level)||1);const castleCost=Math.ceil(60*Math.pow(1.1,level-1)*60*4);return type==='castle'?castleCost:Math.ceil(castleCost/2);}
+function developmentUpgradeTime(type,target){const t=512*Math.pow(1.26,Math.max(0,target-2));return type==='castle'?t:t/2;}
+function developmentTrainingCost(){return 60;}
+function developmentTrainingTime(){const level=Math.max(1,Number(developmentState?.buildings?.[developmentBuilding]?.level)||1);return 60*Math.pow(0.9,level-1);}
+function developmentTrainingCapacity(){const level=Math.max(1,Number(developmentState?.buildings?.[developmentBuilding]?.level)||1);return Math.max(1,Math.floor(10*Math.pow(1.35,level-1)));}
 function developmentFormat(sec){sec=Math.max(0,Math.ceil(Number(sec)||0));return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');}
 function developmentMessage(msg){const el=document.getElementById('developmentMessage');if(!el)return;el.textContent=msg||'';el.style.display=msg?'block':'none';if(msg)setTimeout(()=>{if(el.textContent===msg)el.style.display='none';},2200);}
-function developmentProgress(){
-  if(!developmentState)return;
-  const now=Date.now();
-  if(developmentState.training){
-    for(const key of ['barracks1','barracks2']){
-      const job=developmentState.training[key];
-      if(!job)continue;
-      const remain=Math.max(0,(Number(job.endsAt)||0)-now)/1000;
-      job.remaining=remain;
-      if(remain<=0){
-        const n=Math.max(0,Math.floor(Number(job.count)||0));
-        castles[selectedCastleId].army[job.type]=Number(castles[selectedCastleId].army[job.type]||0)+n;
-        developmentState.training[key]=null;
-      }
-    }
-  }
-  // تولید طلای آفلاین/آنلاین ساده بر اساس زمان ذخیره‌شده خود همین صفحه.
-  const last=Number(developmentState.lastGoldAt)||now;
-  const elapsed=Math.max(0,(now-last)/60000);
-  if(elapsed>0 && elapsed<1440){
-    developmentState.gold=Number(developmentState.gold||0)+elapsed*developmentProductionPerMinute();
-  }
-  developmentState.lastGoldAt=now;
-  developmentSave();
-}
+function developmentProgress(){if(!developmentState)return;developmentSave();}
 function developmentUpdateTop(){
   if(!developmentState||selectedCastleId===null)return;
   const c=castles[selectedCastleId];
@@ -1657,23 +1623,20 @@ function openDevelopmentBuilding(type){
   const target=b.level+1;
   const cost=developmentUpgradeCost(type,target);
   let info='سطح فعلی: '+b.level+'<br>هزینه ارتقا: '+cost+' طلا';
-  if(type==='goldMine')info+='<br>تولید فعلی: '+developmentProductionPerMinute()+' طلا/دقیقه';
+  if(type==='goldMine')info+='<br>تولید فعلی: '+developmentProductionPerMinute().toFixed(2)+' طلا/دقیقه';
+  if(b.level>=20)info+='<br>این ساختمان به حداکثر سطح ۲۰ رسیده است.';
+  else if(type!=='castle'&&target>(Number(developmentState.buildings.castle?.level)||1))info+='<br>ابتدا قلعه اصلی را ارتقا دهید.';
+  if(type==='castle'&&Number(developmentState.buildings.wall?.level||1)<Number(developmentState.buildings.castle?.level||1))info+='<br>برای ارتقای قلعه، ابتدا دیوار را هم‌سطح قلعه فعلی کنید.';
   if(type==='barracks1'||type==='barracks2')info+='<br>نیرو سازی در همین سربازخانه انجام می‌شود.';
   document.getElementById('developmentBuildingTitle').textContent=names[type];
   document.getElementById('developmentBuildingInfo').innerHTML=info;
-  document.getElementById('developmentUpgradeButton').disabled=!!developmentState.activeUpgrade;
+  document.getElementById('developmentUpgradeButton').disabled=!!developmentState.activeUpgrade||b.level>=20||(type!=='castle'&&target>(Number(developmentState.buildings.castle?.level)||1))||(type==='castle'&&Number(developmentState.buildings.wall?.level||1)<Number(developmentState.buildings.castle?.level||1));
   document.getElementById('developmentTrainButton').style.display=(type==='barracks1'||type==='barracks2')?'inline-block':'none';
   document.getElementById('buildingActionPanel').classList.add('open');
 }
 function closeDevelopmentBuilding(){document.getElementById('buildingActionPanel').classList.remove('open');}
-function startDevelopmentUpgrade(){
-  if(!developmentBuilding)return;
-  if(developmentState.activeUpgrade)return developmentMessage('یک ارتقا در حال انجام است.');
-  const b=developmentState.buildings[developmentBuilding];const target=b.level+1;const cost=developmentUpgradeCost(developmentBuilding,target);
-  if(Number(developmentState.gold)<cost)return developmentMessage('طلای کافی نیست.');
-  developmentState.gold-=cost;
-  developmentState.activeUpgrade={type:developmentBuilding,targetLevel:target,endsAt:Date.now()+developmentUpgradeTime(developmentBuilding,target)*1000};
-  developmentSave();closeDevelopmentBuilding();developmentMessage('ارتقای '+developmentBuilding+' شروع شد.');developmentUpdateTop();
+async function startDevelopmentUpgrade(){
+  if(!developmentBuilding)return;try{const data=await api('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development/action',{method:'POST',body:JSON.stringify({action:'upgrade',type:developmentBuilding})});const c=data.castle;developmentState.gold=Number(c.gold||0);developmentState.buildings=c.buildings;developmentState.training=c.trainingJobs;developmentState.activeUpgrade=c.activeUpgrade;developmentState.goldCapacity=c.goldCapacity;developmentSave();closeDevelopmentBuilding();developmentMessage('ارتقا شروع شد.');developmentUpdateTop();}catch(e){developmentMessage(e.message||'شروع ارتقا ناموفق بود.');await developmentRefreshFromServer();}
 }
 function openDevelopmentTraining(){
   const key=developmentBuilding;
@@ -1681,21 +1644,14 @@ function openDevelopmentTraining(){
   const busy=developmentState.training[key];
   document.getElementById('trainingTitle').textContent='🪖 نیرو سازی '+(key==='barracks1'?'سربازخانه ۱':'سربازخانه ۲');
   document.getElementById('trainingInfo').innerHTML=busy?'در حال ساخت: '+busy.count+' '+(busy.type==='archer'?'کماندار':busy.type==='cavalry'?'سواره':'شمشیرزن'):'نوع نیرو را انتخاب کنید.';
-  document.getElementById('trainingCountInput').value=1;developmentTrainType=null;
+  document.getElementById('trainingCountInput').value=1;document.getElementById('trainingCountInput').max=developmentTrainingCapacity();developmentTrainType=null;
   document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.remove('selected'));
   closeDevelopmentBuilding();document.getElementById('trainingPanel').classList.add('open');
 }
-function startDevelopmentTraining(){
-  const key=developmentBuilding;
-  if(key!=='barracks1'&&key!=='barracks2')return;
-  if(developmentState.training[key])return developmentMessage('این سربازخانه مشغول است.');
-  if(!developmentTrainType)return developmentMessage('نوع نیرو را انتخاب کنید.');
-  const count=Math.max(1,Math.floor(Number(document.getElementById('trainingCountInput').value)||0));
-  const totalCost=count*developmentTrainingCost();
-  if(developmentState.gold<totalCost)return developmentMessage('طلای کافی نیست.');
-  developmentState.gold-=totalCost;
-  developmentState.training[key]={type:developmentTrainType,count,endsAt:Date.now()+count*developmentTrainingTime()*1000};
-  developmentSave();document.getElementById('trainingPanel').classList.remove('open');developmentMessage('نیرو سازی شروع شد.');developmentUpdateTop();
+async function startDevelopmentTraining(){
+  const key=developmentBuilding;if(key!=='barracks1'&&key!=='barracks2')return;if(!developmentTrainType)return developmentMessage('نوع نیرو را انتخاب کنید.');
+  const count=Math.max(1,Math.floor(Number(document.getElementById('trainingCountInput').value)||0)),capacity=developmentTrainingCapacity();if(count>capacity)return developmentMessage('حداکثر ظرفیت این سربازخانه '+capacity+' سرباز است.');
+  try{const data=await api('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development/action',{method:'POST',body:JSON.stringify({action:'train',building:key,unit:developmentTrainType,count})});const c=data.castle;developmentState.gold=Number(c.gold||0);developmentState.buildings=c.buildings;developmentState.training=c.trainingJobs;developmentState.activeUpgrade=c.activeUpgrade;developmentState.goldCapacity=c.goldCapacity;if(c.army&&castles[c.id])castles[c.id].army=c.army;developmentSave();document.getElementById('trainingPanel').classList.remove('open');developmentMessage('نیروسازی شروع شد.');developmentUpdateTop();}catch(e){developmentMessage(e.message||'شروع نیروسازی ناموفق بود.');await developmentRefreshFromServer();}
 }
 const developmentAlphaCache=new WeakMap();
 function developmentBuildingHit(img,event){
@@ -1816,7 +1772,7 @@ document.getElementById('developmentScene').addEventListener('click',e=>{
 });
 
 // یک نوسازی سبک برای صفحه توسعه؛ هیچ تابع نبردی در این تایمر اجرا نمی‌شود.
-developmentTickId=setInterval(()=>{if(!developmentState||!document.getElementById('developmentPanel').classList.contains('active'))return;developmentProgress();developmentUpdateTop();},1000);
+developmentTickId=setInterval(()=>{if(!developmentState||!document.getElementById('developmentPanel').classList.contains('active'))return;developmentUpdateTop();if(!developmentState.lastServerSync||Date.now()-developmentState.lastServerSync>5000)developmentRefreshFromServer();},1000);
 </script>
 
 <script>

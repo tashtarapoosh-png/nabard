@@ -35,6 +35,19 @@ function verifyPassword(password,stored){
   return actual.length===expected.length&&timingSafeEqual(actual,expected);
 }
 function defaultBuildings(){return {castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}};}
+// قواعد توسعه قلعه؛ این بخش مستقل از منطق نبرد است.
+const MAX_BUILDING_LEVEL=20;
+const CASTLE_UPGRADE_BASE_SECONDS=512;
+const CASTLE_UPGRADE_GROWTH=1.26;
+function buildingLevel(buildings,key){return Math.max(1,Math.min(MAX_BUILDING_LEVEL,Math.floor(Number(buildings?.[key]?.level)||1)));}
+function goldPerMinute(level){return 60*Math.pow(1.1,Math.max(0,level-1));}
+function castleUpgradeCost(buildings){return Math.ceil(goldPerMinute(buildingLevel(buildings,'castle'))*60*4);}
+function upgradeCost(buildings,type){return type==='castle'?castleUpgradeCost(buildings):Math.ceil(castleUpgradeCost(buildings)/2);}
+function upgradeSeconds(type,targetLevel){const castleSeconds=CASTLE_UPGRADE_BASE_SECONDS*Math.pow(CASTLE_UPGRADE_GROWTH,Math.max(0,targetLevel-2));return type==='castle'?castleSeconds:castleSeconds/2;}
+function trainingCapacity(level){return Math.max(1,Math.floor(10*Math.pow(1.35,Math.max(0,level-1))));}
+function trainingSecondsPerSoldier(level){return 60*Math.pow(0.9,Math.max(0,level-1));}
+function goldCapacity(buildings){const level=buildingLevel(buildings,'castle');return 20*castleUpgradeCost(buildings);}
+
 function randomDefense(){
   const slots=emptyDefense(),types=['archer','cavalry','swordsman'];
   const n=2+Math.floor(Math.random()*5);
@@ -762,17 +775,42 @@ app.post('/api/auth/register',async(req,res)=>{
   }catch(e){await client.query('ROLLBACK');console.error('register',e);res.status(500).json({error:'ثبت‌نام انجام نشد.'});}
   finally{client.release();}
 });
-app.put('/api/castle/:id/development',async(req,res)=>{
-  const id=Number(req.params.id);const gold=Math.max(0,Math.floor(Number(req.body.gold)||0));
-  const buildings=req.body.buildings&&typeof req.body.buildings==='object'?req.body.buildings:defaultBuildings();
-  const trainingJobs=req.body.trainingJobs&&typeof req.body.trainingJobs==='object'?req.body.trainingJobs:{barracks1:null,barracks2:null};
-  const activeUpgrade=req.body.activeUpgrade&&typeof req.body.activeUpgrade==='object'?req.body.activeUpgrade:null;
-  if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
+app.get('/api/castle/:id/development',async(req,res)=>{
+  const id=Number(req.params.id);if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
+  try{await processCastleDevelopment();const q=await pool.query('SELECT id,gold,buildings,training_jobs,active_upgrade,army,development_updated_at FROM castles WHERE id=$1',[id]);if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});const r=q.rows[0];res.json({ok:true,castle:{id:r.id,gold:Number(r.gold||0),buildings:r.buildings||defaultBuildings(),trainingJobs:r.training_jobs||{barracks1:null,barracks2:null},activeUpgrade:r.active_upgrade||null,army:r.army||emptyArmy(),goldCapacity:goldCapacity(r.buildings||defaultBuildings())}});}catch(e){console.error('get development',e);res.status(500).json({error:'خواندن اطلاعات توسعه ناموفق بود.'});}
+});
+app.post('/api/castle/:id/development/action',async(req,res)=>{
+  const id=Number(req.params.id),action=String(req.body?.action||'');if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
+  const client=await pool.connect();
   try{
-    const q=await pool.query(`UPDATE castles SET gold=$1,buildings=$2::jsonb,training_jobs=$3::jsonb,active_upgrade=$4::jsonb,development_updated_at=NOW() WHERE id=$5 RETURNING id,gold,buildings,training_jobs,active_upgrade`,[gold,JSON.stringify(buildings),JSON.stringify(trainingJobs),JSON.stringify(activeUpgrade),id]);
-    if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});
-    res.json({ok:true,castle:q.rows[0]});
-  }catch(e){console.error('save development',e);res.status(500).json({error:'ذخیره اطلاعات توسعه قلعه ناموفق بود.'});}
+    await client.query('BEGIN');
+    const q=await client.query('SELECT id,gold,buildings,training_jobs,active_upgrade,army FROM castles WHERE id=$1 FOR UPDATE',[id]);
+    if(!q.rows[0]){await client.query('ROLLBACK');return res.status(404).json({error:'قلعه پیدا نشد.'});}
+    const row=q.rows[0],buildings=row.buildings||defaultBuildings(),training=row.training_jobs||{barracks1:null,barracks2:null};let gold=Number(row.gold||0),upgrade=row.active_upgrade||null;
+    const now=Date.now();
+    // تکمیل کارهای رسیده به زمان پایان قبل از اجرای دستور جدید
+    for(const key of ['barracks1','barracks2']){const job=training[key];if(job&&Number(job.endsAt)<=now){const n=Math.max(0,Math.floor(Number(job.count)||0));if(names[job.type]&&n){const army={...(row.army||emptyArmy())};army[job.type]=Number(army[job.type]||0)+n;row.army=army;}training[key]=null;}}
+    if(upgrade&&Number(upgrade.endsAt)<=now){if(buildings[upgrade.type])buildings[upgrade.type].level=Math.min(MAX_BUILDING_LEVEL,Math.max(buildingLevel(buildings,upgrade.type),Math.floor(Number(upgrade.targetLevel)||1)));upgrade=null;}
+    if(action==='upgrade'){
+      const type=String(req.body?.type||'');if(!buildings[type])throw Object.assign(new Error('ساختمان نامعتبر است.'),{status:400});
+      if(upgrade)throw Object.assign(new Error('یک ارتقا در حال انجام است.'),{status:400});
+      const current=buildingLevel(buildings,type),target=current+1,castleLevel=buildingLevel(buildings,'castle');
+      if(target>MAX_BUILDING_LEVEL)throw Object.assign(new Error('این ساختمان به حداکثر سطح ۲۰ رسیده است.'),{status:400});
+      if(type!=='castle'&&target>castleLevel)throw Object.assign(new Error('سطح ساختمان نمی‌تواند از قلعه اصلی بالاتر برود.'),{status:400});
+      if(type==='castle'&&buildingLevel(buildings,'wall')<current)throw Object.assign(new Error('برای ارتقای قلعه اصلی، دیوار باید حداقل هم‌سطح قلعه فعلی باشد.'),{status:400});
+      const cost=upgradeCost(buildings,type);if(gold<cost)throw Object.assign(new Error('طلای کافی نیست.'),{status:400});
+      gold-=cost;upgrade={type,targetLevel:target,startedAt:now,endsAt:now+Math.ceil(upgradeSeconds(type,target)*1000),cost};
+    }else if(action==='train'){
+      const type=String(req.body?.building||''),unit=String(req.body?.unit||''),count=Math.floor(Number(req.body?.count)||0);
+      if(!['barracks1','barracks2'].includes(type)||!names[unit]||count<1)throw Object.assign(new Error('دستور نیروسازی نامعتبر است.'),{status:400});
+      if(training[type])throw Object.assign(new Error('این سربازخانه مشغول آموزش نیرو است.'),{status:400});
+      const level=buildingLevel(buildings,type),capacity=trainingCapacity(level);if(count>capacity)throw Object.assign(new Error('حداکثر ظرفیت دستور هم‌زمان این سربازخانه '+capacity+' سرباز است.'),{status:400});
+      const cost=count*60;if(gold<cost)throw Object.assign(new Error('طلای کافی نیست.'),{status:400});
+      gold-=cost;training[type]={type:unit,count,startedAt:now,endsAt:now+Math.ceil(count/capacity*trainingSecondsPerSoldier(level)*1000),capacity};
+    }else throw Object.assign(new Error('دستور توسعه نامعتبر است.'),{status:400});
+    const saved=await client.query(`UPDATE castles SET gold=$1,buildings=$2::jsonb,training_jobs=$3::jsonb,active_upgrade=$4::jsonb,army=$5::jsonb,development_updated_at=NOW() WHERE id=$6 RETURNING id,gold,buildings,training_jobs,active_upgrade,army`,[Math.floor(gold),JSON.stringify(buildings),JSON.stringify(training),JSON.stringify(upgrade),JSON.stringify(row.army||emptyArmy()),id]);
+    await client.query('COMMIT');const r=saved.rows[0];res.json({ok:true,castle:{id:r.id,gold:Number(r.gold||0),buildings:r.buildings,trainingJobs:r.training_jobs,activeUpgrade:r.active_upgrade,army:r.army,goldCapacity:goldCapacity(r.buildings)}});
+  }catch(e){try{await client.query('ROLLBACK');}catch{}res.status(e.status||500).json({error:e.status?e.message:'ثبت عملیات توسعه ناموفق بود.'});if(!e.status)console.error('development action',e);}finally{client.release();}
 });
 app.get('/api/map',async(req,res)=>{
   try{const q=await pool.query('SELECT id,name,username,map_x,map_y,army,defense_slots,gold,buildings,training_jobs,active_upgrade FROM castles ORDER BY id');res.json({castles:q.rows.map(r=>({id:r.id,name:r.name,username:r.username,x:r.map_x,y:r.map_y,army:r.army,defenseSlots:r.defense_slots,gold:Number(r.gold||0),buildings:r.buildings,trainingJobs:r.training_jobs,activeUpgrade:r.active_upgrade}))});}
@@ -1411,32 +1449,14 @@ async function processCastleDevelopment(){
     const q=await client.query('SELECT id,army,gold,buildings,training_jobs,active_upgrade,development_updated_at FROM castles ORDER BY id FOR UPDATE');
     const now=Date.now();
     for(const row of q.rows){
-      const buildings=row.buildings||defaultBuildings();
-      const training=row.training_jobs||{barracks1:null,barracks2:null};
-      const army={...(row.army||emptyArmy())};
-      let gold=Number(row.gold||0);
+      const buildings=row.buildings||defaultBuildings(),training=row.training_jobs||{barracks1:null,barracks2:null};
+      let army={...(row.army||emptyArmy())},gold=Number(row.gold||0);let changed=false;
       const last=new Date(row.development_updated_at||now).getTime();
-      const wholeMinutes=Math.max(0,Math.floor((now-last)/60000));
-      if(wholeMinutes>0){gold+=wholeMinutes*(100+Math.max(0,Number(buildings.goldMine?.level||1)-1)*50);}
-      let changed=wholeMinutes>0;
-      for(const key of ['barracks1','barracks2']){
-        const job=training[key];
-        if(job&&Number(job.endsAt)>0&&Number(job.endsAt)<=now){
-          const type=String(job.type||'');const count=Math.max(0,Math.floor(Number(job.count)||0));
-          if(names[type]&&count>0)army[type]=Number(army[type]||0)+count;
-          training[key]=null;changed=true;
-        }
-      }
-      let upgrade=row.active_upgrade||null;
-      if(upgrade&&Number(upgrade.endsAt)>0&&Number(upgrade.endsAt)<=now){
-        const type=String(upgrade.type||'');
-        if(buildings[type])buildings[type].level=Math.max(Number(buildings[type].level||1),Math.floor(Number(upgrade.targetLevel)||1));
-        upgrade=null;changed=true;
-      }
-      if(changed||wholeMinutes>0){
-        const updatedAt=wholeMinutes>0?new Date(last+wholeMinutes*60000):new Date(last);
-        await client.query(`UPDATE castles SET army=$1::jsonb,gold=$2,buildings=$3::jsonb,training_jobs=$4::jsonb,active_upgrade=$5::jsonb,development_updated_at=$6 WHERE id=$7`,[JSON.stringify(army),Math.floor(gold),JSON.stringify(buildings),JSON.stringify(training),JSON.stringify(upgrade),updatedAt,row.id]);
-      }
+      const elapsed=Math.max(0,(now-last)/60000),cap=goldCapacity(buildings);
+      if(elapsed>0){gold=Math.min(cap,gold+elapsed*goldPerMinute(buildingLevel(buildings,'goldMine')));changed=true;}
+      for(const key of ['barracks1','barracks2']){const job=training[key];if(job&&Number(job.endsAt)>0&&Number(job.endsAt)<=now){const type=String(job.type||''),count=Math.max(0,Math.floor(Number(job.count)||0));if(names[type]&&count>0)army[type]=Number(army[type]||0)+count;training[key]=null;changed=true;}}
+      let upgrade=row.active_upgrade||null;if(upgrade&&Number(upgrade.endsAt)>0&&Number(upgrade.endsAt)<=now){const type=String(upgrade.type||'');if(buildings[type])buildings[type].level=Math.min(MAX_BUILDING_LEVEL,Math.max(buildingLevel(buildings,type),Math.floor(Number(upgrade.targetLevel)||1)));upgrade=null;changed=true;}
+      if(changed){await client.query(`UPDATE castles SET army=$1::jsonb,gold=$2,buildings=$3::jsonb,training_jobs=$4::jsonb,active_upgrade=$5::jsonb,development_updated_at=$6 WHERE id=$7`,[JSON.stringify(army),Math.floor(gold),JSON.stringify(buildings),JSON.stringify(training),JSON.stringify(upgrade),new Date(now),row.id]);}
     }
     await client.query('COMMIT');
   }catch(e){try{await client.query('ROLLBACK');}catch{}console.error('server development tick',e);}
