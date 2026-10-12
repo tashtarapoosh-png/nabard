@@ -1505,30 +1505,36 @@ document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleRepo
 document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
 document.getElementById('battleReportsBtn').onclick=openBattleReports;
 
+// پایان نبرد: نمایش نتیجه روی یک overlay مستقیم زیر body تا پشت صحنه نبرد نماند.
 const originalEndbat=endbat;
 function showBattleResultNotice(winningSide){
-  let overlay=document.getElementById('battleResultNotice');
+  let overlay=document.getElementById('battleResultNoticeOverlay');
   if(!overlay){
     overlay=document.createElement('div');
-    overlay.id='battleResultNotice';
-    overlay.style.cssText='position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:18px;';
-    overlay.innerHTML='<div style="width:min(420px,94vw);background:#182438;color:#fff;border:2px solid #d6b66d;border-radius:16px;padding:26px 20px;text-align:center;box-shadow:0 12px 50px #0009"><h2 style="margin:0 0 18px;color:#f3d98a">پایان نبرد</h2><div id="battleResultWinnerText" style="font-size:20px;font-weight:800;margin-bottom:24px"></div><button id="battleResultGoDevelopment" type="button" style="border:0;border-radius:9px;padding:12px 20px;background:#39764a;color:#fff;font-size:16px;font-weight:800;cursor:pointer">رفتن به توسعه قلعه</button></div>';
+    overlay.id='battleResultNoticeOverlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;background:rgba(0,0,0,.78);pointer-events:auto;direction:rtl;';
+    overlay.innerHTML='<div style="width:min(420px,94vw);box-sizing:border-box;padding:26px 22px;border:2px solid #d6b96b;border-radius:16px;background:linear-gradient(145deg,#263b2d,#101827);color:#fff;text-align:center;box-shadow:0 12px 50px #000b;font-family:inherit"><div style="font-size:28px;margin-bottom:12px">🏆</div><div id="battleResultNoticeTitle" style="font-size:22px;font-weight:900;margin-bottom:22px"></div><button id="battleResultGoDevelopment" type="button" style="display:block;width:100%;padding:13px 16px;border:1px solid #f0d98a;border-radius:10px;background:#b68a2e;color:#17130a;font-size:16px;font-weight:900;cursor:pointer">رفتن به توسعه قلعه</button></div>';
     document.body.appendChild(overlay);
-    overlay.querySelector('#battleResultGoDevelopment').onclick=()=>{
+    overlay.querySelector('#battleResultGoDevelopment').addEventListener('click',()=>{
       overlay.style.display='none';
+      document.body.classList.remove('battle-background');
       openDevelopment();
-    };
+    });
   }
-  const winnerText=overlay.querySelector('#battleResultWinnerText');
-  winnerText.textContent=winningSide ? ('ساید پیروز: '+winningSide) : 'نبرد به پایان رسید؛ برنده مشخص نشد.';
+  const side=winningSide||'نامشخص';
+  overlay.querySelector('#battleResultNoticeTitle').textContent='ساید پیروز: '+side;
   overlay.style.display='flex';
 }
 endbat=function(winningSide){
   const battle=getCurrentBattle();
-  // فقط پایان نبرد اصلی اجرا می‌شود؛ هیچ درخواست یا نمایشی برای گزارش وجود ندارد.
+  // منطق اصلی پایان نبرد بدون تغییر اجرا می‌شود.
   originalEndbat(winningSide);
   if(battle)delete battleRegistry[String(battle.targetId)];
   showBattleResultNotice(winningSide);
+  // ثبت نتیجه در سرور فقط برای نگهداری وضعیت؛ نمایش پیام به آن وابسته نیست.
+  if(battle&&battle.batId&&typeof api==='function'){
+    api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})}).catch(e=>console.warn('ثبت نتیجه نبرد ناموفق بود:',e));
+  }
 };
 
 document.getElementById('startAttack').onclick=onlineStartAttack;
