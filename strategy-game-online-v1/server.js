@@ -768,7 +768,7 @@ app.post('/api/auth/register',async(req,res)=>{
     const pos=candidates[Math.floor(Math.random()*candidates.length)];
     const army=emptyArmy(),defense=randomDefense();
     const row=await client.query(`INSERT INTO castles(id,name,army,defense_slots,username,password_hash,map_x,map_y,gold,buildings,battle_history)
-      VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,3000,$9::jsonb,'[]'::jsonb) RETURNING *`,
+      VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,50000,$9::jsonb,'[]'::jsonb) RETURNING *`,
       [id,'قلعه '+id,JSON.stringify(army),JSON.stringify(defense),username,hashPassword(password),pos.x,pos.y,JSON.stringify(defaultBuildings())]);
     await client.query('COMMIT');
     res.status(201).json({ok:true,castle:publicCastle(row.rows[0])});
@@ -806,7 +806,7 @@ app.post('/api/castle/:id/development/action',async(req,res)=>{
       if(training[type])throw Object.assign(new Error('این سربازخانه مشغول آموزش نیرو است.'),{status:400});
       const level=buildingLevel(buildings,type),capacity=trainingCapacity(level);if(count>capacity)throw Object.assign(new Error('حداکثر ظرفیت دستور هم‌زمان این سربازخانه '+capacity+' سرباز است.'),{status:400});
       const cost=count*60;if(gold<cost)throw Object.assign(new Error('طلای کافی نیست.'),{status:400});
-      gold-=cost;training[type]={type:unit,count,startedAt:now,endsAt:now+Math.ceil(count/capacity*trainingSecondsPerSoldier(level)*1000),capacity};
+      gold-=cost;training[type]={type:unit,count,startedAt:now,endsAt:now+Math.ceil(count*trainingSecondsPerSoldier(level)*1000),capacity};
     }else throw Object.assign(new Error('دستور توسعه نامعتبر است.'),{status:400});
     const saved=await client.query(`UPDATE castles SET gold=$1,buildings=$2::jsonb,training_jobs=$3::jsonb,active_upgrade=$4::jsonb,army=$5::jsonb,development_updated_at=NOW() WHERE id=$6 RETURNING id,gold,buildings,training_jobs,active_upgrade,army`,[Math.floor(gold),JSON.stringify(buildings),JSON.stringify(training),JSON.stringify(upgrade),JSON.stringify(row.army||emptyArmy()),id]);
     await client.query('COMMIT');const r=saved.rows[0];res.json({ok:true,castle:{id:r.id,gold:Number(r.gold||0),buildings:r.buildings,trainingJobs:r.training_jobs,activeUpgrade:r.active_upgrade,army:r.army,goldCapacity:goldCapacity(r.buildings)}});

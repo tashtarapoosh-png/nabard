@@ -120,7 +120,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentAttackTimer{position:absolute;z-index:8;left:31.5%;top:4.2%;width:58.5%;height:4.2%;display:none;align-items:center;justify-content:flex-start;padding:0 2%;border:0;border-radius:0;background:transparent;color:#fff;font-size:clamp(8px,2.2vw,12px);font-weight:900;text-align:right;direction:ltr;white-space:nowrap;pointer-events:none}
 .developmentAttackTimerInfo{position:absolute;z-index:8;left:31.5%;top:6.3%;transform:translateY(-100%);max-width:58%;padding:2px 5px;background:#101827cc;color:#fff;font-size:8px;display:none;pointer-events:none}
 .developmentLevelOverlay{position:absolute;z-index:4;transform:translate(-50%,-50%);min-width:22px;padding:3px 7px;border:1px solid rgba(255,255,255,.22);border-radius:5px;background:rgba(0,0,0,.88);color:#fff;font-size:clamp(9px,2.2vw,12px);font-weight:800;line-height:1.15;text-align:center;pointer-events:none;text-shadow:0 1px 2px #000;box-sizing:border-box}
-.developmentTimerOverlay{position:absolute;z-index:6;transform:translateX(-50%);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827d9;color:#fff;font-size:8px;text-align:center;pointer-events:none}
+.developmentTimerOverlay{position:absolute;z-index:6;transform:translate(-50%,-100%);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827e8;color:#fff;font-size:8px;font-weight:800;text-align:center;pointer-events:none;white-space:nowrap}.developmentTrainingTimerOverlay{position:absolute;z-index:6;transform:translate(-50%,0);display:none;min-width:40px;padding:1px 3px;border-radius:4px;background:#101827e8;color:#fff;font-size:8px;font-weight:800;text-align:center;pointer-events:none;white-space:nowrap}
 .developmentTopCompact{position:absolute;inset:0;z-index:3;pointer-events:none}
 .developmentCastleName,.developmentStatCompact{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;pointer-events:none}
 .developmentCastleName{left:calc(13.8% - 1.5mm);top:calc(4.1% - 1mm);width:9.5%;height:3.1%;font-size:clamp(8px,2.3vw,13px)}
@@ -233,7 +233,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
       <div id="castleTimer" class="developmentAttackTimer" style="display:none">۰۰:۱۰</div><div id="castleTimerInfo" class="developmentAttackTimerInfo" style="display:none"></div>
     </div>
     <span id="developmentLevel-castle" class="developmentLevelOverlay">1</span><span id="developmentLevel-wall" class="developmentLevelOverlay">1</span><span id="developmentLevel-barracks1" class="developmentLevelOverlay">1</span><span id="developmentLevel-barracks2" class="developmentLevelOverlay">1</span><span id="developmentLevel-goldMine" class="developmentLevelOverlay">1</span>
-    <span id="developmentTimer-castle" class="developmentTimerOverlay"></span><span id="developmentTimer-wall" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks1" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks2" class="developmentTimerOverlay"></span><span id="developmentTimer-goldMine" class="developmentTimerOverlay"></span>
+    <span id="developmentTimer-castle" class="developmentTimerOverlay"></span><span id="developmentTimer-wall" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks1" class="developmentTimerOverlay"></span><span id="developmentTimer-barracks2" class="developmentTimerOverlay"></span><span id="developmentTimer-goldMine" class="developmentTimerOverlay"></span><span id="developmentTrainingTimer-barracks1" class="developmentTrainingTimerOverlay"></span><span id="developmentTrainingTimer-barracks2" class="developmentTrainingTimerOverlay"></span>
     <button type="button" id="devHit-castle" class="dev-hit" style="left:40.5%;top:31.9%;width:24%;height:11.5%" aria-label="قلعه اصلی" onclick="openDevelopmentBuilding('castle')"></button>
     <button type="button" id="devHit-barracks1" class="dev-hit" style="left:15.5%;top:39.7%;width:17%;height:10.8%" aria-label="پادگان اول" onclick="openDevelopmentBuilding('barracks1')"></button>
     <button type="button" id="devHit-barracks2" class="dev-hit" style="left:74.5%;top:39.7%;width:17%;height:10.8%" aria-label="پادگان دوم" onclick="openDevelopmentBuilding('barracks2')"></button>
@@ -1585,9 +1585,11 @@ function developmentUpdateTop(){
   for(const type of ['castle','wall','barracks1','barracks2','goldMine']){
     const el=document.getElementById('developmentLevel-'+type);if(el)el.textContent=String(developmentState.buildings[type]?.level||1);
   }
+  const timerPositions={castle:[52.5,28.5],wall:[79,58.1],barracks1:[24,42.0],barracks2:[83,42.0],goldMine:[22.2,63.5]};
   for(const type of ['castle','wall','barracks1','barracks2','goldMine']){
-    const el=document.getElementById('developmentTimer-'+type);if(el)el.style.display='none';
+    const el=document.getElementById('developmentTimer-'+type);if(el){el.style.display='none';el.style.left=timerPositions[type][0]+'%';el.style.top=timerPositions[type][1]+'%';}
   }
+  for(const key of ['barracks1','barracks2']){const el=document.getElementById('developmentTrainingTimer-'+key);if(el){el.style.display='none';el.style.left=(key==='barracks1'?24:83)+'%';el.style.top='48.2%';}}
   if(developmentState.activeUpgrade){
     const left=Math.max(0,Number(developmentState.activeUpgrade.endsAt)-Date.now());
     const el=document.getElementById('developmentTimer-'+developmentState.activeUpgrade.type);
@@ -1600,7 +1602,7 @@ function developmentUpdateTop(){
   }
   for(const key of ['barracks1','barracks2']){
     const job=developmentState.training[key];
-    const el=document.getElementById('developmentTimer-'+key);
+    const el=document.getElementById('developmentTrainingTimer-'+key);
     if(job && el && Number(job.endsAt)>Date.now()){el.style.display='block';el.textContent='🪖 '+developmentFormat((Number(job.endsAt)-Date.now())/1000);}
   }
 }
