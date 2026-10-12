@@ -182,8 +182,20 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .active-battle-item .details{min-width:0;line-height:1.8}
 .active-battle-item .details small{display:block;color:#cbd5df}
 #activeBattlesList .empty{padding:18px;text-align:center;color:#cbd5df}
-\n</style></head>
+\n
+#battleVictoryNotice{display:none;position:fixed;inset:0;z-index:2147483000;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.82);direction:rtl}#battleVictoryNotice .victory-card{width:min(440px,100%);padding:28px 22px;border:2px solid #e3bd58;border-radius:18px;background:#17212c;color:#fff;text-align:center;box-shadow:0 18px 70px rgba(0,0,0,.65)}#battleVictoryNotice .victory-title{font-size:25px;font-weight:900;color:#f6d778;margin:0 0 24px}#battleVictoryNotice .victory-line{font-size:19px;font-weight:800;margin:16px 0;line-height:1.7}#battleVictoryNotice button{width:100%;margin-top:20px;font-weight:800;font-size:16px;padding:14px}
+</style></head>
 <body>
+
+<div id="battleVictoryNotice" role="dialog" aria-modal="true" aria-labelledby="battleVictoryTitle">
+  <div class="victory-card">
+    <h2 id="battleVictoryTitle" class="victory-title">پیروزی در نبرد</h2>
+    <div id="battleVictoryNumber" class="victory-line"></div>
+    <div id="battleVictorySide" class="victory-line"></div>
+    <button id="battleVictoryGoDevelopment" type="button">رفتن به صفحه توسعه قلعه</button>
+  </div>
+</div>
+
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
   <div class="battle-report-modal">
     <div class="battle-report-head">
@@ -837,6 +849,26 @@ function fotjang(){
   battle.armies=battle.armies.filter(army=>(army.units||[]).length>0);
 }
 
+function showBattleVictoryNotice(battleId, winningSide){
+  const overlay=document.getElementById('battleVictoryNotice');
+  const number=document.getElementById('battleVictoryNumber');
+  const side=document.getElementById('battleVictorySide');
+  const go=document.getElementById('battleVictoryGoDevelopment');
+  if(!overlay||!number||!side||!go){
+    // Fallback to a blocking browser dialog if the result panel markup is unavailable.
+    alert('نبرد شماره '+(battleId??'—')+'\nساید پیروز: '+(winningSide??'—'));
+    return;
+  }
+  number.textContent='شماره نبرد: '+(battleId??'—');
+  side.textContent='ساید پیروز: '+(winningSide??'—');
+  overlay.style.display='flex';
+  go.onclick=()=>{
+    overlay.style.display='none';
+    document.body.classList.remove('battle-background');
+    openDevelopment();
+  };
+}
+
 async function sidchek(){
   const battle=getCurrentBattle();
   if(!battle)return false;
@@ -855,8 +887,10 @@ async function sidchek(){
         method:"POST",body:JSON.stringify({})
       });
       if(result && result.ok){
+        const completedBattleId=battle.batId;
         endbat(firstSide);
-        alert("نبرد به پایان رسید. نتیجه در گزارش نبرد ثبت شد و ۱۳ کماندار به قلعهٔ پیروز اضافه شد.");
+        // نمایش نتیجه فقط پس از تأیید پایان نبرد توسط سرور؛ پنل ثابت و مستقل از صحنه نبرد است.
+        showBattleVictoryNotice(completedBattleId,firstSide);
         return true;
       }
       return false;
