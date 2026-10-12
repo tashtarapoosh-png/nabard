@@ -132,7 +132,7 @@ async function initDb(){
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS password_hash TEXT`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS map_x INTEGER`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS map_y INTEGER`);
-  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS gold BIGINT NOT NULL DEFAULT 3000`);
+  await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS gold BIGINT NOT NULL DEFAULT 50000`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS buildings JSONB NOT NULL DEFAULT '{"castle":{"level":1},"wall":{"level":1},"barracks1":{"level":1},"barracks2":{"level":1},"goldMine":{"level":1}}'::jsonb`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS battle_history JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await pool.query(`ALTER TABLE castles ADD COLUMN IF NOT EXISTS training_jobs JSONB NOT NULL DEFAULT '{"barracks1":null,"barracks2":null}'::jsonb`);
@@ -154,7 +154,7 @@ async function initDb(){
       const n=2+Math.floor(Math.random()*5);
       for(let i=0;i<n;i++)slots[i]={type:types[Math.floor(Math.random()*types.length)],count:1+Math.floor(Math.random()*100)};
       await pool.query(`INSERT INTO castles(id,name,army,defense_slots,username,password_hash,map_x,map_y,gold,buildings)
-        VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,3000,$9::jsonb)`,
+        VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,50000,$9::jsonb)`,
         [c.id,'قلعه '+c.id,JSON.stringify(emptyArmy()),JSON.stringify(slots),c.username,hashPassword('1234'),c.x,c.y,JSON.stringify(defaultBuildings())]);
     }
   } else {
@@ -832,7 +832,7 @@ app.post("/api/reset-game", async (req,res)=>{
       for(let i=0;i<n;i++)slots[i]={type:types[Math.floor(Math.random()*types.length)],count:1+Math.floor(Math.random()*100)};
       const pos=[[-2,2],[2,2],[-2,-2],[2,-2]][id-1];
       await client.query(`INSERT INTO castles(id,name,army,defense_slots,under_attack,battle_id,username,password_hash,map_x,map_y,gold,buildings,battle_history)
-        VALUES($1,$2,$3::jsonb,$4::jsonb,FALSE,NULL,$5,$6,$7,$8,3000,$9::jsonb,'[]'::jsonb)`,
+        VALUES($1,$2,$3::jsonb,$4::jsonb,FALSE,NULL,$5,$6,$7,$8,50000,$9::jsonb,'[]'::jsonb)`,
         [id,'قلعه '+id,JSON.stringify(army),JSON.stringify(slots),'jahan'+id,hashPassword('1234'),pos[0],pos[1],JSON.stringify({castle:{level:1},wall:{level:1},barracks1:{level:1},barracks2:{level:1},goldMine:{level:1}})]);
     }
     await client.query('COMMIT');
