@@ -182,20 +182,8 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .active-battle-item .details{min-width:0;line-height:1.8}
 .active-battle-item .details small{display:block;color:#cbd5df}
 #activeBattlesList .empty{padding:18px;text-align:center;color:#cbd5df}
-\n
-#battleVictoryNotice{display:none;position:fixed;inset:0;z-index:2147483000;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.82);direction:rtl}#battleVictoryNotice .victory-card{width:min(440px,100%);padding:28px 22px;border:2px solid #e3bd58;border-radius:18px;background:#17212c;color:#fff;text-align:center;box-shadow:0 18px 70px rgba(0,0,0,.65)}#battleVictoryNotice .victory-title{font-size:25px;font-weight:900;color:#f6d778;margin:0 0 24px}#battleVictoryNotice .victory-line{font-size:19px;font-weight:800;margin:16px 0;line-height:1.7}#battleVictoryNotice button{width:100%;margin-top:20px;font-weight:800;font-size:16px;padding:14px}
-</style></head>
+\n</style></head>
 <body>
-
-<div id="battleVictoryNotice" role="dialog" aria-modal="true" aria-labelledby="battleVictoryTitle">
-  <div class="victory-card">
-    <h2 id="battleVictoryTitle" class="victory-title">پیروزی در نبرد</h2>
-    <div id="battleVictoryNumber" class="victory-line"></div>
-    <div id="battleVictorySide" class="victory-line"></div>
-    <button id="battleVictoryGoDevelopment" type="button">رفتن به صفحه توسعه قلعه</button>
-  </div>
-</div>
-
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
   <div class="battle-report-modal">
     <div class="battle-report-head">
@@ -220,7 +208,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
       <div id="battleReportWinner" class="winner"></div>
     </div>
     <div class="battle-report-body"><div class="table-wrap"><table class="battle-report-table"><thead><tr><th>نام قلعه</th><th>نوع نیرو</th><th>تعداد اولیه نیرو</th><th>تعداد تلفات نیرو</th><th>باقیمانده نیرو</th></tr></thead><tbody id="battleReportBody"></tbody></table></div></div>
-    <div class="battle-report-foot"><button id="battleReportCloseBottom" class="back" type="button">بستن گزارش</button></div>
+    <div class="battle-report-foot"><button id="battleReportGoDevelopment" type="button">رفتن به صفحه توسعه قلعه</button> <button id="battleReportCloseBottom" class="back" type="button">بستن گزارش</button></div>
   </div>
 </div>
 
@@ -849,26 +837,6 @@ function fotjang(){
   battle.armies=battle.armies.filter(army=>(army.units||[]).length>0);
 }
 
-function showBattleVictoryNotice(battleId, winningSide){
-  const overlay=document.getElementById('battleVictoryNotice');
-  const number=document.getElementById('battleVictoryNumber');
-  const side=document.getElementById('battleVictorySide');
-  const go=document.getElementById('battleVictoryGoDevelopment');
-  if(!overlay||!number||!side||!go){
-    // Fallback to a blocking browser dialog if the result panel markup is unavailable.
-    alert('نبرد شماره '+(battleId??'—')+'\nساید پیروز: '+(winningSide??'—'));
-    return;
-  }
-  number.textContent='شماره نبرد: '+(battleId??'—');
-  side.textContent='ساید پیروز: '+(winningSide??'—');
-  overlay.style.display='flex';
-  go.onclick=()=>{
-    overlay.style.display='none';
-    document.body.classList.remove('battle-background');
-    openDevelopment();
-  };
-}
-
 async function sidchek(){
   const battle=getCurrentBattle();
   if(!battle)return false;
@@ -886,13 +854,9 @@ async function sidchek(){
       const result=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/end",{
         method:"POST",body:JSON.stringify({})
       });
-      // فقط وقتی سرور همین درخواست را واقعاً به پایان نبرد تبدیل کرده باشد پیام نمایش داده شود.
-      // پاسخ ok با deleted:false به معنی پایان تأییدشده نیست.
-      if(result && result.ok && result.deleted === true && result.winnerSide){
-        const completedBattleId=result.battleId || battle.batId;
-        const confirmedWinnerSide=result.winnerSide;
-        endbat(confirmedWinnerSide);
-        showBattleVictoryNotice(completedBattleId,confirmedWinnerSide);
+      if(result && result.ok){
+        endbat(firstSide);
+        alert("نبرد به پایان رسید. نتیجه در گزارش نبرد ثبت شد و ۱۳ کماندار به قلعهٔ پیروز اضافه شد.");
         return true;
       }
       return false;
@@ -1503,6 +1467,53 @@ function closeBattleReport(){
   const overlay=document.getElementById('battleReportOverlay');
   if(overlay)overlay.style.display='none';
 }
+
+// گزارش‌های پایان‌یافته را مستقل از صفحه نبرد، مستقیماً از سرور بررسی می‌کنیم.
+let battleReportOnlineSince=Date.now();
+let battleReportPollBusy=false;
+const battleReportSeenByCastle=new Map();
+function battleReportSeenSet(castleId){
+  const key=String(castleId);
+  if(!battleReportSeenByCastle.has(key)){
+    let ids=[];
+    try{ids=JSON.parse(localStorage.getItem('strategyGameSeenBattleReports:'+key)||'[]');}catch(e){}
+    battleReportSeenByCastle.set(key,new Set(Array.isArray(ids)?ids.map(String):[]));
+  }
+  return battleReportSeenByCastle.get(key);
+}
+function saveSeenBattleReports(castleId,seen){
+  try{localStorage.setItem('strategyGameSeenBattleReports:'+String(castleId),JSON.stringify([...seen].slice(-300)));}catch(e){}
+}
+async function checkForNewBattleReport(){
+  if(battleReportPollBusy||selectedCastleId===null||selectedCastleId===undefined)return;
+  const authOverlay=document.getElementById('authOverlay');
+  if(authOverlay&&authOverlay.style.display!=='none')return;
+  const reportOverlay=document.getElementById('battleReportOverlay');
+  if(reportOverlay&&reportOverlay.style.display==='flex')return;
+  battleReportPollBusy=true;
+  const castleId=Number(selectedCastleId);
+  try{
+    const data=await api('/api/battle-reports?castleId='+encodeURIComponent(castleId)+'&_='+Date.now());
+    const reports=(Array.isArray(data.reports)?data.reports:[]).slice().sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
+    const seen=battleReportSeenSet(castleId);
+    for(const item of reports){
+      const id=String(item.battleId);
+      if(seen.has(id))continue;
+      // گزارش‌های قدیمی در اولین اتصال بی‌صدا ثبت می‌شوند؛ گزارش‌هایی که هنگام آنلاین بودن ساخته شده‌اند نمایش داده می‌شوند.
+      if(Number(item.createdAt||0)<battleReportOnlineSince-3000){seen.add(id);saveSeenBattleReports(castleId,seen);continue;}
+      const report=await api('/api/battle-reports/'+encodeURIComponent(item.battleId)+'?castleId='+encodeURIComponent(castleId)+'&_='+Date.now());
+      seen.add(id);saveSeenBattleReports(castleId,seen);
+      showBattleReport(report);
+      return;
+    }
+    saveSeenBattleReports(castleId,seen);
+  }catch(e){console.warn('بررسی گزارش جدید نبرد ناموفق بود:',e.message||e);}
+  finally{battleReportPollBusy=false;}
+}
+
+// پس از ورود نیز زمان شروع آنلاین بودن تازه می‌شود تا نتیجهٔ جدید از دست نرود.
+setInterval(checkForNewBattleReport,3000);
+document.getElementById('battleReportGoDevelopment').onclick=()=>{closeBattleReport();openDevelopment();};
 function closeBattleReportSelect(){
   const overlay=document.getElementById('battleReportSelectOverlay');
   if(overlay)overlay.style.display='none';
@@ -1564,7 +1575,7 @@ endbat=async function(winningSide){
     try{
       await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
       // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
-      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?_='+Date.now());
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?castleId='+encodeURIComponent(selectedCastleId)+'&_='+Date.now());
     }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
   }
   originalEndbat(winningSide);
@@ -1834,7 +1845,7 @@ let authMode=''; let mapCastles=[]; let profileCastleId=null;
 function closeGameCompletely(){if(timerId)clearInterval(timerId);timerId=null;document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('authOverlay').style.display='flex';document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای شروع دوباره، صفحه را بارگذاری کنید.</p>';document.body.classList.remove('battle-background');}
 function authShowFields(mode){authMode=mode;document.getElementById('authFields').style.display='block';document.getElementById('authError').textContent='';document.getElementById('authUsername').value='';document.getElementById('authPassword').value='';document.getElementById('authUsername').focus();document.getElementById('authActions').innerHTML='';const submit=document.createElement('button');submit.textContent=mode==='register'?'ساخت حساب':'ورود';submit.onclick=authSubmit;const back=document.createElement('button');back.textContent='بازگشت';back.className='back';back.onclick=authReset;document.getElementById('authActions').append(submit,back);}
 function authReset(){document.getElementById('authFields').style.display='none';document.getElementById('authError').textContent='';document.getElementById('authActions').innerHTML='<button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button>';document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=closeGameCompletely;}
-async function authSubmit(){const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;localStorage.setItem('strategyGameUsername',data.castle.username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();}catch(e){document.getElementById('authError').textContent=e.message||'خطا';}}
+async function authSubmit(){const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;battleReportOnlineSince=Date.now();localStorage.setItem('strategyGameUsername',data.castle.username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();checkForNewBattleReport();}catch(e){document.getElementById('authError').textContent=e.message||'خطا';}}
 async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');requestAnimationFrame(()=>requestAnimationFrame(centerPlayerMapOwnCastle));}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
 function renderPlayerMap(){const world=document.getElementById('playerMapWorld');world.innerHTML='';if(!mapCastles.length){document.getElementById('mapInfo').textContent='هنوز قلعه‌ای برای نمایش وجود ندارد.';return;}const xs=mapCastles.map(c=>Number(c.x)||0),ys=mapCastles.map(c=>Number(c.y)||0);const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const cell=260,margin=520;const width=Math.max(2400,(maxX-minX)*cell+margin*2),height=Math.max(1800,(maxY-minY)*cell+margin*2);world.style.width=width+'px';world.style.height=height+'px';document.getElementById('mapInfo').textContent='قلعه‌ها از اطلاعات آنلاین بازی و مختصات ذخیره‌شده در پایگاه داده نمایش داده می‌شوند. برای حمله یا کمک دفاعی روی قلعهٔ دیگر کلیک کنید.';for(const castle of mapCastles){const x=margin+(Number(castle.x)-minX)*cell+cell/2,y=margin+(Number(castle.y)-minY)*cell+cell/2;const b=document.createElement('button');b.type='button';b.className='map-castle'+(Number(castle.id)===Number(selectedCastleId)?' own':'');b.dataset.castleId=String(castle.id);b.style.left=x+'px';b.style.top=y+'px';const img=document.createElement('img');img.src='castle.png';img.alt='قلعه';img.draggable=false;const label=document.createElement('span');label.className='map-castle-name';label.textContent=(castle.username||castle.name||('قلعه '+castle.id))+(Number(castle.id)===Number(selectedCastleId)?' • شما':'');b.append(img,label);b.title=(castle.name||'قلعه')+' — ('+castle.x+','+castle.y+')';b.onclick=()=>{world.querySelectorAll('.map-castle').forEach(c=>c.classList.remove('selected'));b.classList.add('selected');openCastleProfile(castle.id);};world.appendChild(b);}}
 function centerPlayerMapOwnCastle(){const viewport=document.getElementById('playerMapViewport'),own=document.querySelector('#playerMapWorld .map-castle.own');if(!viewport||!own)return;const x=parseFloat(own.style.left)||own.offsetLeft,y=parseFloat(own.style.top)||own.offsetTop;viewport.scrollTo({left:Math.max(0,Math.min(viewport.scrollWidth-viewport.clientWidth,x-viewport.clientWidth/2)),top:Math.max(0,Math.min(viewport.scrollHeight-viewport.clientHeight,y-viewport.clientHeight/2)),behavior:'auto'});}

@@ -1336,7 +1336,7 @@ app.post("/api/battle/:id/end", async(req,res)=>{
       [battleRow.target_id,battleId]
     );
     await client.query('COMMIT');
-    res.json({ok:true,deleted:true,battleId,winnerSide,reportSaved:true});
+    res.json({ok:true,deleted:true,battleId,reportSaved:true});
   }catch(e){
     await client.query('ROLLBACK');
     console.error(e);
