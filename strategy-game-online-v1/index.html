@@ -842,7 +842,8 @@ function sidchek(){
   if(!battle)return false;
 
   const units=battle.armies.flatMap(army=>army.units||[]).filter(unit=>Number(unit.count)>0);
-  if(!units.length)return false;
+  // حتی اگر هر دو طرف هم‌زمان نابود شده باشند، پایان نبرد باید از مسیر واحد انجام شود.
+  if(!units.length){endbat(null);return true;}
 
   const firstSide=units[0].side;
   const oneSide=units.every(unit=>unit.side===firstSide);
@@ -1023,11 +1024,28 @@ async function processDueRound(){
     const battleAfterCombat=getCurrentBattle();
     if(battleAfterCombat){
       const saved=await persistBattleCombat(battleAfterCombat);
-      if(!saved)return;
+      if(!saved){
+        // ممکن است سرور همین راند نبرد را نهایی کرده و رکورد را حذف کرده باشد.
+        const live=battleAfterCombat.armies.flatMap(a=>a.units||[]).filter(u=>Number(u.count)>0);
+        const sides=[...new Set(live.map(u=>u.side))];
+        if(sides.length<=1 || Number(randwar)>=90){
+          endbat(sides.length===1?sides[0]:null);
+          showBattleResultNotice(sides.length===1?sides[0]:null);
+        }
+        return;
+      }
     }
 
     const battleEnded=sidchek();
     if(battleEnded)return;
+
+    // سقف نبرد ۹۰ راند است؛ نتیجهٔ سرور ممکن است قبل از commit محلی نهایی شده باشد.
+    if(Number(randwar)>=90){
+      const live=battleAfterCombat.armies.flatMap(a=>a.units||[]).filter(u=>Number(u.count)>0);
+      const sides=[...new Set(live.map(u=>u.side))];
+      endbat(sides.length===1?sides[0]:null);
+      return;
+    }
 
     const moved=await applyRoundMoves();
     if(!moved)return;
@@ -1332,13 +1350,30 @@ document.getElementById('battleRetreatBtn').onclick=async()=>{
     const result=await api('/api/battle/'+encodeURIComponent(battle.batId)+'/retreat',{method:'POST',body:JSON.stringify({castleId:Number(selectedCastleId)})});
     // همگام‌سازی وضعیت نبرد از SQL پس از عقب‌نشینی
     if(result.battle){battleRegistry[String(result.battle.targetId)]=result.battle;}
-    if(result.ended){alert('ساید مقابل پیروز شد؛ نبرد پایان یافت.');}
-    else alert('نیروهای این قلعه عقب‌نشینی کردند و اطلاعات در SQL ذخیره شد.');
+    if(result.ended){
+      // عقب‌نشینی‌ای که آخرین ارتش یک ساید را خارج می‌کند، همان پایان نبرد است.
+      const winner=result.winnerSide||null;
+      endbat(winner);
+      showBattleResultNotice(winner);
+    }else alert('نیروهای این قلعه عقب‌نشینی کردند و اطلاعات در SQL ذخیره شد.');
     document.body.classList.remove('battle-background');
     await syncState();
-    await openDevelopment();
+    if(!result.ended)await openDevelopment();
   }catch(e){alert(e.message||'عقب‌نشینی انجام نشد.');}
 };
+
+function showBattleResultNotice(winningSide){
+  let overlay=document.getElementById('battleResultNoticeOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.id='battleResultNoticeOverlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;background:rgba(0,0,0,.78);direction:rtl;';
+    overlay.innerHTML='<div style="width:min(420px,94vw);padding:26px 22px;border:2px solid #d6b96b;border-radius:16px;background:linear-gradient(145deg,#263b2d,#101827);color:#fff;text-align:center;box-shadow:0 12px 50px #000b"><div style="font-size:28px;margin-bottom:12px">🏆</div><div id="battleResultNoticeTitle" style="font-size:22px;font-weight:900;margin-bottom:22px"></div><button id="battleResultGoDevelopment" type="button" style="width:100%;padding:13px 16px;border:1px solid #f0d98a;border-radius:10px;background:#b68a2e;color:#17130a;font-size:16px;font-weight:900;cursor:pointer">رفتن به توسعه قلعه</button></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#battleResultGoDevelopment').addEventListener('click',()=>{overlay.style.display='none';document.body.classList.remove('battle-background');openDevelopment();});
+  }
+  overlay.querySelector('#battleResultNoticeTitle').textContent=winningSide?'ساید پیروز: '+winningSide:'نبرد مساوی شد';
+  overlay.style.display='flex';
+}
 
 renderCastles();
 
@@ -1505,36 +1540,21 @@ document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleRepo
 document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
 document.getElementById('battleReportsBtn').onclick=openBattleReports;
 
-// پایان نبرد: نمایش نتیجه روی یک overlay مستقیم زیر body تا پشت صحنه نبرد نماند.
 const originalEndbat=endbat;
-function showBattleResultNotice(winningSide){
-  let overlay=document.getElementById('battleResultNoticeOverlay');
-  if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='battleResultNoticeOverlay';
-    overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;background:rgba(0,0,0,.78);pointer-events:auto;direction:rtl;';
-    overlay.innerHTML='<div style="width:min(420px,94vw);box-sizing:border-box;padding:26px 22px;border:2px solid #d6b96b;border-radius:16px;background:linear-gradient(145deg,#263b2d,#101827);color:#fff;text-align:center;box-shadow:0 12px 50px #000b;font-family:inherit"><div style="font-size:28px;margin-bottom:12px">🏆</div><div id="battleResultNoticeTitle" style="font-size:22px;font-weight:900;margin-bottom:22px"></div><button id="battleResultGoDevelopment" type="button" style="display:block;width:100%;padding:13px 16px;border:1px solid #f0d98a;border-radius:10px;background:#b68a2e;color:#17130a;font-size:16px;font-weight:900;cursor:pointer">رفتن به توسعه قلعه</button></div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('#battleResultGoDevelopment').addEventListener('click',()=>{
-      overlay.style.display='none';
-      document.body.classList.remove('battle-background');
-      openDevelopment();
-    });
-  }
-  const side=winningSide||'نامشخص';
-  overlay.querySelector('#battleResultNoticeTitle').textContent='ساید پیروز: '+side;
-  overlay.style.display='flex';
-}
-endbat=function(winningSide){
+endbat=async function(winningSide){
   const battle=getCurrentBattle();
-  // منطق اصلی پایان نبرد بدون تغییر اجرا می‌شود.
+  let savedReport=null;
+  if(battle){
+    try{
+      await api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})});
+      // همان گزارش همین نبرد را بلافاصله بعد از پایان از SQL می‌خوانیم.
+      savedReport=await api('/api/battle-reports/'+encodeURIComponent(battle.batId)+'?_='+Date.now());
+    }catch(e){console.error('ذخیره/خواندن گزارش نبرد ناموفق بود:',e);}
+  }
   originalEndbat(winningSide);
   if(battle)delete battleRegistry[String(battle.targetId)];
-  showBattleResultNotice(winningSide);
-  // ثبت نتیجه در سرور فقط برای نگهداری وضعیت؛ نمایش پیام به آن وابسته نیست.
-  if(battle&&battle.batId&&typeof api==='function'){
-    api('/api/battle/'+encodeURIComponent(battle.batId)+'/end',{method:'POST',body:JSON.stringify({winnerSide:winningSide||null})}).catch(e=>console.warn('ثبت نتیجه نبرد ناموفق بود:',e));
-  }
+  // گزارش همین نبرد بلافاصله پس از پایان نمایش داده می‌شود.
+  if(savedReport)showBattleReport(savedReport);
 };
 
 document.getElementById('startAttack').onclick=onlineStartAttack;
