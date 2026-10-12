@@ -1228,17 +1228,6 @@ function gozbat(battleRow){
   return Array.from(reportMap.values());
 }
 
-// پایان قطعی نبرد فقط روی سرور انجام می‌شود؛ این تابع باید داخل تراکنش فراخوانی شود.
-async function endbat(client, row, winnerSide, armies, reportArmies){
-  const finalRow={...row,armies:Array.isArray(armies)?armies:(row.armies||[]),report_armies:Array.isArray(reportArmies)?reportArmies:(row.report_armies||[])};
-  const report=gozbat(finalRow);
-  await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side) VALUES($1,$2::jsonb,$3) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,created_at=NOW()`,[row.id,JSON.stringify(report),winnerSide||null]);
-  await client.query('DELETE FROM battles WHERE id=$1',[row.id]);
-  await client.query("DELETE FROM attacks WHERE target_id=$1 AND status IN ('resolved','rejected')",[row.target_id]);
-  await client.query('UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',[row.target_id,row.id]);
-  return {ended:true,winnerSide:winnerSide||null,report};
-}
-
 app.post("/api/battle/:id/retreat", async(req,res)=>{
   const battleId=Number(req.params.id);
   const castleId=Number(req.body?.castleId);
@@ -1263,7 +1252,12 @@ app.post("/api/battle/:id/retreat", async(req,res)=>{
     if(liveUnits.length===0||sides.size<=1){
       ended=true;
       winnerSide=liveUnits.length?liveUnits[0].side:(retreating[0].side==='مهاجم'?'مدافع':'مهاجم');
-      await endbat(client,{...row,id:battleId},winnerSide,remaining,reportArmies);
+      const finalRow={...row,armies:remaining,report_armies:reportArmies};
+      const report=gozbat(finalRow);
+      await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side) VALUES($1,$2::jsonb,$3) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,created_at=NOW()`,[battleId,JSON.stringify(report),winnerSide]);
+      await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
+      await client.query('DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'',[row.target_id]);
+      await client.query('UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',[row.target_id,battleId]);
     }else{
       await client.query('UPDATE battles SET armies=$1::jsonb,report_armies=$2::jsonb WHERE id=$3',[JSON.stringify(remaining),JSON.stringify(reportArmies),battleId]);
     }
@@ -1300,7 +1294,19 @@ app.post("/api/battle/:id/end", async(req,res)=>{
     const fullBattle=fullBattleQ.rows[0];
 
     // گزارش کاملاً مستقل از حذف نبرد ساخته و در جدول مخصوص گزارش‌ها ذخیره می‌شود.
-    const report=gozbat(fullBattle);
+    // برنده فقط بر اساس وضعیت ذخیره‌شده در سرور تعیین می‌شود؛ ورودی مرورگر قابل اعتماد نیست.
+    const armies=Array.isArray(fullBattle.armies)?fullBattle.armies:[];
+    const liveUnits=armies.flatMap(a=>(Array.isArray(a.units)?a.units:[])
+      .filter(u=>Number(u.count)>0)
+      .map(u=>({side:u.side||a.side,count:Number(u.count)})));
+    const sides=[...new Set(liveUnits.map(u=>u.side).filter(Boolean))];
+    // از بستن نبرد جلوگیری کن، مگر اینکه حداکثر یک سمت نیروی زنده داشته باشد.
+    if(sides.length>1){
+      await client.query('ROLLBACK');
+      return res.status(409).json({error:"نبرد هنوز ادامه دارد."});
+    }
+    const winnerSide=sides.length===1?sides[0]:null;
+    const report=gozbat({...fullBattle,winner_side:winnerSide});
     await client.query(
       `INSERT INTO battle_reports(battle_id,report,winner_side)
        VALUES($1,$2::jsonb,$3)
@@ -1308,7 +1314,7 @@ app.post("/api/battle/:id/end", async(req,res)=>{
          report=EXCLUDED.report,
          winner_side=EXCLUDED.winner_side,
          created_at=NOW()`,
-      [battleId,JSON.stringify(report),req.body?.winnerSide||null]
+      [battleId,JSON.stringify(report),winnerSide]
     );
 
     await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
@@ -1429,12 +1435,15 @@ async function processDueBattleRounds(){
       }
       liveUnits=armies.flatMap(a=>a.units||[]).filter(u=>Number(u.count)>0);
       sides=[...new Set(liveUnits.map(u=>u.side))];
-      // پایان قطعی پس از راند ۹۰ حتی اگر هیچ مرورگری آنلاین نباشد.
-      const ended=sides.length<=1 || roundNo>=90;
+      const ended=sides.length<=1;
       const winnerSide=sides.length===1?sides[0]:null;
       const reportArmies=mergeReportArmies(row.report_armies,armies);
       if(ended){
-        await endbat(client,row,winnerSide,armies,reportArmies);
+        const report=gozbat({...row,armies,report_armies:reportArmies});
+        await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side) VALUES($1,$2::jsonb,$3) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,created_at=NOW()`,[row.id,JSON.stringify(report),winnerSide]);
+        await client.query('DELETE FROM battles WHERE id=$1',[row.id]);
+        await client.query("DELETE FROM attacks WHERE target_id=$1 AND status IN ('resolved','rejected')",[row.target_id]);
+        await client.query('UPDATE castles SET under_attack=FALSE,battle_id=NULL WHERE id=$1 AND battle_id=$2',[row.target_id,row.id]);
       }else{
         await client.query(`UPDATE battles SET armies=$1::jsonb,report_armies=$2::jsonb,processed_round_number=$3,round_claim_token=NULL,round_claim_expires_at=NULL WHERE id=$4`,[JSON.stringify(armies),JSON.stringify(reportArmies),roundNo,row.id]);
       }
