@@ -101,6 +101,13 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .battle-background #battle .battle-unit .army-number{padding:0.2px 1px;font-size:2.2px;border-radius:0.6px;}
 .battle-background #battle .battle-unit .unit-count{padding:0.2px 1px;font-size:2px;border-radius:0.6px;}
 
+
+/* نمادهای نمایشی: حداکثر ۷ نیرو در ۱۲ جایگاه تصادفی (۳ ستون × ۴ ردیف)؛ فقط ظاهر، مستقل از تعداد و منطق نبرد */
+.battle-unit .troop-sprites{position:absolute;inset:1px 1px 4px;display:block;overflow:hidden;pointer-events:none}
+.battle-unit .troop-sprite{position:absolute;display:block;width:32%;height:23%;max-width:32%;max-height:23%;object-fit:contain;transform-origin:center center;filter:drop-shadow(0 1px 1px #0007)}
+.battle-background .battle-unit .troop-sprites{inset:0 0 3px}
+.battle-background .battle-unit .troop-sprite{width:32%;height:23%;max-width:32%;max-height:23%}
+
 /* گزارش نهایی نبرد */
 .battle-report-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(5px)}
 .battle-report-modal{width:min(900px,96vw);max-height:90vh;overflow:hidden;background:linear-gradient(145deg,#263442,#17212b);border:1px solid #647485;border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.55);direction:rtl;color:#f4f7fa}
@@ -697,7 +704,29 @@ function viobat(){
         out+='<button type="button" class="battle-unit '+(canSelect?'selectable':'not-selectable')+'" data-unit-id="'+unit.id+'" data-castle="'+unit.castle+'">';
         const image=getUnitImage(unit);
         const imageSrc=image ? image.src : "";
-        out+='<img src="'+imageSrc+'" alt="'+unit.type+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';">';
+        const visualCount=Math.min(7,Math.max(1,Math.floor(Number(unit.count)||1)));
+        let angle=0;
+        if(unit.moveTarget){
+          const targetMatch=/^([A-T])(1[0-2]|[1-9])$/.exec(String(unit.moveTarget).toUpperCase());
+          if(targetMatch){
+            const tx=Number(targetMatch[2])-1,ty='ABCDEFGHIJKLMNOPQRST'.indexOf(targetMatch[1]);
+            const dx=tx-Number(unit.x||0),dy=ty-Number(unit.y||0);
+            if(dx||dy)angle=Math.atan2(dx,-dy)*180/Math.PI;
+          }
+        }
+        out+='<span class="troop-sprites" aria-hidden="true">';
+        // جایگاه‌های ۱۲گانه را تصادفی می‌کنیم؛ در هر گروه جایگاه تکراری وجود ندارد.
+        const slots=Array.from({length:12},(_,i)=>i);
+        for(let si=slots.length-1;si>0;si--){const j=Math.floor(Math.random()*(si+1));[slots[si],slots[j]]=[slots[j],slots[si]];}
+        for(let si=0;si<visualCount;si++){
+          const seed=(String(unit.id).split('').reduce((a,c)=>a+c.charCodeAt(0),0)+si*7)%11;
+          const slot=slots[si],col=slot%3,row=Math.floor(slot/3);
+          const left=col*33.333,top=row*25;
+          // جهت سلاح با جهت مقصد هماهنگ می‌ماند، اما هر نماد جایگاه مستقل خودش را دارد.
+          const drift=((seed%5)-2)*3;
+          out+='<img class="troop-sprite" src="'+imageSrc+'" alt="" draggable="false" style="left:'+left+'%;top:'+top+'%;transform:rotate('+(angle+drift)+'deg);">';
+        }
+        out+='</span>';
         out+='<span class="army-number">'+armyNumber+'</span>';
         out+='<span class="unit-image-fallback">'+unit.type+'</span>';
         out+='<span class="unit-count">'+unit.count+'</span>';
@@ -944,13 +973,14 @@ async function persistBattleCombat(battle){
 }
 
 async function applyRoundMoves(){
-  // پایان راند: خود سرور مقصدهای ذخیره‌شده در SQL را به x/y/cell تبدیل می‌کند.
+  // مختصات اولیه فقط برای انیمیشن نمایشی ذخیره می‌شود؛ مرجع حرکت همچنان سرور است.
   let battle=currentBattleForScene || getCurrentBattle();
   if(!battle || !battle.batId)return;
 
   const sceneBefore=document.getElementById("battleScene");
   const oldRects=new Map();
   if(sceneBefore)sceneBefore.querySelectorAll(".battle-unit[data-unit-id]").forEach(el=>oldRects.set(String(el.dataset.unitId),el.getBoundingClientRect()));
+
   if(typeof sqlConnected!="undefined" && sqlConnected){
     try{
       const saved=await api("/api/battle/"+encodeURIComponent(battle.batId)+"/apply-round-moves",{
@@ -967,21 +997,29 @@ async function applyRoundMoves(){
     }
   }
 
-  // viobat فقط بعد از دریافت وضعیت جدید SQL اجرا می‌شود.
+  // فقط ظاهر: پس از دریافت موقعیت جدید از سرور، نمادها از جای قبلی به خانهٔ جدید حرکت می‌کنند.
+  // هیچ مختصات یا منطق نبردی در سمت کاربر تغییر نمی‌کند.
   const battleScreen=document.getElementById("battle");
   if(battleScreen && battleScreen.classList.contains("active")){
     viobat();
     const sceneAfter=document.getElementById("battleScene");
     if(sceneAfter){
       sceneAfter.querySelectorAll(".battle-unit[data-unit-id]").forEach(el=>{
-        const old=oldRects.get(String(el.dataset.unitId)); if(!old)return;
-        const now=el.getBoundingClientRect(),dx=old.left-now.left,dy=old.top-now.top;
+        const old=oldRects.get(String(el.dataset.unitId));
+        if(!old)return;
+        const now=el.getBoundingClientRect();
+        const dx=old.left-now.left, dy=old.top-now.top;
         if(Math.abs(dx)+Math.abs(dy)<2)return;
-        el.style.transition="none";el.style.transform=`translate(${dx}px,${dy}px)`;
-        el.style.zIndex="30";el.style.position="relative";
+        el.style.transition="none";
+        el.style.transform=`translate(${dx}px,${dy}px)`;
+        el.style.zIndex="30";
+        el.style.position="relative";
         requestAnimationFrame(()=>requestAnimationFrame(()=>{
-          el.style.transition="transform 4.7s linear";el.style.transform="translate(0,0)";
-          setTimeout(()=>{el.style.transition="";el.style.transform="";el.style.zIndex="";el.style.position="";},4800);
+          el.style.transition="transform 1.2s ease-in-out";
+          el.style.transform="translate(0,0)";
+          setTimeout(()=>{
+            el.style.transition="";el.style.transform="";el.style.zIndex="";el.style.position="";
+          },1300);
         }));
       });
     }
