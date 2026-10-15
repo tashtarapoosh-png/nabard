@@ -165,7 +165,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 #authFields,#authError,#authActions{z-index:10!important}
 #authCard input,#authActions button{z-index:11!important;pointer-events:auto!important}
 /* کادرهای تایپ روی کادرهای داخل تصویر */
-#authFields{position:absolute;z-index:5;top:66.3%;left:25.8%;width:48.4%;height:10.2%;padding:0;margin:0;box-sizing:border-box;background:transparent;border:0;border-radius:0;display:none;pointer-events:auto}
+#authFields{position:absolute;z-index:5;top:66.3%;left:25.8%;width:48.4%;height:10.2%;padding:0;margin:0;box-sizing:border-box;background:transparent;border:0;border-radius:0;display:block;pointer-events:auto}
 #authCard input{position:absolute;z-index:6;left:0;width:100%;height:38%;box-sizing:border-box;margin:0;padding:0 8%;border:0;outline:0;border-radius:0;background:transparent;color:#f5e5c4;font-size:clamp(12px,2.5vw,19px);box-shadow:none}
 #authUsername{top:6.75%;height:38%}
 #authPassword{top:50.25%;height:38%}
@@ -181,7 +181,7 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 /* دکمهٔ ارسال که با جاوااسکریپت ساخته می‌شود کلاس primary ندارد */
 #authActions button:not(.back):not(#authClose){left:23.5%;top:77.5%;width:53%;height:5.5%}
 #authActions button.back{left:32%;top:86.5%;width:36%;height:5.2%}
-#authClose{left:0;top:0;width:1px;height:1px;pointer-events:none!important}
+#authClose{position:absolute!important;left:auto!important;right:2.2%!important;top:2.2%!important;width:42px!important;height:42px!important;display:flex!important;align-items:center!important;justify-content:center!important;border:2px solid #ffd6d6!important;border-radius:50%!important;background:#d71920!important;color:#fff!important;font:bold 30px/1 Arial,sans-serif!important;box-shadow:0 2px 10px #000b!important;z-index:30!important;pointer-events:auto!important;cursor:pointer!important;opacity:1!important}
 @media(max-width:600px){#authFields{top:66.3%;left:25.8%;width:48.4%;height:10.2%}#authError{top:83%}}
 #playerMapScreen{position:fixed;inset:0;z-index:40000;display:none;overflow:hidden;background:#172416;color:#fff;padding:0;box-sizing:border-box}
 #playerMapScreen.active{display:block}
@@ -324,9 +324,9 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   <img id="authSplash" src="art-of-war-persia-login.jpg" alt="تصویر حماسی بازی Art of War Persia" onerror="this.style.display='none'">
   <div id="authBrand">ART OF WAR PERSIA</div>
   <p id="authTagline">حماسهٔ ایران باستان · فرماندهی، اتحاد و نبرد</p>
-  <div id="authFields" style="display:none"><input id="authUsername" autocomplete="username" placeholder="نام کاربری"><input id="authPassword" type="password" autocomplete="current-password" placeholder="رمز عبور"></div>
+  <div id="authFields"><input id="authUsername" autocomplete="username" placeholder="نام کاربری"><input id="authPassword" type="password" autocomplete="current-password" placeholder="رمز عبور"></div>
   <div id="authError" style="color:#ffb5a8;min-height:22px"></div>
-  <div id="authActions"><button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button></div>
+  <div id="authActions"><button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit" aria-label="خروج" title="خروج">×</button></div>
   <p id="authCredit">Created with ChatGPT · با همکاری سازندهٔ بازی</p>
  </div>
 </div>
@@ -1985,7 +1985,7 @@ document.getElementById('profileAttack').onclick=()=>{if(Number(profileCastleId)
 document.getElementById('mapBack').onclick=()=>{document.getElementById('playerMapScreen').classList.remove('active');openDevelopment();};
 document.getElementById('mapRefresh').onclick=()=>openPlayerMap();
 document.getElementById('mapLogout').onclick=()=>{selectedCastleId=null;selectedTargetId=null;document.getElementById('playerMapScreen').classList.remove('active');document.getElementById('authOverlay').style.display='flex';authReset();};
-document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=closeGameCompletely;
+document.getElementById('authRegister').onclick=()=>{authMode='register';authSubmit();};document.getElementById('authLogin').onclick=()=>{authMode='login';authSubmit();};document.getElementById('authClose').onclick=closeGameCompletely;
 // صفحهٔ انتخاب قلعهٔ آزمایشی را پشت پنجرهٔ ورود نگه می‌داریم؛ ورود همیشه انتخاب حساب را تعیین می‌کند.
 document.getElementById('castleBack').onclick=openBattleReports;
 document.getElementById('resetGameBtn').onclick=resetGameData;
