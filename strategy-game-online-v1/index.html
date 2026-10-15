@@ -212,7 +212,75 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .active-battle-item .details{min-width:0;line-height:1.8}
 .active-battle-item .details small{display:block;color:#cbd5df}
 #activeBattlesList .empty{padding:18px;text-align:center;color:#cbd5df}
-\n</style></head>
+\n</style><style id="achaemenid-ui-skin">
+/* Achaemenid visual skin only. Existing IDs, event handlers, game data and logic are unchanged. */
+:root{--persia-gold:#d9b66a;--persia-gold-light:#f4dfa0;--persia-ink:#332719;--persia-cream:#f3e4bf;--persia-red:#853b2e}
+button,select,input{font-family:Tahoma,Arial,sans-serif}
+button{border:1px solid var(--persia-gold);box-shadow:inset 0 0 0 1px #fff2;transition:filter .15s}
+button:hover{filter:brightness(1.12)}
+/* Main selection / attack / defense screens use the exact shared panel artwork. */
+#select .card,#defense .card,#targets .card,#attack .card,#timerScreen .card{
+  position:relative;isolation:isolate;color:#392b1b;border:0;border-radius:0;box-shadow:0 18px 48px #0008;
+  background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center center/100% 100% no-repeat;
+  padding:clamp(30px,5vw,54px) clamp(22px,8vw,76px) clamp(34px,6vw,64px);min-height:430px
+}
+#select .card h1,#defense .card h2,#targets .card h2,#attack .card h2,#timerScreen .card h2{
+  color:#ffe6a0;text-align:center;margin:10px 0 16px;padding:7px 10px 9px;text-shadow:0 2px 4px #17110b,0 0 8px #17110b;font-size:clamp(19px,3vw,27px)
+}
+#select .card>p,#defense .card>p,#targets .card>p,#attack .card>p{color:#49351d;font-weight:700;text-align:center;line-height:1.8}
+#select .card .castle-btn,#select .card .actions button{border-radius:7px}
+#defense .slot,#attack .slot,#targets .target,#select .castle-btn{background:#17222be8;color:#f6e9c9;border:1px solid #b99a58;border-radius:9px;box-shadow:0 3px 10px #0002}
+#defense .slot label,#attack .slot label{color:#e9d7ad}
+#defense .slot input,#defense .slot select,#attack .slot input,#attack .slot select,#attack .side-select{background:#101820;color:#fff0cf;border-color:#a98a4e}
+#defense .actions,#attack .actions,#targets .actions,#select .actions{text-align:center;justify-content:center}
+/* Building upgrade and troop training dialogs keep the existing functional DOM. */
+#buildingActionPanel,#trainingPanel{background:rgba(9,13,18,.78);backdrop-filter:blur(3px)}
+#buildingActionPanel .developmentModal,#trainingPanel .developmentModal{
+  width:min(520px,94vw);max-height:90vh;overflow:auto;padding:0 0 22px;border:0;border-radius:0;color:#382a19;
+  background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center center/100% 100% no-repeat;
+  box-shadow:0 18px 60px #000b;text-align:center
+}
+#buildingActionPanel .developmentModal h3,#trainingPanel .developmentModal h3{
+  color:#ffe6a0;text-shadow:0 2px 4px #17110b;padding:37px 48px 16px;margin:0 0 8px;font-size:clamp(18px,3vw,24px)
+}
+#buildingActionPanel .devInfo,#trainingPanel .devInfo{color:#3c2b18;font-size:13px;line-height:1.9;padding:0 11%;margin:6px 0 12px}
+#buildingActionPanel .developmentModal button,#trainingPanel .developmentModal button{font-size:13px;padding:9px 13px;margin:4px;border-radius:7px}
+#buildingActionPanel .developmentModal button#developmentBuildingClose,#trainingPanel .developmentModal button#trainingCloseButton{background:linear-gradient(#73552a,#3d2b19);color:#fff4d8}
+#trainingPanel .trainingChoicesCompact{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;padding:0 9%;margin:12px 0}
+#trainingPanel .trainingChoiceCompact{min-width:95px;background:#17222be8;border:1px solid #b99a58;color:#f7e7c2;display:flex;flex-direction:column;align-items:center;gap:5px}
+#trainingPanel .trainingChoiceCompact img{width:54px;height:54px;object-fit:contain}
+#trainingPanel .trainingInputCompact{display:block;width:min(180px,70%);margin:10px auto;background:#17222b;color:#fff0cf;border:1px solid #a98a4e}
+/* Reports use the same panel background while preserving the original scrolling table. */
+.battle-report-overlay{background:rgba(8,12,17,.78);backdrop-filter:blur(3px)}
+.battle-report-modal{border:0;border-radius:0;color:#382a19;background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center center/100% 100% no-repeat;box-shadow:0 18px 60px #000b}
+.battle-report-head{border:0;padding:42px 42px 14px}
+.battle-report-head h2{color:#ffe6a0;text-shadow:0 2px 4px #17110b;font-size:clamp(19px,3vw,26px)}
+.battle-report-head .winner{color:#f8e7bf;text-shadow:0 1px 3px #17110b}
+.battle-report-body{color:#392b1b;padding:12px 8% 26px;max-height:52vh;overflow:auto}
+.battle-report-table{font-size:13px}.battle-report-table th,.battle-report-table td{border:1px solid #a88a4e;padding:8px 6px;color:#392b1b}
+.battle-report-table th{background:#3d2b19;color:#ffe6a0}.battle-report-table tr:nth-child(even){background:#fff5dc66}
+.battle-report-foot{border:0;padding:8px 20px 35px}
+.battle-report-select{background:#17222b;color:#fff0cf;border-color:#a98a4e}
+/* Player profile keeps its original data and three original buttons. */
+#castleProfile{background:rgba(8,12,17,.78);backdrop-filter:blur(3px)}
+#castleProfile .profile-card{width:min(520px,94vw);max-height:90vh;overflow:auto;border:0;border-radius:0;padding:0 8% 34px;color:#392b1b;background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center center/100% 100% no-repeat;box-shadow:0 18px 60px #000b}
+#castleProfile .profile-card h2{color:#ffe6a0;text-align:center;padding:38px 38px 15px;margin:0;text-shadow:0 2px 4px #17110b}
+#castleProfile #profileBody{color:#392b1b;line-height:1.9}
+#castleProfile .profile-actions{justify-content:center;padding:8px 0 0}
+#activeBattlesOverlay{background:rgba(8,12,17,.78);backdrop-filter:blur(3px)}
+#activeBattlesCard{border:0;border-radius:0;color:#392b1b;background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center center/100% 100% no-repeat;padding:34px 8%}
+#activeBattlesCard h2{color:#ffe6a0;text-align:center;text-shadow:0 2px 4px #17110b;margin:0 0 14px;padding:6px}
+#activeBattlesCard p{color:#49351d}
+.active-battle-item{background:#17222be8;border-color:#b99a58;color:#f6e9c9}
+@media(max-width:650px){
+ #select .card,#defense .card,#targets .card,#attack .card,#timerScreen .card{padding:28px 8% 38px;min-height:400px}
+ #buildingActionPanel .developmentModal h3,#trainingPanel .developmentModal h3{padding:31px 42px 13px}
+ #buildingActionPanel .devInfo,#trainingPanel .devInfo{font-size:12px;padding:0 9%}
+ .battle-report-head{padding:34px 34px 12px}.battle-report-body{padding:10px 7% 20px}
+}
+
+</style>
+</head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
   <div class="battle-report-modal">
