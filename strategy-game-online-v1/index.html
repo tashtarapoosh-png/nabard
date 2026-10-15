@@ -279,6 +279,58 @@ button:hover{filter:brightness(1.12)}
  .battle-report-head{padding:34px 34px 12px}.battle-report-body{padding:10px 7% 20px}
 }
 
+
+/* Layout sync: preserve the original game controls/data, while matching the newer parchment-panel composition. */
+#select.screen,#defense.screen,#targets.screen,#attack.screen,#timerScreen.screen{box-sizing:border-box;min-height:100dvh;display:none;align-items:center;justify-content:center;padding:clamp(8px,2.4vw,24px)}
+#select.screen.active,#defense.screen.active,#targets.screen.active,#attack.screen.active,#timerScreen.screen.active{display:flex}
+#select .card,#defense .card,#targets .card,#attack .card,#timerScreen .card{box-sizing:border-box;width:min(980px,100%);max-height:calc(100dvh - 20px);overflow:auto;margin:0;scrollbar-color:#9c783e #e5d1a4;scrollbar-width:thin}
+#select .card h1,#defense .card h2,#targets .card h2,#attack .card h2,#timerScreen .card h2{margin-top:18px;margin-bottom:14px;padding:10px 12px 12px}
+#select .card>p,#defense .card>p,#targets .card>p,#attack .card>p{margin:5px 0 14px}
+#attack .card>label{display:block;width:min(360px,100%);margin:0 auto 10px;color:#49351d;font-weight:700;text-align:center}
+#attack .slots,#defense .slots{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+#attack .slot,#defense .slot{box-sizing:border-box;min-width:0;padding:12px 13px 14px;background:linear-gradient(145deg,#253441f2,#14212beF);border:1px solid #b99a58;border-radius:10px;color:#f6e9c9;box-shadow:0 4px 12px #25180625}
+#attack .slot>b,#defense .slot>b{display:block;text-align:center;color:#f6d98f;border-bottom:1px solid #b99a585c;padding-bottom:7px;margin-bottom:8px;font-size:13px}
+#attack .slot label,#defense .slot label{font-size:12px;font-weight:700;margin:8px 0 5px;color:#e9d7ad}
+#attack .slot input,#attack .slot select,#defense .slot input,#defense .slot select{box-sizing:border-box;width:100%;min-height:38px;padding:7px 9px;border-radius:7px;font-size:13px}
+#attack .actions,#defense .actions,#targets .actions,#select .actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:center;margin:14px 0 20px}
+#attack .actions button,#defense .actions button,#targets .actions button,#select .actions button{min-width:130px;max-width:100%;background:linear-gradient(#795b2d,#47321b);color:#fff0c8;border:1px solid #c7a45a;border-radius:8px;padding:10px 15px;font-weight:700}
+#attack .actions #startAttack,#defense .actions #saveDefense{background:linear-gradient(#315b47,#1b392b)}
+#select .castle-btn{min-height:64px;padding:12px 8px}
+#targets .targets{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+#targets .target{min-width:0;padding:14px;background:#17222be8;color:#f6e9c9;border:1px solid #b99a58;border-radius:10px}
+#buildingActionPanel .developmentModal,#trainingPanel .developmentModal{box-sizing:border-box;width:min(540px,96vw);max-height:calc(100dvh - 16px);overflow:auto;padding:0 0 28px;scrollbar-color:#9c783e #e5d1a4;scrollbar-width:thin}
+#buildingActionPanel .developmentModal h3,#trainingPanel .developmentModal h3{padding-top:clamp(34px,7vh,54px);padding-bottom:15px;margin-bottom:10px}
+#buildingActionPanel .devInfo,#trainingPanel .devInfo{margin-left:auto;margin-right:auto;max-width:440px}
+#buildingActionPanel .developmentModal button,#trainingPanel .developmentModal button{min-width:112px}
+#trainingPanel .trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 10%;margin:14px 0}
+#trainingPanel .trainingChoiceCompact{box-sizing:border-box;min-width:0;padding:10px 5px;border-radius:9px;background:linear-gradient(145deg,#253441f2,#14212beF);box-shadow:0 4px 12px #25180625}
+#trainingPanel .trainingChoiceCompact img{width:clamp(48px,8vw,70px);height:clamp(48px,8vw,70px)}
+#trainingPanel .trainingChoiceCompact span{font-size:12px}
+#trainingPanel .trainingInputCompact{box-sizing:border-box;min-height:40px;width:min(180px,70%);padding:8px;text-align:center;border-radius:8px}
+#castleProfile .profile-card{box-sizing:border-box;width:min(560px,96vw);max-height:calc(100dvh - 16px);overflow:auto;padding:0 8% 30px;scrollbar-color:#9c783e #e5d1a4;scrollbar-width:thin}
+#castleProfile .profile-card h2{padding-top:clamp(38px,7vh,54px);padding-bottom:15px}
+#castleProfile #profileBody{padding:0 3%;text-align:center}
+#castleProfile .profile-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0 0}
+#castleProfile .profile-actions button{min-width:0;padding:10px 5px;font-size:clamp(11px,2vw,14px);white-space:normal}
+.battle-report-modal{box-sizing:border-box;width:min(900px,96vw);max-height:calc(100dvh - 16px);overflow:hidden;display:flex;flex-direction:column}
+.battle-report-head{flex:0 0 auto;padding-top:clamp(36px,6vh,52px)}
+.battle-report-body{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;scrollbar-color:#9c783e #e5d1a4;scrollbar-width:thin}
+.battle-report-foot{flex:0 0 auto;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.battle-report-foot button{max-width:100%}
+@media(max-width:700px){
+ #select.screen,#defense.screen,#targets.screen,#attack.screen,#timerScreen.screen{padding:5px;align-items:center}
+ #select .card,#defense .card,#targets .card,#attack .card,#timerScreen .card{width:100%;max-height:calc(100dvh - 10px);min-height:0;padding:30px 7% 28px}
+ #attack .slots,#defense .slots{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #attack .slot,#defense .slot{padding:9px 8px 10px}
+ #attack .slot input,#attack .slot select,#defense .slot input,#defense .slot select{min-height:35px;font-size:12px}
+ #attack .actions button,#defense .actions button,#targets .actions button,#select .actions button{min-width:0;flex:1 1 42%;padding:9px 8px;font-size:12px}
+ #trainingPanel .trainingChoicesCompact{padding:0 7%;gap:7px}
+ #castleProfile .profile-card{padding-left:7%;padding-right:7%}
+ .battle-report-head{padding-left:30px;padding-right:30px}
+ .battle-report-body{padding-left:6%;padding-right:6%}
+}
+@media(max-width:380px){#attack .slots,#defense .slots{grid-template-columns:1fr}#castleProfile .profile-actions{grid-template-columns:1fr}#castleProfile .profile-actions button{width:100%}}
+
 </style>
 </head>
 <body>
