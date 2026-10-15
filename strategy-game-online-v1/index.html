@@ -157,29 +157,32 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px #0007;text-align:center}
 .developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}.developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
 .trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:6px 0}.trainingChoiceCompact{padding:5px 3px;border:1px solid #566270;border-radius:7px;background:#202a33;color:#fff;cursor:pointer}.trainingChoiceCompact.selected{border-color:#ffd54a;box-shadow:inset 0 0 0 1px #ffd54a}.trainingChoiceCompact img{width:44px;height:44px;object-fit:contain;display:block;margin:auto}.trainingChoiceCompact span{font-size:9px;font-weight:700;display:block;margin-top:2px}.trainingInputCompact{width:85px;padding:5px;border-radius:6px;border:1px solid #59636f;background:#111820;color:#fff;text-align:center;font-size:10px}
-/* صفحه ورود: کنترل‌های نامرئی دقیقاً روی بخش‌های متناظر تصویر */
-#authOverlay{position:fixed;inset:0;z-index:50000;display:flex;align-items:stretch;justify-content:center;padding:0;overflow:hidden;background:#090d12 url('art-of-war-persia-login.jpg') center center/100% 100% no-repeat}
-#authOverlay:before{display:none}
-#authCard{position:relative;width:100%;height:100%;max-height:none;overflow:hidden;box-sizing:border-box;background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;text-align:center;color:transparent;display:block}
+/* صفحه ورود: تصویر پس‌زمینه است؛ کنترل‌ها همیشه در لایهٔ بالاتر می‌مانند */
+#authOverlay{position:fixed;inset:0;z-index:50000;isolation:isolate;display:flex;align-items:stretch;justify-content:center;padding:0;overflow:hidden;background:#090d12}
+#authOverlay:before{content:'';display:block!important;position:absolute;inset:0;z-index:0;pointer-events:none;background:url('art-of-war-persia-login.jpg') center center/100% 100% no-repeat}
+#authCard{position:relative;z-index:1;isolation:isolate;width:100%;height:100%;max-height:none;overflow:hidden;box-sizing:border-box;background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;text-align:center;color:transparent;display:block}
 #authSplash,#authBrand,#authTagline,#authCredit{display:none!important}
+#authFields,#authError,#authActions{z-index:10!important}
+#authCard input,#authActions button{z-index:11!important;pointer-events:auto!important}
 /* کادرهای تایپ روی کادرهای داخل تصویر */
-#authFields{position:absolute;top:65.2%;left:25.1%;width:49.8%;height:8.8%;padding:0;margin:0;box-sizing:border-box;background:transparent;border:0;border-radius:0;display:none}
-#authCard input{position:absolute;left:0;width:100%;height:43%;box-sizing:border-box;margin:0;padding:0 8%;border:0;outline:0;border-radius:0;background:transparent;color:#f5e5c4;font-size:clamp(12px,2.5vw,19px);box-shadow:none}
-#authUsername{top:0}
-#authPassword{top:55%}
+#authFields{position:absolute;z-index:5;top:66.3%;left:25.8%;width:48.4%;height:10.2%;padding:0;margin:0;box-sizing:border-box;background:transparent;border:0;border-radius:0;display:none;pointer-events:auto}
+#authCard input{position:absolute;z-index:6;left:0;width:100%;height:38%;box-sizing:border-box;margin:0;padding:0 8%;border:0;outline:0;border-radius:0;background:transparent;color:#f5e5c4;font-size:clamp(12px,2.5vw,19px);box-shadow:none}
+#authUsername{top:0;height:38%}
+#authPassword{top:57%;height:38%}
 #authCard input::placeholder{color:transparent}
 #authError{position:absolute;top:91%;left:10%;right:10%;font-size:12px;color:#ffb5a8;text-shadow:0 1px 3px #000;pointer-events:none}
-#authActions{position:absolute;inset:0;width:100%;height:100%;display:block;margin:0;padding:0;pointer-events:none}
-#authActions button{position:absolute;display:block;margin:0;padding:0;border:0!important;outline:0!important;border-radius:0!important;background:transparent!important;color:transparent!important;box-shadow:none!important;text-shadow:none!important;backdrop-filter:none!important;font-size:0!important;cursor:pointer;pointer-events:auto}
-#authActions button:active{background:transparent!important}
+#authActions{position:absolute;z-index:6;inset:0;width:100%;height:100%;display:block;margin:0;padding:0;pointer-events:none}
+#authActions button{position:absolute;z-index:7;display:block;margin:0;padding:0;border:0!important;outline:0!important;border-radius:0!important;background:transparent!important;color:transparent!important;box-shadow:none!important;text-shadow:none!important;backdrop-filter:none!important;font-size:0!important;cursor:pointer;pointer-events:auto;touch-action:manipulation}
+#authActions button:active{background:rgba(255,220,120,.14)!important}
+#authActions button:focus-visible{outline:2px solid rgba(255,220,120,.8)!important}
 /* دکمه‌های روی تصویر: ثبت‌نام، ورود، و ناحیهٔ ارسال فرم */
-#authRegister{left:35.2%;top:85.0%;width:29.5%;height:3.8%}
-#authLogin{left:23.5%;top:75.2%;width:53%;height:4.8%}
-#authActions button.primary{left:23.5%;top:75.2%;width:53%;height:4.8%}
-#authActions button.back{left:35.2%;top:85.0%;width:29.5%;height:3.8%}
+#authRegister{left:32%;top:86.5%;width:36%;height:5.2%}
+#authLogin{left:23.5%;top:77.5%;width:53%;height:5.5%}
+/* دکمهٔ ارسال که با جاوااسکریپت ساخته می‌شود کلاس primary ندارد */
+#authActions button:not(.back):not(#authClose){left:23.5%;top:77.5%;width:53%;height:5.5%}
+#authActions button.back{left:32%;top:86.5%;width:36%;height:5.2%}
 #authClose{left:0;top:0;width:1px;height:1px;pointer-events:none!important}
-#authActions button.back{left:24%;top:75.2%;width:52%;height:4.8%}
-@media(max-width:600px){#authFields{top:65.2%;left:25.1%;width:49.8%;height:8.8%}#authError{top:91%}}
+@media(max-width:600px){#authFields{top:66.3%;left:25.8%;width:48.4%;height:10.2%}#authError{top:83%}}
 #playerMapScreen{position:fixed;inset:0;z-index:40000;display:none;overflow:hidden;background:#172416;color:#fff;padding:0;box-sizing:border-box}
 #playerMapScreen.active{display:block}
 #playerMapScreen .map-toolbar{position:absolute;z-index:8;top:10px;left:10px;right:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 12px;border:1px solid #d6b96b;border-radius:12px;background:rgba(20,35,18,.9);box-shadow:0 3px 12px #0008}
@@ -1964,6 +1967,7 @@ developmentTickId=setInterval(()=>{if(!developmentState||!document.getElementByI
 let authMode=''; let mapCastles=[]; let profileCastleId=null;
 function closeGameCompletely(){if(timerId)clearInterval(timerId);timerId=null;document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('authOverlay').style.display='flex';document.getElementById('authCard').innerHTML='<h2>بازی بسته شد</h2><p>برای شروع دوباره، صفحه را بارگذاری کنید.</p>';document.body.classList.remove('battle-background');}
 function authShowFields(mode){authMode=mode;document.getElementById('authFields').style.display='block';document.getElementById('authError').textContent='';document.getElementById('authUsername').value='';document.getElementById('authPassword').value='';document.getElementById('authUsername').focus();document.getElementById('authActions').innerHTML='';const submit=document.createElement('button');submit.type='button';submit.className='primary';submit.textContent=mode==='register'?'ساخت حساب':'ورود';submit.onclick=authSubmit;const back=document.createElement('button');back.type='button';back.textContent='بازگشت';back.className='back';back.onclick=authReset;document.getElementById('authActions').append(submit,back);}
+document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter'&&authMode)authSubmit();});
 function authReset(){document.getElementById('authFields').style.display='none';document.getElementById('authError').textContent='';document.getElementById('authActions').innerHTML='<button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button>';document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=closeGameCompletely;}
 async function authSubmit(){const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;battleReportOnlineSince=Date.now();localStorage.setItem('strategyGameUsername',data.castle.username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();checkForNewBattleReport();}catch(e){document.getElementById('authError').textContent=e.message||'خطا';}}
 // همگام‌سازی موجودی نیروها از سرور در تمام صفحه‌های بازی، نه فقط صفحه توسعه.
