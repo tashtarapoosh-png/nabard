@@ -157,17 +157,27 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentModal{width:min(320px,92vw);padding:12px;border-radius:10px;background:#1b252d;border:1px solid #667686;color:#fff;box-shadow:0 12px 40px #0007;text-align:center}
 .developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}.developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
 .trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:6px 0}.trainingChoiceCompact{padding:5px 3px;border:1px solid #566270;border-radius:7px;background:#202a33;color:#fff;cursor:pointer}.trainingChoiceCompact.selected{border-color:#ffd54a;box-shadow:inset 0 0 0 1px #ffd54a}.trainingChoiceCompact img{width:44px;height:44px;object-fit:contain;display:block;margin:auto}.trainingChoiceCompact span{font-size:9px;font-weight:700;display:block;margin-top:2px}.trainingInputCompact{width:85px;padding:5px;border-radius:6px;border:1px solid #59636f;background:#111820;color:#fff;text-align:center;font-size:10px}
-/* حساب کاربری و نقشه بازیکنان */
-#authOverlay{position:fixed;inset:0;z-index:50000;background:linear-gradient(180deg,rgba(5,8,12,.78),rgba(5,10,15,.96));display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
-#authCard{width:min(440px,96vw);max-height:96dvh;overflow:auto;box-sizing:border-box;background:linear-gradient(180deg,#27313a,#101820);border:1px solid #b28b45;border-radius:14px;padding:14px;box-shadow:0 20px 70px #000;text-align:center;color:#f5e6c8}
-#authSplash{display:block;width:100%;height:min(43dvh,360px);object-fit:cover;object-position:center;border-radius:9px;border:1px solid #7e6337;background:#111;margin:0 auto 10px}
-#authBrand{font-family:Georgia,serif;font-size:clamp(22px,6vw,32px);font-weight:900;letter-spacing:1.5px;color:#f0c66e;text-shadow:0 2px 0 #542b10,0 0 14px #9b6b27;margin:5px 0 2px}
-#authTagline{font-size:13px;color:#e3d1ae;margin:0 0 12px}
-#authCredit{font-size:10px;color:#b7a88d;margin:14px 0 0;letter-spacing:.3px}
-#authCard input{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:12px;border-radius:8px;background:#101820;color:white;border:1px solid #8a754e}
-#authActions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
-#authActions button{border:1px solid #c49a4d;background:linear-gradient(#5b4728,#352818);color:#fff0c8;font-weight:700;border-radius:8px;padding:10px 15px}
-#authActions button.exit{background:linear-gradient(#4a3030,#291a1a);border-color:#956767}
+/* صفحه ورود: کنترل‌های نامرئی دقیقاً روی بخش‌های متناظر تصویر */
+#authOverlay{position:fixed;inset:0;z-index:50000;display:flex;align-items:stretch;justify-content:center;padding:0;overflow:hidden;background:#090d12 url('art-of-war-persia-login.jpg') center center/100% 100% no-repeat}
+#authOverlay:before{display:none}
+#authCard{position:relative;width:100%;height:100%;max-height:none;overflow:hidden;box-sizing:border-box;background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;text-align:center;color:transparent;display:block}
+#authSplash,#authBrand,#authTagline,#authCredit{display:none!important}
+/* کادرهای تایپ روی کادرهای داخل تصویر */
+#authFields{position:absolute;top:65.1%;left:25.1%;width:49.8%;height:9.2%;padding:0;margin:0;box-sizing:border-box;background:transparent;border:0;border-radius:0;display:none}
+#authCard input{position:absolute;left:0;width:100%;height:43%;box-sizing:border-box;margin:0;padding:0 8%;border:0;outline:0;border-radius:0;background:transparent;color:#f5e5c4;font-size:clamp(12px,2.5vw,19px);box-shadow:none}
+#authUsername{top:0}
+#authPassword{top:55%}
+#authCard input::placeholder{color:transparent}
+#authError{position:absolute;top:91%;left:10%;right:10%;font-size:12px;color:#ffb5a8;text-shadow:0 1px 3px #000;pointer-events:none}
+#authActions{position:absolute;inset:0;width:100%;height:100%;display:block;margin:0;padding:0;pointer-events:none}
+#authActions button{position:absolute;display:block;margin:0;padding:0;border:0!important;outline:0!important;border-radius:0!important;background:transparent!important;color:transparent!important;box-shadow:none!important;text-shadow:none!important;backdrop-filter:none!important;font-size:0!important;cursor:pointer;pointer-events:auto}
+#authActions button:active{background:transparent!important}
+/* دکمه‌های روی تصویر: ثبت‌نام، ورود، و ناحیهٔ ارسال فرم */
+#authRegister{left:36%;top:84.8%;width:28%;height:3.7%}
+#authLogin{left:24%;top:75.2%;width:52%;height:4.8%}
+#authClose{left:0;top:0;width:1px;height:1px;pointer-events:none!important}
+#authActions button.back{left:24%;top:75.2%;width:52%;height:4.8%}
+@media(max-width:600px){#authFields{top:65.1%;left:25.1%;width:49.8%;height:9.2%}#authError{top:91%}}
 #playerMapScreen{position:fixed;inset:0;z-index:40000;display:none;overflow:hidden;background:#172416;color:#fff;padding:0;box-sizing:border-box}
 #playerMapScreen.active{display:block}
 #playerMapScreen .map-toolbar{position:absolute;z-index:8;top:10px;left:10px;right:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 12px;border:1px solid #d6b96b;border-radius:12px;background:rgba(20,35,18,.9);box-shadow:0 3px 12px #0008}
