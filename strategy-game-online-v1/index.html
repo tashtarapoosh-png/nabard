@@ -158,10 +158,16 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
 .developmentModal h3{margin:0 0 7px;font-size:14px}.developmentModal .devInfo{font-size:10px;line-height:1.5;margin-bottom:6px}.developmentModal button{padding:6px 8px;margin:3px;border-radius:6px;font-size:10px}
 .trainingChoicesCompact{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:6px 0}.trainingChoiceCompact{padding:5px 3px;border:1px solid #566270;border-radius:7px;background:#202a33;color:#fff;cursor:pointer}.trainingChoiceCompact.selected{border-color:#ffd54a;box-shadow:inset 0 0 0 1px #ffd54a}.trainingChoiceCompact img{width:44px;height:44px;object-fit:contain;display:block;margin:auto}.trainingChoiceCompact span{font-size:9px;font-weight:700;display:block;margin-top:2px}.trainingInputCompact{width:85px;padding:5px;border-radius:6px;border:1px solid #59636f;background:#111820;color:#fff;text-align:center;font-size:10px}
 /* حساب کاربری و نقشه بازیکنان */
-#authOverlay{position:fixed;inset:0;z-index:50000;background:rgba(5,10,15,.94);display:flex;align-items:center;justify-content:center;padding:16px}
-#authCard{width:min(420px,96vw);background:#202d37;border:1px solid #657686;border-radius:14px;padding:22px;box-shadow:0 20px 70px #000;text-align:center}
-#authCard input{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:12px;border-radius:8px;background:#101820;color:white;border:1px solid #586775}
+#authOverlay{position:fixed;inset:0;z-index:50000;background:linear-gradient(180deg,rgba(5,8,12,.78),rgba(5,10,15,.96));display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
+#authCard{width:min(440px,96vw);max-height:96dvh;overflow:auto;box-sizing:border-box;background:linear-gradient(180deg,#27313a,#101820);border:1px solid #b28b45;border-radius:14px;padding:14px;box-shadow:0 20px 70px #000;text-align:center;color:#f5e6c8}
+#authSplash{display:block;width:100%;height:min(43dvh,360px);object-fit:cover;object-position:center;border-radius:9px;border:1px solid #7e6337;background:#111;margin:0 auto 10px}
+#authBrand{font-family:Georgia,serif;font-size:clamp(22px,6vw,32px);font-weight:900;letter-spacing:1.5px;color:#f0c66e;text-shadow:0 2px 0 #542b10,0 0 14px #9b6b27;margin:5px 0 2px}
+#authTagline{font-size:13px;color:#e3d1ae;margin:0 0 12px}
+#authCredit{font-size:10px;color:#b7a88d;margin:14px 0 0;letter-spacing:.3px}
+#authCard input{display:block;width:100%;box-sizing:border-box;margin:10px 0;padding:12px;border-radius:8px;background:#101820;color:white;border:1px solid #8a754e}
 #authActions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+#authActions button{border:1px solid #c49a4d;background:linear-gradient(#5b4728,#352818);color:#fff0c8;font-weight:700;border-radius:8px;padding:10px 15px}
+#authActions button.exit{background:linear-gradient(#4a3030,#291a1a);border-color:#956767}
 #playerMapScreen{position:fixed;inset:0;z-index:40000;display:none;overflow:hidden;background:#172416;color:#fff;padding:0;box-sizing:border-box}
 #playerMapScreen.active{display:block}
 #playerMapScreen .map-toolbar{position:absolute;z-index:8;top:10px;left:10px;right:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 12px;border:1px solid #d6b96b;border-radius:12px;background:rgba(20,35,18,.9);box-shadow:0 3px 12px #0008}
@@ -299,10 +305,14 @@ body.battle-background.battle-defender-view::before{content:none}button,select,i
   </div>
 </div>
 <div id="authOverlay">
- <div id="authCard"><h2>ورود به بازی</h2><p>یکی از گزینه‌ها را انتخاب کنید.</p>
+ <div id="authCard">
+  <img id="authSplash" src="art-of-war-persia-login.jpg" alt="تصویر حماسی بازی Art of War Persia" onerror="this.style.display='none'">
+  <div id="authBrand">ART OF WAR PERSIA</div>
+  <p id="authTagline">حماسهٔ ایران باستان · فرماندهی، اتحاد و نبرد</p>
   <div id="authFields" style="display:none"><input id="authUsername" autocomplete="username" placeholder="نام کاربری"><input id="authPassword" type="password" autocomplete="current-password" placeholder="رمز عبور"></div>
   <div id="authError" style="color:#ffb5a8;min-height:22px"></div>
   <div id="authActions"><button id="authRegister">ثبت‌نام</button><button id="authLogin">ورود</button><button id="authClose" class="exit">بستن بازی</button></div>
+  <p id="authCredit">Created with ChatGPT · با همکاری سازندهٔ بازی</p>
  </div>
 </div>
 <section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="map-toolbar"><h2>نقشهٔ قلمروها</h2><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div></div><div id="playerMapViewport"><div id="playerMapWorld"></div></div><div id="mapInfo">در حال بارگذاری نقشه…</div></section>
