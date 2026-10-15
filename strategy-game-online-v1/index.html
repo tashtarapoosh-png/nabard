@@ -1985,7 +1985,7 @@ document.getElementById('profileAttack').onclick=()=>{if(Number(profileCastleId)
 document.getElementById('mapBack').onclick=()=>{document.getElementById('playerMapScreen').classList.remove('active');openDevelopment();};
 document.getElementById('mapRefresh').onclick=()=>openPlayerMap();
 document.getElementById('mapLogout').onclick=()=>{selectedCastleId=null;selectedTargetId=null;document.getElementById('playerMapScreen').classList.remove('active');document.getElementById('authOverlay').style.display='flex';authReset();};
-document.getElementById('authRegister').onclick=()=>{authMode='register';authSubmit();};document.getElementById('authLogin').onclick=()=>{authMode='login';authSubmit();};document.getElementById('authClose').onclick=closeGameCompletely;
+document.getElementById('authRegister').onclick=()=>authShowFields('register');document.getElementById('authLogin').onclick=()=>authShowFields('login');document.getElementById('authClose').onclick=closeGameCompletely;
 // صفحهٔ انتخاب قلعهٔ آزمایشی را پشت پنجرهٔ ورود نگه می‌داریم؛ ورود همیشه انتخاب حساب را تعیین می‌کند.
 document.getElementById('castleBack').onclick=openBattleReports;
 document.getElementById('resetGameBtn').onclick=resetGameData;
