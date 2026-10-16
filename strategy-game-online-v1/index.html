@@ -540,6 +540,31 @@ button:hover{filter:brightness(1.12)}
  #castleProfile .profile-actions button{padding:7px 1px}
  #castleMessagesCard{padding:12px}
 }
+/* Final profile and inbox presentation fixes; game and messaging behavior unchanged. */
+#castleProfile #profileTitle{
+ width:25vw!important;max-width:25vw!important;min-width:0!important;
+ white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ overflow-wrap:normal!important;padding-left:0!important;padding-right:0!important;
+ margin-top:0!important;margin-bottom:8px!important;font-size:clamp(10px,2.5vw,16px)!important;
+}
+#castleProfile .profile-card{padding-top:12px!important}
+#castleProfile .profile-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+#castleProfile .profile-actions button{width:100%!important;justify-self:stretch!important;white-space:nowrap!important;padding:8px 1px!important;font-size:clamp(10px,2.6vw,13px)!important}
+#castleProfile #profileClose{background:#b51f24!important;color:#fff!important;border:1px solid #7e1115!important;border-radius:50%!important;width:28px!important;height:28px!important;min-width:28px!important;padding:0!important;line-height:24px!important;font-size:22px!important}
+#castleMessagesCard{width:min(490px,84vw)!important}
+#castleMessagesHeader{position:relative;justify-content:center!important;min-height:34px!important}
+#castleMessagesHeader h2{position:relative;left:auto;top:5px;text-align:center!important;flex:1;font-size:18px!important}
+#castleMessagesHeader button{position:absolute;right:0;top:0;background:#b51f24!important;color:#fff!important;border:1px solid #7e1115!important;border-radius:50%!important;width:28px!important;height:28px!important;min-width:28px!important;padding:0!important;font-size:0!important;line-height:24px!important}
+#castleMessagesHeader button::after{content:'';font-size:24px;line-height:24px}
+#castleMessagesList,#castleMessagesStatus,#castleMessageCompose{width:87.5%;margin-left:auto!important;margin-right:auto!important;box-sizing:border-box!important}
+#castleMessagesHeader button{flex:none}
+#castleMessageCompose button{width:87.5%;min-width:0!important;flex:0 0 87.5%;padding-left:2px!important;padding-right:2px!important}
+#castleMessageText{width:87.5%;min-width:0!important;flex:1 1 auto}
+@media(max-width:420px){
+ #castleProfile .profile-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ #castleProfile .profile-actions button{font-size:10px!important}
+ #castleMessagesCard{width:84vw!important;padding:10px!important}
+}
 </style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
@@ -665,7 +690,7 @@ button:hover{filter:brightness(1.12)}
 <div id="castleProfile"><div class="profile-card"><button id="profileClose" class="back" aria-label="بستن">×</button><h2 id="profileTitle">پروفایل بازیکن</h2><div id="profileBody"></div><div class="profile-actions"><button id="profileAttack">⚔️ حمله</button><button id="profileMessage">✉️ پیام</button><button id="profileDefense">🛡️ دفاع</button></div></div></div>
 <div id="castleMessagesOverlay" role="dialog" aria-modal="true" aria-label="پیام‌های قلعه">
  <div id="castleMessagesCard">
-  <div id="castleMessagesHeader"><h2 id="castleMessagesTitle">پیام‌ها</h2><button id="castleMessagesClose" type="button">بستن ×</button></div>
+  <div id="castleMessagesHeader"><h2 id="castleMessagesTitle">پیام‌ها</h2><button id="castleMessagesClose" type="button" aria-label="بستن">×</button></div>
   <div id="castleMessagesStatus" aria-live="polite"></div>
   <div id="castleMessagesList"></div>
   <form id="castleMessageCompose"><textarea id="castleMessageText" maxlength="2000" placeholder="پیام خود را بنویسید..." required></textarea><button id="castleMessageSend" type="submit">ارسال</button></form>
@@ -2362,7 +2387,7 @@ function openCastleProfile(id){
  const username=String(c.username||'بازیکن').trim();
  document.getElementById('profileTitle').textContent=username;
  const castleLevel=Number(c.buildings?.castle?.level||castles[c.id]?.buildings?.castle?.level||1);
- document.getElementById('profileBody').innerHTML='<p>مختصات: ('+c.x+','+c.y+')</p><p>🏰 سطح قلعهٔ اصلی: '+castleLevel+'</p>';
+ document.getElementById('profileBody').innerHTML='<p>شماره قلعه: '+escapeMapText(c.id)+'</p><p>مختصات: ('+escapeMapText(c.x)+','+escapeMapText(c.y)+')</p><p>🏰 سطح قلعهٔ اصلی: '+castleLevel+'</p>';
  const own=Number(id)===Number(selectedCastleId);
  document.getElementById('profileAttack').style.display=own?'none':'';
  document.getElementById('profileDefense').style.display=own?'none':'';
