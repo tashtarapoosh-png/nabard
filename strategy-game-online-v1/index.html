@@ -487,7 +487,60 @@ button:hover{filter:brightness(1.12)}
 }
 </style>
 
-</head>
+<style id="profile-messaging-layout">
+/* Profile + castle messaging: fixed geometry, same controls for every castle. */
+#castleProfile{box-sizing:border-box;padding:12px}
+#castleProfile .profile-card{
+ box-sizing:border-box;width:min(420px,92vw);height:min(330px,78dvh);min-height:290px;
+ max-height:78dvh;overflow:hidden;position:relative;display:flex;flex-direction:column;
+ padding:18px 18px 12px;border:2px solid #b99a58;border-radius:0;
+ background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center/100% 100% no-repeat;
+ color:#392b1b
+}
+#castleProfile #profileClose{position:absolute;left:12px;top:10px;float:none;z-index:2}
+#castleProfile #profileTitle{
+ margin:2px auto 8px;padding:0 32px;color:#ffe6a0;text-align:center;
+ text-shadow:0 2px 4px #17110b;font-size:clamp(12px,3vw,18px);
+ line-height:1.25;width:25vw;max-width:25vw;min-width:0;overflow-wrap:anywhere;
+}
+#castleProfile #profileBody{flex:1;min-height:0;overflow:auto;font-size:12px;line-height:1.7}
+#castleProfile .profile-actions{
+ flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;
+ gap:6px;margin:8px 0 0;padding:0
+}
+#castleProfile .profile-actions button{
+ box-sizing:border-box;width:75%;justify-self:center;min-width:0;padding:7px 2px;font-size:clamp(10px,2.5vw,13px);
+ white-space:normal;line-height:1.25
+}
+#castleProfile .profile-actions #profileAttack{grid-column:1;grid-row:1}
+#castleProfile .profile-actions #profileMessage{grid-column:2;grid-row:1}
+#castleProfile .profile-actions #profileDefense{grid-column:3;grid-row:1}
+#castleMessagesOverlay{position:fixed;inset:0;z-index:65000;display:none;align-items:center;justify-content:center;padding:12px;background:#000b}
+#castleMessagesOverlay.open{display:flex}
+#castleMessagesCard{
+ box-sizing:border-box;width:min(560px,96vw);height:min(590px,88dvh);min-height:360px;
+ display:flex;flex-direction:column;overflow:hidden;padding:18px;
+ border:2px solid #b99a58;border-radius:0;color:#392b1b;
+ background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center/100% 100% no-repeat
+}
+#castleMessagesHeader{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#castleMessagesHeader h2{margin:0;color:#ffe6a0;text-shadow:0 2px 4px #17110b;font-size:18px}
+#castleMessagesHeader button{padding:5px 10px}
+#castleMessagesStatus{font-size:12px;min-height:22px;margin:6px 0}
+#castleMessagesList{flex:1;min-height:0;overflow:auto;padding:6px;background:#f2dfb7b8;border:1px solid #8d6b37}
+.castle-message-item{padding:9px;margin:0 0 7px;border:1px solid #b99a58;background:#fff3d7;color:#392b1b;overflow-wrap:anywhere}
+.castle-message-item .meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#73532c;margin-bottom:4px}
+#castleMessageCompose{display:flex;gap:8px;margin-top:10px;align-items:stretch}
+#castleMessageText{flex:1;min-width:0;min-height:62px;resize:vertical;box-sizing:border-box;padding:8px;font:14px Tahoma,Arial,sans-serif;background:#fff8e7;color:#332719;border:1px solid #9d7b43}
+#castleMessageSend{min-width:76px;padding:8px}
+@media(max-width:420px){
+ #castleProfile .profile-card{width:92vw;height:min(330px,78dvh);padding:16px 12px 10px}
+ #castleProfile #profileTitle{width:25vw;max-width:25vw;font-size:12px}
+ #castleProfile .profile-actions{gap:4px}
+ #castleProfile .profile-actions button{padding:7px 1px}
+ #castleMessagesCard{padding:12px}
+}
+</style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
   <div class="battle-report-modal">
@@ -609,7 +662,15 @@ button:hover{filter:brightness(1.12)}
  </div>
 </div>
 <section id="playerMapScreen" aria-label="نقشه بازیکنان"><div class="map-toolbar"><h2>نقشهٔ قلمروها</h2><div class="actions"><button id="mapBack" class="back">بازگشت به قلعه</button><button id="mapRefresh">به‌روزرسانی نقشه</button><button id="mapLogout" class="exit">خروج از حساب</button></div></div><div id="playerMapViewport"><div id="playerMapWorld"></div></div><div id="mapInfo">در حال بارگذاری نقشه…</div></section>
-<div id="castleProfile"><div class="profile-card"><button id="profileClose" class="back" style="float:left">×</button><h2 id="profileTitle">پروفایل قلعه</h2><div id="profileBody"></div><div class="profile-actions"><button id="profileAttack">⚔️ حمله</button><button id="profileDefense">🛡️ دفاع</button><button id="profileMessage">✉️ پیام</button></div></div></div>
+<div id="castleProfile"><div class="profile-card"><button id="profileClose" class="back" aria-label="بستن">×</button><h2 id="profileTitle">پروفایل بازیکن</h2><div id="profileBody"></div><div class="profile-actions"><button id="profileAttack">⚔️ حمله</button><button id="profileMessage">✉️ پیام</button><button id="profileDefense">🛡️ دفاع</button></div></div></div>
+<div id="castleMessagesOverlay" role="dialog" aria-modal="true" aria-label="پیام‌های قلعه">
+ <div id="castleMessagesCard">
+  <div id="castleMessagesHeader"><h2 id="castleMessagesTitle">پیام‌ها</h2><button id="castleMessagesClose" type="button">بستن ×</button></div>
+  <div id="castleMessagesStatus" aria-live="polite"></div>
+  <div id="castleMessagesList"></div>
+  <form id="castleMessageCompose"><textarea id="castleMessageText" maxlength="2000" placeholder="پیام خود را بنویسید..." required></textarea><button id="castleMessageSend" type="submit">ارسال</button></form>
+ </div>
+</div>
 
 <script>
 "use strict";
@@ -1765,7 +1826,8 @@ renderCastles();
 let sqlConnected=true;
 let onlineAttackId=null;
 async function api(url,options={}){
-  const res=await fetch(url,{cache:'no-store',headers:{"Content-Type":"application/json",...(options.headers||{})},...options});
+  const authHeaders=(String(url).startsWith('/api/messages')&&localStorage.getItem('strategyGameSessionToken'))?{Authorization:'Bearer '+localStorage.getItem('strategyGameSessionToken')}:{};
+  const res=await fetch(url,{cache:'no-store',headers:{"Content-Type":"application/json",...authHeaders,...(options.headers||{})},...options});
   let data={}; try{data=await res.json();}catch(e){}
   if(!res.ok)throw new Error(data.error||"خطای سرور");
   return data;
@@ -2284,7 +2346,7 @@ document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key=
 function authReset(){document.getElementById('authFields').style.display='block';document.getElementById('authError').textContent='';document.getElementById('authActions').innerHTML='<button id="authRegister" type="button">ثبت‌نام</button><button id="authLogin" type="button">ورود</button><button id="authClose" class="exit" type="button">×</button>';document.getElementById('authRegister').onclick=()=>authStart('register');document.getElementById('authLogin').onclick=()=>authStart('login');document.getElementById('authClose').onclick=closeGameCompletely;}
 let authRequestPending=false;
 function authStart(mode){authMode=mode;authSubmit();}
-async function authSubmit(){if(authRequestPending)return;const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;if(!username||!password){document.getElementById('authError').textContent='نام کاربری و رمز عبور را وارد کنید.';return;}if(!authMode){document.getElementById('authError').textContent='ابتدا ورود یا ثبت‌نام را انتخاب کنید.';return;}authRequestPending=true;const buttons=document.querySelectorAll('#authActions button');buttons.forEach(b=>b.disabled=true);document.getElementById('authError').textContent='';try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});if(!data||!data.castle||data.castle.id==null)throw new Error('پاسخ سرور برای قلعه معتبر نیست.');applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;battleReportOnlineSince=Date.now();localStorage.setItem('strategyGameUsername',data.castle.username||username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();checkForNewBattleReport();}catch(e){document.getElementById('authError').textContent=e.message||'خطا در ورود یا ثبت‌نام';}finally{authRequestPending=false;buttons.forEach(b=>b.disabled=false);}}
+async function authSubmit(){if(authRequestPending)return;const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;if(!username||!password){document.getElementById('authError').textContent='نام کاربری و رمز عبور را وارد کنید.';return;}if(!authMode){document.getElementById('authError').textContent='ابتدا ورود یا ثبت‌نام را انتخاب کنید.';return;}authRequestPending=true;const buttons=document.querySelectorAll('#authActions button');buttons.forEach(b=>b.disabled=true);document.getElementById('authError').textContent='';try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});if(!data||!data.castle||data.castle.id==null)throw new Error('پاسخ سرور برای قلعه معتبر نیست.');if(data.sessionToken)localStorage.setItem('strategyGameSessionToken',data.sessionToken);applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;battleReportOnlineSince=Date.now();localStorage.setItem('strategyGameUsername',data.castle.username||username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();checkForNewBattleReport();}catch(e){document.getElementById('authError').textContent=e.message||'خطا در ورود یا ثبت‌نام';}finally{authRequestPending=false;buttons.forEach(b=>b.disabled=false);}}
 // همگام‌سازی موجودی نیروها از سرور در تمام صفحه‌های بازی، نه فقط صفحه توسعه.
 setInterval(async()=>{if(selectedCastleId===null||document.visibilityState==='hidden')return;try{await syncState();if(developmentState&&document.getElementById('developmentPanel')?.classList.contains('active'))await developmentRefreshFromServer();if(document.getElementById('playerMapScreen')?.classList.contains('active')){const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();}}catch(e){}},4000);
 async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');requestAnimationFrame(()=>requestAnimationFrame(()=>{centerPlayerMapOwnCastle();setTimeout(centerPlayerMapOwnCastle,120);}));}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
@@ -2294,11 +2356,105 @@ function centerPlayerMapOwnCastle(){const viewport=document.getElementById('play
 (function enablePlayerMapZoom(){const viewport=document.getElementById('playerMapViewport'),world=document.getElementById('playerMapWorld');if(!viewport||!world)return;let zoom=1,pinchStart=0,pinchZoom=1;const clamp=z=>Math.max(.35,Math.min(2.5,z));const applyZoom=z=>{zoom=clamp(z);world.style.zoom=String(zoom);};const distance=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);viewport.addEventListener('touchstart',e=>{if(e.touches.length===2){pinchStart=distance(e.touches);pinchZoom=zoom;}},{passive:true});viewport.addEventListener('touchmove',e=>{if(e.touches.length===2){e.preventDefault();if(pinchStart>0)applyZoom(pinchZoom*distance(e.touches)/pinchStart);}},{passive:false});viewport.addEventListener('touchend',e=>{if(e.touches.length<2)pinchStart=0;},{passive:true});viewport.addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();applyZoom(zoom*(e.deltaY<0?1.1:.9));}},{passive:false});})();
 window.addEventListener('resize',()=>{if(document.getElementById('playerMapScreen').classList.contains('active'))setTimeout(centerPlayerMapOwnCastle,80);});
 function escapeMapText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function openCastleProfile(id){const c=mapCastles.find(x=>Number(x.id)===Number(id));if(!c)return;profileCastleId=Number(id);document.getElementById('profileTitle').textContent=c.name+' — '+(c.username||'بازیکن');const army=c.army||{};const castleLevel=Number(c.buildings?.castle?.level||castles[c.id]?.buildings?.castle?.level||1);document.getElementById('profileBody').innerHTML='<p>شماره قلعه: '+c.id+'</p><p>مختصات: ('+c.x+','+c.y+')</p><p>🏰 سطح قلعهٔ اصلی: '+castleLevel+'</p>';document.getElementById('profileAttack').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('profileDefense').style.display=Number(id)===Number(selectedCastleId)?'none':'';document.getElementById('castleProfile').style.display='flex';}
+function openCastleProfile(id){
+ const c=mapCastles.find(x=>Number(x.id)===Number(id));if(!c)return;
+ profileCastleId=Number(id);
+ const username=String(c.username||'بازیکن').trim();
+ document.getElementById('profileTitle').textContent=username;
+ const castleLevel=Number(c.buildings?.castle?.level||castles[c.id]?.buildings?.castle?.level||1);
+ document.getElementById('profileBody').innerHTML='<p>مختصات: ('+c.x+','+c.y+')</p><p>🏰 سطح قلعهٔ اصلی: '+castleLevel+'</p>';
+ const own=Number(id)===Number(selectedCastleId);
+ document.getElementById('profileAttack').style.display=own?'none':'';
+ document.getElementById('profileDefense').style.display=own?'none':'';
+ document.getElementById('castleProfile').style.display='flex';
+}
 document.getElementById('profileClose').onclick=()=>document.getElementById('castleProfile').style.display='none';
-document.getElementById('profileMessage').onclick=()=>alert('سامانه پیام‌رسانی در مرحله بعد اضافه می‌شود.');
+
+let messageRefreshTimer=null;
+let messageTargetCastleId=null;
+function escapeMessageHtml(value){
+ return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function formatMessageDate(value){
+ const d=new Date(value);if(Number.isNaN(d.getTime()))return '';
+ return d.toLocaleString('fa-IR',{dateStyle:'short',timeStyle:'short'});
+}
+function setMessageStatus(text){document.getElementById('castleMessagesStatus').textContent=text||'';}
+function renderCastleMessages(messages){
+ const list=document.getElementById('castleMessagesList');
+ if(!Array.isArray(messages)||!messages.length){list.innerHTML='<div class="castle-message-item">هنوز پیامی وجود ندارد.</div>';return;}
+ list.innerHTML=messages.map(m=>{
+  const sender=escapeMessageHtml(m.senderUsername||('قلعه '+m.senderCastleId));
+  const receiver=escapeMessageHtml(m.receiverUsername||('قلعه '+m.receiverCastleId));
+  const isSent=Number(m.senderCastleId)===Number(selectedCastleId);
+  return '<article class="castle-message-item"><div class="meta"><span>'+sender+' ← '+receiver+'</span><time>'+escapeMessageHtml(formatMessageDate(m.createdAt))+'</time></div><div>'+escapeMessageHtml(m.body).replace(/\n/g,'<br>')+'</div></article>';
+ }).join('');
+ list.scrollTop=list.scrollHeight;
+}
+async function loadCastleMessages(){
+ if(!selectedCastleId)return;
+ try{
+  const query=new URLSearchParams({castleId:String(selectedCastleId)});
+  if(messageTargetCastleId)query.set('withCastleId',String(messageTargetCastleId));
+  const data=await api('/api/messages?'+query.toString());
+  renderCastleMessages(data.messages);
+  setMessageStatus(messageTargetCastleId
+   ? 'گفتگو با '+(mapCastles.find(c=>Number(c.id)===Number(messageTargetCastleId))?.username||('قلعه '+messageTargetCastleId))
+   : 'صندوق پیام‌های قلعهٔ شما');
+ }catch(e){setMessageStatus(e.message||'خواندن پیام‌ها ناموفق بود.');}
+}
+function openCastleMessages(targetId){
+ if(!selectedCastleId){alert('ابتدا وارد حساب خود شوید.');return;}
+ messageTargetCastleId=Number(targetId)===Number(selectedCastleId)?null:Number(targetId);
+ document.getElementById('castleMessagesTitle').textContent=messageTargetCastleId
+  ? 'پیام با '+(mapCastles.find(c=>Number(c.id)===messageTargetCastleId)?.username||('قلعه '+messageTargetCastleId))
+  : 'صندوق پیام‌ها';
+ let selector=document.getElementById('castleMessageRecipient');
+ if(!selector){
+  const wrap=document.createElement('label');
+  wrap.id='castleMessageRecipientWrap';
+  wrap.style.cssText='display:none;gap:8px;align-items:center;margin-top:8px;font-size:12px';
+  wrap.innerHTML='ارسال به <select id="castleMessageRecipient" style="flex:1;min-width:0;padding:7px;background:#fff8e7;color:#332719;border:1px solid #9d7b43"></select>';
+  document.getElementById('castleMessageCompose').before(wrap);
+  selector=wrap.querySelector('select');
+ }
+ if(messageTargetCastleId){
+  document.getElementById('castleMessageRecipientWrap').style.display='none';
+ }else{
+  selector.innerHTML='<option value="">انتخاب قلعهٔ گیرنده</option>'+mapCastles.filter(c=>Number(c.id)!==Number(selectedCastleId)).map(c=>'<option value="'+Number(c.id)+'">'+escapeMessageHtml(c.username||c.name||('قلعه '+c.id))+'</option>').join('');
+  document.getElementById('castleMessageRecipientWrap').style.display='flex';
+ }
+ document.getElementById('castleMessagesOverlay').classList.add('open');
+ document.getElementById('castleMessageText').value='';
+ loadCastleMessages();
+ if(messageRefreshTimer)clearInterval(messageRefreshTimer);
+ messageRefreshTimer=setInterval(loadCastleMessages,7000);
+}
+function closeCastleMessages(){
+ document.getElementById('castleMessagesOverlay').classList.remove('open');
+ if(messageRefreshTimer)clearInterval(messageRefreshTimer);
+ messageRefreshTimer=null;
+}
+document.getElementById('profileMessage').onclick=()=>{document.getElementById('castleProfile').style.display='none';openCastleMessages(profileCastleId);};
+document.getElementById('castleMessagesClose').onclick=closeCastleMessages;
+document.getElementById('castleMessagesOverlay').addEventListener('click',e=>{if(e.target.id==='castleMessagesOverlay')closeCastleMessages();});
+document.getElementById('castleMessageCompose').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const textarea=document.getElementById('castleMessageText');
+ const body=textarea.value.trim();if(!body)return;
+ const selector=document.getElementById('castleMessageRecipient');
+ const recipientId=messageTargetCastleId||Number(selector?.value);
+ if(!Number.isInteger(Number(recipientId))||Number(recipientId)<1){setMessageStatus('قلعهٔ گیرنده را انتخاب کن.');return;}
+ const send=document.getElementById('castleMessageSend');send.disabled=true;
+ try{
+  await api('/api/messages',{method:'POST',body:JSON.stringify({senderCastleId:Number(selectedCastleId),receiverCastleId:Number(recipientId),body})});
+  textarea.value='';await loadCastleMessages();setMessageStatus('پیام ارسال شد.');
+ }catch(err){setMessageStatus(err.message||'ارسال پیام ناموفق بود.');}
+ finally{send.disabled=false;}
+});
 document.getElementById('profileDefense').onclick=()=>{if(Number(profileCastleId)===Number(selectedCastleId))return;selectedTargetId=Number(profileCastleId);document.getElementById('castleProfile').style.display='none';document.getElementById('attackTitle').textContent='کمک دفاعی به '+(castles[selectedTargetId]?.name||('قلعه '+selectedTargetId));document.getElementById('mapAttackSide').value='مدافع';renderAttackSlots();document.getElementById('playerMapScreen').classList.remove('active');show('attack');};
 document.getElementById('profileAttack').onclick=()=>{if(Number(profileCastleId)===Number(selectedCastleId))return alert('نمی‌توانید به قلعه خودتان حمله کنید.');selectedTargetId=Number(profileCastleId);document.getElementById('castleProfile').style.display='none';document.getElementById('attackTitle').textContent='حمله به '+(castles[selectedTargetId]?.name||('قلعه '+selectedTargetId));document.getElementById('mapAttackSide').value='مهاجم';renderAttackSlots();document.getElementById('playerMapScreen').classList.remove('active');show('attack');};
+
 document.getElementById('mapBack').onclick=()=>{document.getElementById('playerMapScreen').classList.remove('active');openDevelopment();};
 document.getElementById('mapRefresh').onclick=()=>openPlayerMap();
 document.getElementById('mapLogout').onclick=()=>{selectedCastleId=null;selectedTargetId=null;document.getElementById('playerMapScreen').classList.remove('active');document.getElementById('authOverlay').style.display='flex';authReset();};
