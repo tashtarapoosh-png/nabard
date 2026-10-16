@@ -614,6 +614,13 @@ button:hover{filter:brightness(1.12)}
  #castleProfile .profile-actions button{width:80%!important}
  #castleMessagesList,#castleMessagesStatus,#castleMessageCompose{width:90%!important;max-width:90%!important}
 }
+
+/* Latest precise alignment: only move profile title/info and narrow recipient selector. */
+#castleProfile #profileTitle{top:24px!important}
+#castleProfile #profileBody{padding-top:45px!important;box-sizing:border-box!important}
+#castleMessageRecipientWrap{width:80%!important;margin-left:auto!important;margin-right:auto!important;box-sizing:border-box!important}
+#castleMessageRecipientWrap select{width:80%!important;flex:0 1 80%!important;box-sizing:border-box!important}
+@media(max-width:420px){#castleProfile #profileTitle{top:24px!important}#castleProfile #profileBody{padding-top:45px!important}#castleMessageRecipientWrap{width:80%!important}#castleMessageRecipientWrap select{width:80%!important;flex-basis:80%!important}}
 </style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
