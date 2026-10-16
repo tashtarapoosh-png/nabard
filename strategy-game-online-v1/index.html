@@ -254,7 +254,7 @@ button:hover{filter:brightness(1.12)}
 .battle-report-overlay{background:rgba(8,12,17,.78);backdrop-filter:blur(3px)}
 .battle-report-modal{border:0;border-radius:0;color:#382a19;background:#d8bd84 url('images/achaemenid-panel-bg.jpg') center center/100% 100% no-repeat;box-shadow:0 18px 60px #000b}
 .battle-report-head{border:0;padding:42px 42px 14px}
-.battle-report-head h2{color:#ffe6a0;text-shadow:0 2px 4px #17110b;font-size:clamp(19px,3vw,26px)}
+.battle-report-head h2{color:#ffe6a0;text-shadow:0 2px 4px #17110b;font-size:14px}
 .battle-report-head .winner{color:#f8e7bf;text-shadow:0 1px 3px #17110b}
 .battle-report-body{color:#392b1b;padding:12px 8% 26px;max-height:52vh;overflow:auto}
 .battle-report-table{font-size:13px}.battle-report-table th,.battle-report-table td{border:1px solid #a88a4e;padding:8px 6px;color:#392b1b}
@@ -312,7 +312,7 @@ button:hover{filter:brightness(1.12)}
 #castleProfile #profileBody{padding:0 3%;text-align:center}
 #castleProfile .profile-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px 0 0}
 #castleProfile .profile-actions button{min-width:0;padding:10px 5px;font-size:clamp(11px,2vw,14px);white-space:normal}
-.battle-report-modal{box-sizing:border-box;width:min(900px,96vw);max-height:calc(100dvh - 16px);overflow:hidden;display:flex;flex-direction:column}
+.battle-report-modal{box-sizing:border-box;width:min(810px,86.4vw);max-height:calc(100dvh - 16px);overflow:hidden;display:flex;flex-direction:column}
 .battle-report-head{flex:0 0 auto;padding-top:clamp(36px,6vh,52px)}
 .battle-report-body{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;scrollbar-color:#9c783e #e5d1a4;scrollbar-width:thin}
 .battle-report-foot{flex:0 0 auto;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
@@ -645,9 +645,9 @@ button:hover{filter:brightness(1.12)}
       <button id="battleReportClose" class="battle-report-close" type="button">×</button>
       <h2 id="battleReportTitle">گزارش نبرد</h2>
       <div id="battleReportWinner" class="winner"></div>
+      <div id="battleReportLoot" class="winner" style="margin-top:4px"></div>
     </div>
     <div class="battle-report-body"><div class="table-wrap"><table class="battle-report-table"><thead><tr><th>نام قلعه</th><th>نوع نیرو</th><th>تعداد اولیه نیرو</th><th>تعداد تلفات نیرو</th><th>باقیمانده نیرو</th></tr></thead><tbody id="battleReportBody"></tbody></table></div></div>
-    <div class="battle-report-foot"><button id="battleReportGoDevelopment" type="button">رفتن به صفحه توسعه قلعه</button> <button id="battleReportCloseBottom" class="back" type="button">بستن گزارش</button></div>
   </div>
 </div>
 
@@ -1996,11 +1996,13 @@ function showBattleReport(data){
   const body=document.getElementById('battleReportBody');
   const title=document.getElementById('battleReportTitle');
   const winner=document.getElementById('battleReportWinner');
+  const loot=document.getElementById('battleReportLoot');
   if(!overlay||!body||!title||!winner)return;
 
   const rows=Array.isArray(data?.report)?data.report:[];
   title.textContent='گزارش نبرد شماره '+(data?.battleId??'');
   winner.textContent=data?.winnerSide ? ('برنده: '+data.winnerSide) : '';
+  if(loot){const lootValue=data?.lootGold ?? data?.goldLoot ?? data?.lootedGold ?? data?.loot;loot.textContent='غنائم: '+(lootValue==null?'—':Number(lootValue).toLocaleString('fa-IR'))+' طلا';}
   body.innerHTML=rows.length ? rows.map(row=>
     '<tr><td>'+escapeHtml(row.castleName)+'</td><td>'+escapeHtml(row.type)+'</td><td>'+Number(row.initial||0)+'</td><td>'+Number(row.losses||0)+'</td><td>'+Number(row.remaining||0)+'</td></tr>'
   ).join('') : '<tr><td colspan="5">اطلاعات نیروهای نبرد موجود نیست.</td></tr>';
@@ -2057,7 +2059,7 @@ async function checkForNewBattleReport(){
 
 // پس از ورود نیز زمان شروع آنلاین بودن تازه می‌شود تا نتیجهٔ جدید از دست نرود.
 setInterval(checkForNewBattleReport,3000);
-document.getElementById('battleReportGoDevelopment').onclick=()=>{closeBattleReport();openDevelopment();};
+
 function closeBattleReportSelect(){
   const overlay=document.getElementById('battleReportSelectOverlay');
   if(overlay)overlay.style.display='none';
@@ -2105,7 +2107,7 @@ async function deleteAllBattleReports(){
 }
 
 document.getElementById('battleReportClose').onclick=closeBattleReport;
-document.getElementById('battleReportCloseBottom').onclick=closeBattleReport;
+
 document.getElementById('battleReportSelectClose').onclick=closeBattleReportSelect;
 document.getElementById('battleReportSelectCloseBottom').onclick=closeBattleReportSelect;
 document.getElementById('deleteAllBattleReports').onclick=deleteAllBattleReports;
