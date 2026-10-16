@@ -358,6 +358,98 @@ button:hover{filter:brightness(1.12)}
 #trainingPanel .trainingChoiceCompact.selected{outline:2px solid #d7ad4d;background:#fff4d41c!important}
 @media(max-width:520px){#defense.screen.active,#attack.screen.active{padding:5px}#defense .card,#attack .card{padding:10px 8px}#defense .slots,#attack .slots{gap:5px}#defense .slot,#attack .slot{padding:5px}#defense .slot label,#attack .slot label{font-size:11px}#defense .slot input,#defense .slot select,#attack .slot input,#attack .slot select{padding:4px;font-size:12px;min-height:29px}#defense .actions button,#attack .actions button{min-width:90px;padding:6px 8px;font-size:12px}#trainingPanel .developmentModal{max-height:calc(100dvh - 12px);overflow:auto}}
 </style>
+
+<style id="achaemenid-layout-correction">
+/* اصلاح دقیق فاصله‌ها؛ بدون تغییر منطق یا event handler های بازی */
+#buildingActionPanel .developmentModal h3,
+#trainingPanel .developmentModal h3{
+  position:relative!important;top:0!important;transform:none!important;
+  margin:0 0 7px!important;padding:0!important;line-height:1.35!important;
+}
+#buildingActionPanel .developmentModal{padding:16px 14px 18px!important}
+#trainingPanel .developmentModal{padding:15px 14px 16px!important}
+
+/* چینش شش جایگاه در دو ستون و سه ردیف؛ کارت متناسب با ارتفاع صفحه */
+#defense .card,#attack .card{
+  box-sizing:border-box!important;
+  width:min(760px,96vw)!important;
+  min-height:0!important;
+  max-height:calc(100dvh - 16px)!important;
+  overflow:visible!important;
+  padding:24px clamp(14px,4vw,36px) 18px!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;
+}
+#defense .card h2,#attack .card h2{
+  margin:0 0 6px!important;padding:0 8px!important;line-height:1.25!important;
+  transform:none!important;position:static!important;
+}
+#defense .card>p,#attack .card>p{margin:3px 0 8px!important;line-height:1.35!important}
+#defenseSlots,#attackSlots{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;width:100%!important;min-width:0!important;
+}
+#defense .slot,#attack .slot{
+  box-sizing:border-box!important;min-width:0!important;padding:6px 8px!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)!important;
+  gap:4px 7px!important;align-items:center!important;
+}
+#defense .slot>b,#attack .slot>b{grid-column:1/-1!important;font-size:11px!important;line-height:1.1!important}
+#defense .slot label,#attack .slot label{font-size:10px!important;line-height:1.2!important;margin:0!important}
+#defense .slot select,#attack .slot select,
+#defense .slot input,#attack .slot input{
+  box-sizing:border-box!important;width:100%!important;min-width:0!important;
+  min-height:27px!important;padding:3px 5px!important;font-size:11px!important;
+}
+#defense .actions,#attack .actions{margin-top:8px!important;display:flex!important;gap:8px!important;flex-wrap:nowrap!important}
+#defense .actions button,#attack .actions button{margin:0!important;padding:7px 12px!important;font-size:12px!important}
+@media(max-height:600px){
+  #defense .card,#attack .card{padding-top:12px!important;padding-bottom:10px!important}
+  #defenseSlots,#attackSlots{gap:4px!important}
+  #defense .slot,#attack .slot{padding:4px 6px!important;gap:2px 5px!important}
+  #defense .slot select,#attack .slot select,#defense .slot input,#attack .slot input{min-height:23px!important}
+}
+
+/* نیروسازی: سه انتخاب نزدیک‌تر، در محدوده کادر */
+#trainingPanel .developmentModal{
+  box-sizing:border-box!important;width:min(420px,94vw)!important;
+  max-height:calc(100dvh - 20px)!important;overflow-y:auto!important;
+}
+#trainingTitle{font-size:15px!important;line-height:1.3!important;margin:0 0 5px!important}
+#trainingInfo,#trainingUnitStats{margin:4px 0!important;line-height:1.45!important}
+.trainingChoicesCompact{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:3px!important;
+  margin:5px 0!important;width:100%!important;
+}
+.trainingChoiceCompact{
+  box-sizing:border-box!important;min-width:0!important;width:100%!important;
+  padding:3px 2px!important;background:transparent!important;
+}
+.trainingChoiceCompact img{width:38px!important;height:38px!important;max-width:100%!important;object-fit:contain!important}
+.trainingChoiceCompact span{font-size:9px!important;white-space:normal!important}
+.training-count-row{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;flex-wrap:nowrap!important}
+.trainingInputCompact{width:78px!important;min-width:0!important;box-sizing:border-box!important}
+#trainingMaxButton{white-space:nowrap!important;max-width:100%!important}
+
+/* پروفایل قلعه: ابعاد کنترل‌شده و دکمه‌ها داخل کارت */
+#castleProfile{box-sizing:border-box!important;padding:12px!important}
+#castleProfile .profile-card{
+  box-sizing:border-box!important;width:min(440px,94vw)!important;
+  max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;
+  padding:16px!important;position:relative!important;
+}
+#castleProfile .profile-card h2{margin:0 42px 12px 0!important;line-height:1.4!important}
+#castleProfile .profile-actions{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:6px!important;margin-top:12px!important;
+}
+#castleProfile .profile-actions button{box-sizing:border-box!important;min-width:0!important;padding:8px 4px!important;white-space:normal!important}
+@media(max-width:360px){
+  #defense .card,#attack .card{padding-left:10px!important;padding-right:10px!important}
+  #defense .slot,#attack .slot{padding:4px!important}
+  #castleProfile .profile-actions{grid-template-columns:1fr!important}
+}
+</style>
+
 </head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
