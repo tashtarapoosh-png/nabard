@@ -332,6 +332,32 @@ button:hover{filter:brightness(1.12)}
 @media(max-width:380px){#attack .slots,#defense .slots{grid-template-columns:1fr}#castleProfile .profile-actions{grid-template-columns:1fr}#castleProfile .profile-actions button{width:100%}}
 
 </style>
+<style id="achaemenid-window-details">
+/* ریزتنظیمات پنجره‌ها طبق چینش جدید */
+#buildingActionPanel .developmentModal h3{transform:translateY(-48px);margin-bottom:-.35em;padding-top:clamp(28px,5vh,42px)}
+#trainingPanel .developmentModal h3{transform:translateY(-32px);margin-bottom:-.35em;padding-top:clamp(28px,5vh,42px)}
+#defense .card,#attack .card{box-sizing:border-box;width:min(920px,96vw);margin:0 auto;padding:16px 18px;overflow:visible}
+#defense.screen.active,#attack.screen.active{height:100dvh;max-height:100dvh;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:8px;box-sizing:border-box}
+#defense .slots,#attack .slots{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,auto));gap:8px}
+#defense .slot,#attack .slot{padding:7px 10px;min-height:0}
+#defense .slot label,#attack .slot label{display:inline-block;margin:4px 6px 4px 0;font-size:12px}
+#defense .slot input,#defense .slot select,#attack .slot input,#attack .slot select{box-sizing:border-box;padding:6px;min-height:32px;font-size:13px}
+#defense .card>p,#attack .card>p{margin:5px 0 8px;font-size:12px}
+#defenseTitle{transform:translateY(-.5em);margin-top:0;margin-bottom:2px}
+#defense .actions,#attack .actions{justify-content:center;margin-top:8px!important;gap:8px}
+#defense .actions button,#attack .actions button{min-width:110px;padding:7px 12px}
+#trainingPanel .trainingChoicesCompact{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:0 6%;margin:8px 0}
+#trainingPanel .trainingChoiceCompact{background:transparent!important;box-shadow:none!important;border:1px solid #b99a58;min-width:0;width:100%;padding:6px 3px;overflow:hidden}
+#trainingPanel .trainingChoiceCompact img{width:clamp(42px,7vw,62px);height:clamp(42px,7vw,62px);object-fit:contain;max-width:100%}
+#trainingPanel .trainingChoiceCompact span{font-size:11px;white-space:nowrap}
+#trainingPanel .training-count-row{display:flex;align-items:center;justify-content:center;gap:7px;width:min(270px,86%);margin:8px auto 10px}
+#trainingPanel .trainingInputCompact{width:auto;min-width:0;flex:1;margin:0}
+#trainingPanel #trainingMaxButton{flex:0 0 auto;min-width:76px;margin:0;padding:8px 10px;background:linear-gradient(#795b2d,#47321b);border:1px solid #c7a45a;color:#fff0c8}
+#trainingPanel #trainingMaxButton:disabled,#trainingPanel #startTrainingButton:disabled{opacity:.5;cursor:not-allowed}
+#trainingPanel .training-unit-stats{margin-top:2px;margin-bottom:6px;line-height:1.65;padding:7px 10%;font-size:12px;border-top:1px solid #c4a45e;border-bottom:1px solid #c4a45e}
+#trainingPanel .trainingChoiceCompact.selected{outline:2px solid #d7ad4d;background:#fff4d41c!important}
+@media(max-width:520px){#defense.screen.active,#attack.screen.active{padding:5px}#defense .card,#attack .card{padding:10px 8px}#defense .slots,#attack .slots{gap:5px}#defense .slot,#attack .slot{padding:5px}#defense .slot label,#attack .slot label{font-size:11px}#defense .slot input,#defense .slot select,#attack .slot input,#attack .slot select{padding:4px;font-size:12px;min-height:29px}#defense .actions button,#attack .actions button{min-width:90px;padding:6px 8px;font-size:12px}#trainingPanel .developmentModal{max-height:calc(100dvh - 12px);overflow:auto}}
+</style>
 </head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
@@ -363,9 +389,9 @@ button:hover{filter:brightness(1.12)}
 </div>
 
 <section id="select" class="screen"><div class="card"><h1>انتخاب قلعه</h1><p>قلعه ۱ تا ۱۰</p><div id="castleGrid" class="grid"></div><div class="actions" style="margin-top:16px"><button id="randomDefenseBtn">چینش دفاعی تصادفی همه قلعه‌ها</button><button id="battleReportsBtn">گزارش‌های نبرد</button></div></div></section>
-<section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+<section id="defense" class="screen"><div class="card"><h2 id="defenseTitle"></h2><p>چینش دفاعی را در ۶ ردیف، مشابه صفحه حمله، وارد کنید.</p><div id="defenseSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="saveDefense">ذخیره چینش دفاعی</button><button id="defenseBack" class="back">برگشت</button></div></div></section>
 <section id="targets" class="screen"><div class="card"><h2>انتخاب هدف</h2><p>قلعه‌های ۲ تا ۱۱</p><div id="targetGrid" class="targets"></div><div class="actions" style="margin-top:14px"><button id="targetContinue">ادامه</button><button id="targetBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
-<section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><label>نقش نیروها <select id="mapAttackSide" class="side-select"><option value="مهاجم">مهاجم</option><option value="مدافع">مدافع / کمک به دفاع</option></select></label><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button><button class="exit" onclick="exitGame()">خروج</button></div></div></section>
+<section id="attack" class="screen"><div class="card"><h2 id="attackTitle"></h2><label>نقش نیروها <select id="mapAttackSide" class="side-select"><option value="مهاجم">مهاجم</option><option value="مدافع">مدافع / کمک به دفاع</option></select></label><p>نوع و تعداد نیرو را در هر یک از ۶ ستون وارد کنید.</p><div id="attackSlots" class="slots"></div><div class="actions" style="margin-top:14px"><button id="startAttack">حمله</button><button id="attackBack" class="back">برگشت</button></div></div></section>
 
 
 <section id="developmentPanel" class="screen">
@@ -410,12 +436,13 @@ button:hover{filter:brightness(1.12)}
   <div class="developmentModal">
     <h3 id="trainingTitle">🪖 نیرو سازی</h3>
     <div id="trainingInfo" class="devInfo"></div>
+    <div id="trainingUnitStats" class="devInfo training-unit-stats" aria-live="polite">برای دیدن مشخصات، یک نوع نیرو را انتخاب کنید.</div>
     <div class="trainingChoicesCompact">
       <button type="button" class="trainingChoiceCompact" data-development-train="archer"><img src="images/archer1.png" alt="کماندار"><span>کماندار</span></button>
       <button type="button" class="trainingChoiceCompact" data-development-train="cavalry"><img src="images/cavalry1.png" alt="سواره"><span>سواره</span></button>
       <button type="button" class="trainingChoiceCompact" data-development-train="swordsman"><img src="images/swordsman1.png" alt="شمشیرزن"><span>شمشیرزن</span></button>
     </div>
-    <input id="trainingCountInput" class="trainingInputCompact" type="number" min="1" value="1">
+    <div class="training-count-row"><input id="trainingCountInput" class="trainingInputCompact" type="number" min="1" value="1"><button type="button" id="trainingMaxButton">حداکثر</button></div>
     <div id="trainingTimer" class="devInfo" style="display:none;margin-top:5px"></div>
     <div>
       <button type="button" id="startTrainingButton">شروع</button>
@@ -608,7 +635,7 @@ function renderSixSlots(containerId,prefix,values){
 
 function renderDefense(){
   const c=castles[selectedCastleId];
-  document.getElementById("defenseTitle").textContent="چینش دفاعی - "+c.name;
+  document.getElementById("defenseTitle").textContent="چینش دفاعی";
   renderSixSlots("defenseSlots","def",c.defenseSlots);
 }
 
@@ -1947,19 +1974,53 @@ function closeDevelopmentBuilding(){document.getElementById('buildingActionPanel
 async function startDevelopmentUpgrade(){
   if(!developmentBuilding)return;try{const data=await api('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development/action',{method:'POST',body:JSON.stringify({action:'upgrade',type:developmentBuilding})});const c=data.castle;developmentState.gold=Number(c.gold||0);developmentState.buildings=c.buildings;developmentState.training=c.trainingJobs;developmentState.activeUpgrade=c.activeUpgrade;developmentState.goldCapacity=c.goldCapacity;developmentSave();closeDevelopmentBuilding();developmentMessage('ارتقا شروع شد.');developmentUpdateTop();}catch(e){developmentMessage(e.message||'شروع ارتقا ناموفق بود.');await developmentRefreshFromServer();}
 }
+function developmentUnitLabel(type){return type==='archer'?'کماندار':type==='cavalry'?'سواره':'شمشیرزن';}
+function developmentUnitStats(type){return {archer:{health:500,damage:100,cost:developmentTrainingCost()},cavalry:{health:1000,damage:100,cost:developmentTrainingCost()},swordsman:{health:1000,damage:100,cost:developmentTrainingCost()}}[type];}
+function updateDevelopmentTrainingStats(){
+  const statsEl=document.getElementById('trainingUnitStats');
+  const countInput=document.getElementById('trainingCountInput');
+  const maxButton=document.getElementById('trainingMaxButton');
+  const startButton=document.getElementById('startTrainingButton');
+  const key=developmentBuilding;
+  const busy=!!developmentState?.training?.[key];
+  if(!developmentTrainType){statsEl.textContent='برای دیدن مشخصات، یک نوع نیرو را انتخاب کنید.';}
+  else {const st=developmentUnitStats(developmentTrainType);statsEl.innerHTML='<strong>'+developmentUnitLabel(developmentTrainType)+'</strong><br>سلامتی: '+st.health.toLocaleString('fa-IR')+'<br>قدرت ضربه: '+st.damage.toLocaleString('fa-IR')+'<br>طلای لازم برای هر واحد: '+st.cost.toLocaleString('fa-IR');}
+  const capacity=developmentTrainingCapacity();
+  countInput.max=String(capacity);
+  countInput.disabled=busy;
+  maxButton.disabled=busy;
+  startButton.disabled=busy;
+  if(busy){startButton.textContent='در حال ساخت';maxButton.textContent='غیرفعال';}
+  else {startButton.textContent='شروع';maxButton.textContent='حداکثر';}
+}
+function fillDevelopmentTrainingMaximum(){
+  if(!developmentTrainType)return developmentMessage('ابتدا نوع نیرو را انتخاب کنید.');
+  const key=developmentBuilding;
+  if(developmentState?.training?.[key])return developmentMessage('این پادگان در حال ساخت نیرو است.');
+  const perUnit=developmentTrainingCost();
+  const byGold=Math.floor(Math.max(0,Number(developmentState?.gold)||0)/perUnit);
+  const max=Math.max(0,Math.min(developmentTrainingCapacity(),byGold));
+  document.getElementById('trainingCountInput').value=String(max);
+  if(max<1)developmentMessage('طلای کافی برای ساخت نیرو ندارید.');
+}
 function openDevelopmentTraining(){
   const key=developmentBuilding;
   if(key!=='barracks1'&&key!=='barracks2')return;
   const busy=developmentState.training[key];
-  document.getElementById('trainingTitle').textContent='🪖 نیرو سازی '+(key==='barracks1'?'سربازخانه ۱':'سربازخانه ۲');
-  document.getElementById('trainingInfo').innerHTML=busy?'در حال ساخت: '+busy.count+' '+(busy.type==='archer'?'کماندار':busy.type==='cavalry'?'سواره':'شمشیرزن'):'نوع نیرو را انتخاب کنید.';
-  document.getElementById('trainingCountInput').value=1;document.getElementById('trainingCountInput').max=developmentTrainingCapacity();developmentTrainType=null;
+  document.getElementById('trainingTitle').textContent=key==='barracks1'?'پادگان ۱':'پادگان ۲';
+  document.getElementById('trainingInfo').innerHTML=busy?'در حال ساخت: '+busy.count+' '+developmentUnitLabel(busy.type):'نوع نیرو را انتخاب کنید.';
+  document.getElementById('trainingCountInput').value=1;developmentTrainType=null;
   document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.remove('selected'));
+  updateDevelopmentTrainingStats();
   closeDevelopmentBuilding();document.getElementById('trainingPanel').classList.add('open');
 }
 async function startDevelopmentTraining(){
-  const key=developmentBuilding;if(key!=='barracks1'&&key!=='barracks2')return;if(!developmentTrainType)return developmentMessage('نوع نیرو را انتخاب کنید.');
-  const count=Math.max(1,Math.floor(Number(document.getElementById('trainingCountInput').value)||0)),capacity=developmentTrainingCapacity();if(count>capacity)return developmentMessage('حداکثر ظرفیت این سربازخانه '+capacity+' سرباز است.');
+  const key=developmentBuilding;if(key!=='barracks1'&&key!=='barracks2')return;
+  if(developmentState?.training?.[key])return developmentMessage('این پادگان در حال ساخت نیرو است.');
+  if(!developmentTrainType)return developmentMessage('نوع نیرو را انتخاب کنید.');
+  const count=Math.max(1,Math.floor(Number(document.getElementById('trainingCountInput').value)||0)),capacity=developmentTrainingCapacity();
+  if(count>capacity)return developmentMessage('حداکثر ظرفیت این پادگان '+capacity+' سرباز است.');
+  if(count*developmentTrainingCost()>Number(developmentState.gold||0))return developmentMessage('طلای کافی برای ساخت این تعداد نیرو ندارید.');
   try{const data=await api('/api/castle/'+encodeURIComponent(selectedCastleId)+'/development/action',{method:'POST',body:JSON.stringify({action:'train',building:key,unit:developmentTrainType,count})});const c=data.castle;developmentState.gold=Number(c.gold||0);developmentState.buildings=c.buildings;developmentState.training=c.trainingJobs;developmentState.activeUpgrade=c.activeUpgrade;developmentState.goldCapacity=c.goldCapacity;if(c.army&&castles[c.id])castles[c.id].army=c.army;developmentSave();document.getElementById('trainingPanel').classList.remove('open');developmentMessage('نیروسازی شروع شد.');developmentUpdateTop();}catch(e){developmentMessage(e.message||'شروع نیروسازی ناموفق بود.');await developmentRefreshFromServer();}
 }
 const developmentAlphaCache=new WeakMap();
@@ -2073,7 +2134,8 @@ document.getElementById('developmentTrainButton').onclick=openDevelopmentTrainin
 document.getElementById('developmentBuildingClose').onclick=closeDevelopmentBuilding;
 document.getElementById('trainingCloseButton').onclick=()=>document.getElementById('trainingPanel').classList.remove('open');
 document.getElementById('startTrainingButton').onclick=startDevelopmentTraining;
-document.querySelectorAll('[data-development-train]').forEach(btn=>btn.onclick=()=>{developmentTrainType=btn.dataset.developmentTrain;document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.toggle('selected',x===btn));});
+document.getElementById('trainingMaxButton').onclick=fillDevelopmentTrainingMaximum;
+document.querySelectorAll('[data-development-train]').forEach(btn=>btn.onclick=()=>{developmentTrainType=btn.dataset.developmentTrain;document.querySelectorAll('[data-development-train]').forEach(x=>x.classList.toggle('selected',x===btn));updateDevelopmentTrainingStats();});
 document.getElementById('developmentScene').addEventListener('click',e=>{
   if(e.target.closest('.dev-hit')) return;
   const img=developmentBuildingFromPoint(e);
