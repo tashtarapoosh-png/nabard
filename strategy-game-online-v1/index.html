@@ -450,6 +450,43 @@ button:hover{filter:brightness(1.12)}
 }
 </style>
 
+
+<style id="achaemenid-user-refinements-v4">
+/* تنظیمات درخواستی؛ فقط ظاهر و عنوان‌های نمایشی */
+#defense .card, #attack .card { overflow: visible!important; }
+#defense .card { padding-top: 12px!important; padding-bottom: 12px!important; }
+#defense #defenseTitle { position:relative!important; top:16px!important; margin:0 0 16px!important; font-size:clamp(16px,2.5vw,21px)!important; line-height:1.25!important; }
+#defense .card > p { position:relative!important; top:16px!important; margin:0 0 19px!important; font-size:12px!important; line-height:1.25!important; }
+#defense #defenseSlots { width:80%!important; max-width:610px!important; margin:0 auto!important; grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:5px!important; }
+#defense #defenseSlots .slot { min-width:0!important; padding:3px!important; gap:2px!important; }
+#defense #defenseSlots .slot select, #defense #defenseSlots .slot input { min-width:0!important; width:100%!important; min-height:22px!important; padding:2px 3px!important; font-size:11px!important; }
+#defense .actions { width:80%!important; margin:9px auto 0!important; gap:6px!important; }
+#defense .actions button { min-width:0!important; flex:1 1 0!important; padding:6px 5px!important; font-size:12px!important; }
+#attack .card { padding-top:12px!important; padding-bottom:12px!important; }
+#attack #attackTitle { position:relative!important; top:25px!important; margin:0 0 25px!important; font-size:clamp(16px,2.5vw,21px)!important; line-height:1.25!important; }
+#attack .card > label { font-size:12px!important; }
+#attack .card > p { position:relative!important; top:16px!important; margin:0 0 19px!important; font-size:12px!important; line-height:1.25!important; }
+#attack #attackSlots { width:80%!important; max-width:610px!important; margin:0 auto!important; grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:5px!important; }
+#attack #attackSlots .slot { min-width:0!important; padding:3px!important; gap:2px!important; }
+#attack #attackSlots .slot select, #attack #attackSlots .slot input { min-width:0!important; width:100%!important; min-height:22px!important; padding:2px 3px!important; font-size:11px!important; }
+#attack .actions { width:80%!important; margin:9px auto 0!important; gap:6px!important; }
+#attack .actions button { min-width:0!important; flex:1 1 0!important; padding:6px 5px!important; font-size:12px!important; }
+/* Training: shift the title and troop row right by about one-sixth of the Max button width */
+#trainingPanel .trainingChoicesCompact { width:calc(100% - 18px)!important; box-sizing:border-box!important; margin-left:18px!important; margin-right:0!important; padding-left:0!important; padding-right:0!important; gap:4px!important; }
+#trainingPanel .trainingChoiceCompact { min-width:0!important; width:100%!important; padding:4px 2px!important; }
+#trainingPanel .trainingChoiceCompact img { max-width:100%!important; object-fit:contain!important; }
+#trainingPanel #trainingTitle { position:relative!important; top:13px!important; margin-bottom:13px!important; font-size:15px!important; line-height:1.3!important; }
+#buildingActionPanel .developmentModal h3 { position:relative!important; top:-17px!important; margin-bottom:-17px!important; font-size:15px!important; line-height:1.25!important; }
+#buildingActionPanel .developmentModal { overflow:visible!important; }
+@media(max-width:520px) {
+  #defense #defenseSlots, #attack #attackSlots { width:88%!important; gap:4px!important; }
+  #defense .actions, #attack .actions { width:88%!important; }
+  #defense #defenseSlots .slot, #attack #attackSlots .slot { padding:2px!important; }
+  #defense #defenseSlots .slot select, #defense #defenseSlots .slot input,
+  #attack #attackSlots .slot select, #attack #attackSlots .slot input { font-size:10px!important; }
+}
+</style>
+
 </head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
@@ -2047,7 +2084,7 @@ function openDevelopmentBuilding(type){
   if(!developmentState)developmentLoad();
   developmentBuilding=type;
   const b=developmentState.buildings[type]||{level:1};
-  const names={castle:'قلعه',wall:'دیوار',barracks1:'سربازخانه ۱',barracks2:'سربازخانه ۲',goldMine:'معدن طلا'};
+  const names={castle:'قلعه',wall:'دیوار',barracks1:'پادگان ۱',barracks2:'پادگان ۲',goldMine:'معدن طلا'};
   const target=b.level+1;
   const cost=developmentUpgradeCost(type,target);
   let info='سطح فعلی: '+b.level+'<br>هزینه ارتقا: '+cost+' طلا';
