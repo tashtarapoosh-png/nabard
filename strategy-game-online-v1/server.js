@@ -113,7 +113,7 @@ async function initDb(){
       defender_slots JSONB NOT NULL,
       armies JSONB NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '100 years'),
+      ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 minutes'),
       ended BOOLEAN NOT NULL DEFAULT FALSE,
       winner_side TEXT,
       report_armies JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -132,9 +132,10 @@ async function initDb(){
   await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_claim_token TEXT`);
   await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS round_claim_expires_at TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE battles ADD COLUMN IF NOT EXISTS processed_round_number INTEGER NOT NULL DEFAULT 0`);
-  // ساعت نبرد با پایان راند جلو می‌رود و به ورود/خروج بازیکنان وابسته نیست.
-  await pool.query(`UPDATE battles SET ends_at=NOW()+INTERVAL '100 years' WHERE ended=FALSE`);
+  // نبرد پس از ۹۰ راندِ ۲۰ ثانیه‌ای تمام می‌شود؛ ساعت مستقل از حضور بازیکن است.
   await pool.query(`UPDATE battles SET round_duration_seconds=20 WHERE ended=FALSE AND round_duration_seconds<>20`);
+  // فقط مقدار قدیمیِ ۱۰۰ ساله را یک‌بار تبدیل کن؛ مهلت واقعی نبردهای فعال را هنگام هر راه‌اندازی از نو تنظیم نکن.
+  await pool.query(`UPDATE battles SET ends_at=NOW() + (GREATEST(0, 90 - round_number) * round_duration_seconds) * INTERVAL '1 second' WHERE ended=FALSE AND ends_at > NOW() + INTERVAL '1 year'`);
   await pool.query(`UPDATE battles SET processed_round_number=round_number WHERE ended=FALSE AND processed_round_number=0 AND round_number>0`);
 
   await pool.query(`
@@ -206,12 +207,12 @@ async function initDb(){
   `);
   await pool.query(`
     UPDATE battles
-    SET ends_at = created_at + INTERVAL '100 years'
+    SET ends_at = NOW() + (GREATEST(0, 90 - round_number) * round_duration_seconds) * INTERVAL '1 second'
     WHERE ends_at IS NULL
   `);
   await pool.query(`
     ALTER TABLE battles
-    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '100 years')
+    ALTER COLUMN ends_at SET DEFAULT (NOW() + INTERVAL '30 minutes')
   `);
   await pool.query(`
     ALTER TABLE battles
@@ -353,11 +354,16 @@ async function expireBattles(){
   try{
     await client.query('BEGIN');
     const r=await client.query(`
-      SELECT id,target_id FROM battles
+      SELECT * FROM battles
       WHERE ended=FALSE AND ends_at<=NOW()
       FOR UPDATE
     `);
     for(const b of r.rows){
+      const activeArmies=Array.isArray(b.armies)?b.armies:[];
+      const reportArmies=mergeReportArmies(b.report_armies,activeArmies);
+      // پایان زمان: بدون برنده و بدون تلفات؛ همهٔ نیروها و طلای همراه دقیقاً برمی‌گردد.
+      await returnBattleTroops(client,activeArmies,null,reportArmies);
+      await settleBattleGold(client,reportArmies,null,b.target_id);
       await client.query('DELETE FROM attacks WHERE target_id=$1 AND status=\'resolved\'', [b.target_id]);
       await client.query('DELETE FROM battles WHERE id=$1', [b.id]);
       await client.query(
@@ -1083,12 +1089,22 @@ async function settleBattleGold(client, armies, winnerSide, targetId){
   const all=Array.isArray(armies)?armies:[];
   const attackers=all.filter(a=>a.side==='مهاجم' && Number(a.goldCarried||0)>0);
   const carriedTotal=attackers.reduce((n,a)=>n+Math.max(0,Math.floor(Number(a.goldCarried)||0)),0);
+  const defenderHelperGold=all.filter(a=>a.side==='مدافع').reduce((n,a)=>n+Math.max(0,Math.floor(Number(a.goldCarried)||0)),0);
+  if(winnerSide==null){
+    // پایان زمان یا صفرشدن هم‌زمان دو ساید: طلای همراه مهاجمان عیناً برمی‌گردد.
+    for(const a of attackers){
+      const carried=Math.max(0,Math.floor(Number(a.goldCarried)||0));
+      if(carried>0)await client.query('UPDATE castles SET gold=COALESCE(gold,0)+$1 WHERE id=$2',[carried,Number(a.castleId)]);
+    }
+    return 0;
+  }
   if(!carriedTotal)return 0;
   if(winnerSide==='مهاجم'){
-    // بازگشت طلای همراه و سپس غارت همان مقدار از مدافع (تا سقف موجودی او).
+    // طلای همراه مهاجمان برمی‌گردد؛ غارت از قلعهٔ هدف برابر خالص طلای همراه، تا سقف موجودی قلعه است.
     const targetQ=await client.query('SELECT gold FROM castles WHERE id=$1 FOR UPDATE',[targetId]);
     const available=Math.max(0,Math.floor(Number(targetQ.rows[0]?.gold||0)));
-    const loot=Math.min(available,carriedTotal);
+    const netLoot=Math.max(0,carriedTotal-defenderHelperGold);
+    const loot=Math.min(available,netLoot);
     await client.query('UPDATE castles SET gold=GREATEST(0,COALESCE(gold,0)-$1) WHERE id=$2',[loot,targetId]);
     let distributed=0;
     for(let i=0;i<attackers.length;i++){
@@ -1153,7 +1169,7 @@ async function resolveAttack(attackId){
 
       const battleRow=await client.query(`
         INSERT INTO battles(target_id,defender_slots,armies,ends_at)
-        VALUES($1,$2::jsonb,'[]'::jsonb,NOW()+INTERVAL '100 years')
+        VALUES($1,$2::jsonb,'[]'::jsonb,NOW()+INTERVAL '30 minutes')
         RETURNING *
       `,[attack.target_id,JSON.stringify(defenderSlots)]);
 
@@ -1370,6 +1386,41 @@ function gozbat(battleRow){
   return Array.from(reportMap.values());
 }
 
+// بازگرداندن نیروهای شرکت‌کننده پس از پایان نبرد.
+// برنده تمام نیروی اعزامی اولیه را پس می‌گیرد؛ بازنده بازمانده‌ها به‌علاوهٔ ۴/۵ تلفات را می‌گیرد.
+async function returnBattleTroops(client, armies, winnerSide, reportArmies=null){
+  const totalsByCastle=new Map();
+  const completeArmies=Array.isArray(reportArmies)?mergeReportArmies(reportArmies,armies):(Array.isArray(armies)?armies:[]);
+  for(const army of completeArmies){
+    const castleId=Number(army?.castleId);
+    if(!Number.isInteger(castleId)||castleId<1)continue;
+    const byType={archer:0,cavalry:0,swordsman:0};
+    const initialByType={archer:0,cavalry:0,swordsman:0};
+    for(const unit of (Array.isArray(army.units)?army.units:[])){
+      const type=String(unit?.rawType||'');
+      if(!Object.prototype.hasOwnProperty.call(byType,type))continue;
+      const initial=Math.max(0,Math.floor(Number(unit.initialCount ?? unit.count)||0));
+      const remaining=Math.min(initial,Math.max(0,Math.floor(Number(unit.count)||0)));
+      initialByType[type]+=initial;
+      byType[type]+=remaining;
+    }
+    const result=totalsByCastle.get(castleId)||{archer:0,cavalry:0,swordsman:0};
+    for(const type of Object.keys(byType)){
+      const initial=initialByType[type], remaining=byType[type];
+      if(winnerSide==null || String(army.side||'')===String(winnerSide)) result[type]+=initial;
+      else result[type]+=remaining+Math.floor(Math.max(0,initial-remaining)*4/5);
+    }
+    totalsByCastle.set(castleId,result);
+  }
+  for(const [castleId,returned] of totalsByCastle){
+    const q=await client.query('SELECT army FROM castles WHERE id=$1 FOR UPDATE',[castleId]);
+    if(!q.rows[0])continue;
+    const army={...emptyArmy(),...(q.rows[0].army||{})};
+    for(const type of Object.keys(returned))army[type]=Math.max(0,Math.floor(Number(army[type])||0))+returned[type];
+    await client.query('UPDATE castles SET army=$1::jsonb WHERE id=$2',[JSON.stringify(army),castleId]);
+  }
+}
+
 // پاداش پایان نبرد: یک‌بار و در همان تراکنش، ۱۳ کماندار به قلعهٔ اصلیِ طرف پیروز افزوده می‌شود.
 async function grantWinnerArchers(client, armies, winnerSide){
   if(!winnerSide || !Array.isArray(armies)) return null;
@@ -1400,19 +1451,20 @@ app.post("/api/battle/:id/retreat", async(req,res)=>{
     if(!retreating.length){await client.query('ROLLBACK');return res.status(404).json({error:"نیرویی از این قلعه در نبرد نیست."});}
     const reportArmies=mergeReportArmies(row.report_armies,armies);
     const retreatIds=new Set(retreating.map(a=>String(a.armyId)));
-    for(const a of reportArmies){if(retreatIds.has(String(a.armyId))){a.units=(a.units||[]).map(u=>({...u,count:0,health:0}));a.retreated=true;}}
-    const remaining=armies.map(a=>{
-      if(Number(a.castleId)!==castleId)return a;
-      return {...a,retreated:true,units:(a.units||[]).map(u=>({...u,count:0,health:0}))};
-    });
+    // نیروی عقب‌نشسته از نبرد فعال خارج می‌شود، اما شمار نیروهای زنده‌اش
+    // در snapshot گزارش حفظ می‌شود تا هنگام پایان، بازگشت بر اساس نتیجه تعیین شود.
+    for(const a of reportArmies){if(retreatIds.has(String(a.armyId)))a.retreated=true;}
+    const remaining=armies.filter(a=>Number(a.castleId)!==castleId);
     const liveUnits=remaining.flatMap(a=>(a.units||[]).filter(u=>Number(u.count)>0).map(u=>({side:u.side||a.side,count:Number(u.count)})));
     const sides=new Set(liveUnits.map(u=>u.side));
     let ended=false, winnerSide=null;
     if(liveUnits.length===0||sides.size<=1){
       ended=true;
-      winnerSide=liveUnits.length?liveUnits[0].side:(retreating[0].side==='مهاجم'?'مدافع':'مهاجم');
+      const retreatingHasLiveUnits=retreating.some(a=>(a.units||[]).some(u=>Number(u.count)>0));
+      winnerSide=liveUnits.length?liveUnits[0].side:(retreatingHasLiveUnits?retreating[0].side:null);
+      await returnBattleTroops(client,remaining,winnerSide,reportArmies);
       const finalRow={...row,armies:remaining,report_armies:reportArmies};
-      const lootGold=await settleBattleGold(client, remaining, winnerSide, row.target_id);
+      const lootGold=await settleBattleGold(client, reportArmies, winnerSide, row.target_id);
       const report=gozbat(finalRow);
       await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side,loot_gold) VALUES($1,$2::jsonb,$3,$4) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,loot_gold=EXCLUDED.loot_gold,created_at=NOW()`,[battleId,JSON.stringify(report),winnerSide,lootGold]);
       await client.query('DELETE FROM battles WHERE id=$1',[battleId]);
@@ -1456,12 +1508,13 @@ app.post("/api/battle/:id/end", async(req,res)=>{
     const liveSides=[...new Set(liveUnits.map(u=>u.side))];
     // نتیجه فقط از وضعیت ذخیره‌شدهٔ سرور تعیین می‌شود؛ مقدار ارسالی مرورگر معتبر نیست.
     const winnerSide=liveSides.length===1?liveSides[0]:null;
-    if(!winnerSide){
+    if(!winnerSide && liveUnits.length>0){
       await client.query('ROLLBACK');
       return res.status(409).json({error:'سرور هنوز پایان قطعی نبرد را تشخیص نداده است.'});
     }
+    await returnBattleTroops(client,fullBattle.armies,winnerSide,fullBattle.report_armies);
     const lootGold=await settleBattleGold(client, fullBattle.armies, winnerSide, fullBattle.target_id);
-    await grantWinnerArchers(client, fullBattle.armies, winnerSide);
+    if(winnerSide)await grantWinnerArchers(client, fullBattle.armies, winnerSide);
     const report=gozbat(fullBattle);
     await client.query(
       `INSERT INTO battle_reports(battle_id,report,winner_side,loot_gold)
@@ -1596,8 +1649,9 @@ async function processDueBattleRounds(){
       const winnerSide=sides.length===1?sides[0]:null;
       const reportArmies=mergeReportArmies(row.report_armies,armies);
       if(ended){
+        await returnBattleTroops(client,armies,winnerSide,reportArmies);
         const lootGold=await settleBattleGold(client, armies, winnerSide, row.target_id);
-        await grantWinnerArchers(client, armies, winnerSide);
+        if(winnerSide)await grantWinnerArchers(client, armies, winnerSide);
         const report=gozbat({...row,armies,report_armies:reportArmies});
         await client.query(`INSERT INTO battle_reports(battle_id,report,winner_side,loot_gold) VALUES($1,$2::jsonb,$3,$4) ON CONFLICT(battle_id) DO UPDATE SET report=EXCLUDED.report,winner_side=EXCLUDED.winner_side,loot_gold=EXCLUDED.loot_gold,created_at=NOW()`,[row.id,JSON.stringify(report),winnerSide,lootGold]);
         await client.query('DELETE FROM battles WHERE id=$1',[row.id]);
