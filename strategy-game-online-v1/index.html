@@ -590,6 +590,30 @@ button:hover{filter:brightness(1.12)}
  #castleMessagesCard{width:100vw!important;height:100vh!important;height:100dvh!important;padding:12px!important}
  #castleMessageSend{width:17.5%!important;flex-basis:17.5%!important;height:22px!important;min-height:22px!important}
 }
+
+/* Latest requested fine-tuning only: keep both windows' geometry unchanged. */
+#castleProfile .profile-card{position:relative!important}
+#castleProfile #profileTitle{
+ position:absolute!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;
+ top:18px!important;margin:0!important;padding:0!important;width:25vw!important;max-width:25vw!important;
+ text-align:center!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+#castleProfile .profile-actions button{
+ width:80%!important;justify-self:center!important;
+}
+#castleMessagesHeader h2{
+ top:22px!important;
+}
+#castleMessagesList,#castleMessagesStatus,#castleMessageCompose{
+ width:90%!important;max-width:90%!important;margin-left:auto!important;margin-right:auto!important;
+}
+#castleMessageCompose button{flex:0 0 17.5%!important;width:17.5%!important}
+#castleMessageText{min-width:0!important}
+@media(max-width:420px){
+ #castleProfile #profileTitle{top:18px!important;width:25vw!important;max-width:25vw!important}
+ #castleProfile .profile-actions button{width:80%!important}
+ #castleMessagesList,#castleMessagesStatus,#castleMessageCompose{width:90%!important;max-width:90%!important}
+}
 </style></head>
 <body>
 <div id="battleReportSelectOverlay" class="battle-report-overlay">
