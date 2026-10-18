@@ -1,0 +1,11 @@
+
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nabard",
+  "main": "strategy-game-online-v1/worker.js",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "strategy-game-online-v1",
+    "binding": "ASSETS"
+  }
+}
