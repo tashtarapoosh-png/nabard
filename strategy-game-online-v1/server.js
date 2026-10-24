@@ -819,7 +819,7 @@ app.post('/api/auth/register',async(req,res)=>{
 });
 app.get('/api/castle/:id/development',async(req,res)=>{
   const id=Number(req.params.id);if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
-  try{await processCastleDevelopment();const q=await pool.query('SELECT id,gold,buildings,training_jobs,active_upgrade,army,development_updated_at FROM castles WHERE id=$1',[id]);if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});const r=q.rows[0];res.json({ok:true,castle:{id:r.id,gold:Number(r.gold||0),buildings:r.buildings||defaultBuildings(),trainingJobs:r.training_jobs||{barracks1:null,barracks2:null},activeUpgrade:r.active_upgrade||null,army:r.army||emptyArmy(),goldCapacity:goldCapacity(r.buildings||defaultBuildings())}});}catch(e){console.error('get development',e);res.status(500).json({error:'خواندن اطلاعات توسعه ناموفق بود.'});}
+  try{const q=await pool.query('SELECT id,gold,buildings,training_jobs,active_upgrade,army,development_updated_at FROM castles WHERE id=$1',[id]);if(!q.rows[0])return res.status(404).json({error:'قلعه پیدا نشد.'});const r=q.rows[0];res.json({ok:true,castle:{id:r.id,gold:Number(r.gold||0),buildings:r.buildings||defaultBuildings(),trainingJobs:r.training_jobs||{barracks1:null,barracks2:null},activeUpgrade:r.active_upgrade||null,army:r.army||emptyArmy(),goldCapacity:goldCapacity(r.buildings||defaultBuildings())}});}catch(e){console.error('get development',e);res.status(500).json({error:'خواندن اطلاعات توسعه ناموفق بود.'});}
 });
 app.post('/api/castle/:id/development/action',async(req,res)=>{
   const id=Number(req.params.id),action=String(req.body?.action||'');if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شماره قلعه نامعتبر است.'});
