@@ -1906,12 +1906,22 @@ renderCastles();
    No login/ownership layer: selectedCastleId is the player/castle identity. */
 let sqlConnected=true;
 let onlineAttackId=null;
+const apiGetInFlight = new Map();
 async function api(url,options={}){
-  const authHeaders=(String(url).startsWith('/api/messages')&&localStorage.getItem('strategyGameSessionToken'))?{Authorization:'Bearer '+localStorage.getItem('strategyGameSessionToken')}:{};
-  const res=await fetch(url,{cache:'no-store',headers:{"Content-Type":"application/json",...authHeaders,...(options.headers||{})},...options});
-  let data={}; try{data=await res.json();}catch(e){}
-  if(!res.ok)throw new Error(data.error||"خطای سرور");
-  return data;
+  const method=String(options.method||'GET').toUpperCase();
+  const key=method==='GET'?String(url):null;
+  if(key&&apiGetInFlight.has(key))return apiGetInFlight.get(key);
+  const requestPromise=(async()=>{
+    const authHeaders=(String(url).startsWith('/api/messages')&&localStorage.getItem('strategyGameSessionToken'))?{Authorization:'Bearer '+localStorage.getItem('strategyGameSessionToken')}:{ };
+    const res=await fetch(url,{cache:'no-store',headers:{"Content-Type":"application/json",...authHeaders,...(options.headers||{})},...options});
+    let data={}; try{data=await res.json();}catch(e){}
+    if(!res.ok)throw new Error(data.error||"خطای سرور");
+    return data;
+  })();
+  if(!key)return requestPromise;
+  apiGetInFlight.set(key,requestPromise);
+  try{return await requestPromise;}
+  finally{if(apiGetInFlight.get(key)===requestPromise)apiGetInFlight.delete(key);}
 }
 function applyServerCastles(list){
   if(!Array.isArray(list))return;
@@ -2431,7 +2441,8 @@ let authRequestPending=false;
 function authStart(mode){authMode=mode;authSubmit();}
 async function authSubmit(){if(authRequestPending)return;const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;if(!username||!password){document.getElementById('authError').textContent='نام کاربری و رمز عبور را وارد کنید.';return;}if(!authMode){document.getElementById('authError').textContent='ابتدا ورود یا ثبت‌نام را انتخاب کنید.';return;}authRequestPending=true;const buttons=document.querySelectorAll('#authActions button');buttons.forEach(b=>b.disabled=true);document.getElementById('authError').textContent='';try{const data=await api('/api/auth/'+authMode,{method:'POST',body:JSON.stringify({username,password})});if(!data||!data.castle||data.castle.id==null)throw new Error('پاسخ سرور برای قلعه معتبر نیست.');if(data.sessionToken)localStorage.setItem('strategyGameSessionToken',data.sessionToken);applyServerCastles([data.castle]);selectedCastleId=data.castle.id;u.castle=selectedCastleId;battleReportOnlineSince=Date.now();localStorage.setItem('strategyGameUsername',data.castle.username||username);document.getElementById('authOverlay').style.display='none';await syncState();await openDevelopment();checkForNewBattleReport();}catch(e){document.getElementById('authError').textContent=e.message||'خطا در ورود یا ثبت‌نام';}finally{authRequestPending=false;buttons.forEach(b=>b.disabled=false);}}
 // همگام‌سازی موجودی نیروها از سرور در تمام صفحه‌های بازی، نه فقط صفحه توسعه.
-setInterval(async()=>{if(selectedCastleId===null||document.visibilityState==='hidden')return;try{await syncState();if(developmentState&&document.getElementById('developmentPanel')?.classList.contains('active'))await developmentRefreshFromServer();if(document.getElementById('playerMapScreen')?.classList.contains('active')){const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();}}catch(e){}},4000);
+let backgroundSyncBusy=false;
+setInterval(async()=>{if(selectedCastleId===null||document.visibilityState==='hidden'||backgroundSyncBusy)return;backgroundSyncBusy=true;try{await syncState();if(developmentState&&document.getElementById('developmentPanel')?.classList.contains('active'))await developmentRefreshFromServer();if(document.getElementById('playerMapScreen')?.classList.contains('active')){const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();}}catch(e){}finally{backgroundSyncBusy=false;}},4000);
 async function openPlayerMap(){try{const data=await api('/api/map');mapCastles=data.castles;applyServerCastles(mapCastles.map(c=>({id:c.id,name:c.name,army:c.army,defenseSlots:c.defenseSlots,username:c.username,mapX:c.x,mapY:c.y,gold:c.gold,buildings:c.buildings})));renderPlayerMap();document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('playerMapScreen').classList.add('active');document.body.classList.remove('battle-background');requestAnimationFrame(()=>requestAnimationFrame(()=>{centerPlayerMapOwnCastle();setTimeout(centerPlayerMapOwnCastle,120);}));}catch(e){alert(e.message||'نقشه بارگذاری نشد.');}}
 function renderPlayerMap(){const world=document.getElementById('playerMapWorld');world.innerHTML='';if(!mapCastles.length){document.getElementById('mapInfo').textContent='هنوز قلعه‌ای برای نمایش وجود ندارد.';return;}const xs=mapCastles.map(c=>Number(c.x)||0),ys=mapCastles.map(c=>Number(c.y)||0);const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const cell=260,margin=520;const width=Math.max(2400,(maxX-minX)*cell+margin*2),height=Math.max(1800,(maxY-minY)*cell+margin*2);world.style.width=width+'px';world.style.height=height+'px';document.getElementById('mapInfo').textContent='قلعه‌ها از اطلاعات آنلاین بازی و مختصات ذخیره‌شده در پایگاه داده نمایش داده می‌شوند. برای حمله یا کمک دفاعی روی قلعهٔ دیگر کلیک کنید.';for(const castle of mapCastles){const x=margin+(Number(castle.x)-minX)*cell+cell/2,y=margin+(Number(castle.y)-minY)*cell+cell/2;const b=document.createElement('button');b.type='button';b.className='map-castle'+(Number(castle.id)===Number(selectedCastleId)?' own':'');b.dataset.castleId=String(castle.id);b.style.left=x+'px';b.style.top=y+'px';const img=document.createElement('img');img.src='castle.png';img.alt='قلعه';img.draggable=false;const label=document.createElement('span');label.className='map-castle-name';label.textContent=(castle.username||castle.name||('قلعه '+castle.id))+(Number(castle.id)===Number(selectedCastleId)?' • شما':'');b.append(img,label);b.title=(castle.name||'قلعه')+' — ('+castle.x+','+castle.y+')';b.onclick=()=>{world.querySelectorAll('.map-castle').forEach(c=>c.classList.remove('selected'));b.classList.add('selected');openCastleProfile(castle.id);};world.appendChild(b);}}
 function centerPlayerMapOwnCastle(){const viewport=document.getElementById('playerMapViewport'),own=document.querySelector('#playerMapWorld .map-castle.own');if(!viewport||!own)return;const x=parseFloat(own.style.left)||own.offsetLeft,y=parseFloat(own.style.top)||own.offsetTop;viewport.scrollTo({left:Math.max(0,Math.min(viewport.scrollWidth-viewport.clientWidth,x-viewport.clientWidth/2)),top:Math.max(0,Math.min(viewport.scrollHeight-viewport.clientHeight,y-viewport.clientHeight/2)),behavior:'auto'});}

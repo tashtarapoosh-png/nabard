@@ -8,7 +8,19 @@ export default {
       url.hostname = "nabard-9d4x.onrender.com";
       url.protocol = "https:";
 
-      return fetch(new Request(url.toString(), request));
+      // Diagnostic timing: measures only the Worker-to-Render fetch duration.
+      // This does not change API payloads or battle/game logic.
+      const originStartedAt = Date.now();
+      const originResponse = await fetch(new Request(url.toString(), request));
+      const originDurationMs = Date.now() - originStartedAt;
+      const responseHeaders = new Headers(originResponse.headers);
+      responseHeaders.set("X-Game-Origin-Ms", String(originDurationMs));
+      responseHeaders.set("Server-Timing", `origin;dur=${originDurationMs}`);
+      return new Response(originResponse.body, {
+        status: originResponse.status,
+        statusText: originResponse.statusText,
+        headers: responseHeaders
+      });
     }
 
     // اصلاح مسیر تصاویر بازی
